@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>SMASH · Panel de cocina</title>
+<link rel="stylesheet" href="cocina.css">
+<link rel="stylesheet" href="ui.css">
+<link rel="stylesheet" href="modulos.css">
+</head>
+<body>
+
+<header class="topbar">
+  <img src="images/logo-smash.jpeg" alt="Logo SMASH" class="logo">
+  <div class="brand">
+    <h1>SMASH · Panel</h1>
+    <p>Acceso interno — solo personal</p>
+  </div>
+  <div id="staffBox" class="user-box" hidden>
+    <span id="staffName"></span>
+    <button id="staffLogoutBtn" class="btn-ghost">Salir</button>
+  </div>
+  <div class="top-links"><a href="dueno.html" class="link-btn"><span>🔑 Panel de dueños</span></a><a href="cliente.html" class="link-btn" target="_blank" rel="noopener"><span>🍔 Página de clientes</span></a></div>
+</header>
+
+<main class="container">
+
+  <!-- ================= LOGIN DE PERSONAL ================= -->
+  <section id="staffAuthSection" class="card">
+    <h2 class="section-title" style="margin-top:0">Acceso de personal</h2>
+    <form id="staffLoginForm" class="auth-form">
+      <label>Usuario</label>
+      <input type="text" id="staffUsuario" required autocomplete="username">
+      <label>Contraseña</label>
+      <input type="password" id="staffPassword" required autocomplete="current-password">
+      <p class="error" id="staffError"></p>
+      <button type="submit" class="btn-primary">Entrar al panel</button>
+    </form>
+  </section>
+
+  <!-- ================= PANEL (logueado) ================= -->
+  <section id="dashboardSection" class="shell" hidden>
+   <button id="menuToggle" class="menu-toggle" type="button">☰ Menú</button>
+   <aside class="side" id="side">
+    <nav class="side-nav" id="panelNav">
+      <button class="nav-btn active" data-section="pendientes">📦 Pedidos pendientes</button>
+      <button class="nav-btn" data-section="crear">➕ Crear pedido</button>
+      <button class="nav-btn" data-section="domicilios">🛵 Domicilios</button>
+      <button class="nav-btn" data-section="caja">💵 Caja</button>
+      <button class="nav-btn" data-section="historial">📜 Historial de comandas</button>
+      <button class="nav-btn" data-section="conteo">🍔 Conteo del día</button>
+      <button class="nav-btn" data-section="contabilidad">💰 Facturación del día</button>
+      <button class="nav-btn" data-section="clientes">⭐ Clientes</button>
+      <button class="nav-btn" data-section="config">⚙️ Configuración</button>
+    </nav>
+    <div class="sound-box"><button id="soundBtn" class="btn-secondary" type="button">🔔 Sonido: activar</button><span id="soundHint" class="hint"></span></div>
+   </aside>
+   <div class="content">
+
+    <!-- ---- Pedidos pendientes (nuevo + preparando) ---- -->
+    <section class="panel-section" id="section-pendientes">
+      <h2 class="section-title" style="margin-top:0">Pedidos pendientes</h2>
+      <div class="cupo-bar" id="cupoBar"></div>
+      <div class="import-box">
+        <b>📲 Agregar pedido de WhatsApp</b>
+        <p class="hint">Copia el mensaje del cliente y pégalo aquí tal como llegó. Se numera solo y queda listo para imprimir.</p>
+        <textarea id="importText" placeholder="*NUEVO PEDIDO - SMASH* ..."></textarea>
+        <button id="importBtn" class="btn-primary" type="button">Agregar pedido</button>
+        <p class="error" id="importMsg"></p>
+      </div>
+      <div class="board board-3">
+        <div class="column">
+          <h3>🆕 Recibidos <span class="col-n" id="n-nuevo"></span></h3>
+          <div class="orders" id="col-nuevo"></div>
+        </div>
+        <div class="column">
+          <h3>✔ Confirmados <span class="col-n" id="n-confirmado"></span></h3>
+          <div class="orders" id="col-confirmado"></div>
+        </div>
+        <div class="column">
+          <h3>🔥 En preparación <span class="col-n" id="n-preparando"></span></h3>
+          <div class="orders" id="col-preparando"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- Crear pedido (como un cliente) ---- -->
+    <section class="panel-section" id="section-crear" hidden>
+      <h2 class="section-title" style="margin-top:0">Crear pedido</h2>
+      <p class="hint">Elige los productos como lo haría el cliente. Los productos vienen del panel de dueños.</p>
+      <div class="cr-products" id="crProducts"></div>
+      <div class="cr-form">
+        <label>Cliente<input id="crCliente" maxlength="80"></label>
+        <label>Teléfono<input id="crTel" maxlength="20" inputmode="tel"></label>
+        <label class="wide">Dirección<input id="crDir" maxlength="200"></label>
+        <label>Zona<select id="crZona"></select></label>
+        <label id="crDomWrap" hidden>Valor domicilio agencia<input id="crDom" type="number" min="0" step="500"></label>
+        <label>Medio de pago<select id="crPago"><option>Efectivo</option><option>Transferencia</option></select></label>
+        <label class="wide">Notas generales<textarea id="crNotas" maxlength="300"></textarea></label>
+      </div>
+      <div class="cr-total" id="crTotal"></div>
+      <p class="error" id="crMsg"></p>
+      <button id="crBtn" class="btn-primary" type="button">Crear pedido</button>
+    </section>
+
+    <!-- ---- Domicilios entrantes (listos para despachar) ---- -->
+    <section class="panel-section" id="section-domicilios" hidden>
+      <h2 class="section-title" style="margin-top:0">Domicilios</h2>
+      <p class="hint">Asigna el domiciliario al despachar. La hora de salida y la de entrega quedan registradas.</p>
+      <div class="board">
+        <div class="column">
+          <h3>📦 Listos para despacho <span class="col-n" id="n-listo"></span></h3>
+          <div class="orders" id="col-listo"></div>
+        </div>
+        <div class="column">
+          <h3>🛵 En camino <span class="col-n" id="n-en_camino"></span></h3>
+          <div class="orders" id="col-en_camino"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- Caja: apertura, pagos, movimientos y cierre ---- -->
+    <section class="panel-section" id="section-caja" hidden>
+      <h2 class="section-title" style="margin-top:0">Caja</h2>
+      <div class="caja-root"></div>
+    </section>
+
+    <!-- ---- Historial operativo ---- -->
+    <section class="panel-section" id="section-historial" hidden>
+      <h2 class="section-title" style="margin-top:0">Historial de comandas</h2>
+      <div class="hist-root"></div>
+    </section>
+
+    <!-- ---- Conteo del día ---- -->
+    <section class="panel-section" id="section-conteo" hidden>
+      <h2 class="section-title" style="margin-top:0">Hamburguesas vendidas hoy</h2>
+      <div class="summary-grid" id="conteoResumen"></div>
+      <h3 class="section-title">Detalle por producto</h3>
+      <div id="conteoDetalle" class="simple-table"></div>
+    </section>
+
+    <!-- ---- Contabilidad ---- -->
+        <section class="panel-section" id="section-contabilidad" hidden>
+      <h2 class="section-title" style="margin-top:0">Facturación del día</h2>
+      <div class="date-row"><input type="date" id="contFecha"></div>
+      <div class="summary-grid" id="contCaja"></div>
+      <h3 class="section-title">Resumen</h3>
+      <div class="summary-grid" id="contResumen"></div>
+      <p class="hint" id="contNota"></p>
+    </section>
+
+    <!-- ---- Clientes y fidelidad ---- -->
+    <section class="panel-section" id="section-clientes" hidden>
+      <h2 class="section-title" style="margin-top:0">Clientes y fidelidad</h2>
+      <div class="cli-root"></div>
+    </section>
+
+    <!-- ---- Configuración ---- -->
+        <section class="panel-section" id="section-config" hidden>
+      <h2 class="section-title" style="margin-top:0">Configuración</h2>
+      <h3 class="section-title">Cupo de hamburguesas de hoy</h3>
+      <p class="hint">Defínelo al iniciar el día. Los clientes ven cuántas quedan y baja con cada pedido.</p>
+      <div class="date-row">
+        <input type="number" id="cupoInput" min="0" placeholder="Ej: 60">
+        <button id="guardarCupoBtn" class="btn-secondary" type="button">Guardar cupo de hoy</button>
+      </div>
+      <p class="hint" id="cupoOk"></p>
+      <p class="hint">Si el sitio está publicado en un hosting, después de cambiar el cupo publica el menú y sube el archivo <b>menu.json</b> (reemplaza el anterior).</p>
+      <button class="btn-primary publish-btn" type="button" style="margin-top:0">⬆️ Publicar menú (descargar menu.json)</button>
+    </section>
+
+   </div>
+  </section>
+</main>
+
+<footer>SMASH · Panel interno · Los datos se actualizan automáticamente cada pocos segundos.</footer>
+
+<!-- Plantilla de comanda: invisible en pantalla, solo se muestra al imprimir -->
+<div id="printArea" class="print-area"></div>
+
+<script src="data.js"></script>
+<script src="data-ext.js"></script>
+<script src="store.js"></script>
+<script src="inventario.js"></script>
+<script src="costos.js"></script>
+<script src="comandas.js"></script>
+<script src="caja.js"></script>
+<script src="clientes.js"></script>
+<script src="ticket.js"></script>
+<script src="orders-ui.js"></script>
+<script src="cocina.js"></script>
+<script src="comandas-ui.js"></script>
+<script src="caja-ui.js"></script>
+<script src="clientes-ui.js"></script>
+<script src="auditoria.js"></script>
+</body>
+</html>

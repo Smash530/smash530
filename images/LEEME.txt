@@ -1,0 +1,19 @@
+Pon aquí tus imágenes con estos nombres (las que data.js ya referencia):
+  logo-smash.png
+  producto-smash.jpg
+  producto-american-smash.jpg
+  producto-smash-toci.jpg
+  producto-combo.jpg
+Si una imagen falta, la página sigue funcionando y simplemente no la muestra.
+
+Logo del ticket de comanda (impresión y PDF): logo-ticket.jpeg
+  Debe ser JPEG (.jpeg), en blanco y negro o a color; para la térmica funciona mejor
+  con fondo blanco y trazos negros. Si no existe, el ticket sale sin logo.
+
+Logo de la página de clientes: logo-cliente.png
+  Debe ser PNG con FONDO TRANSPARENTE (sin fondo blanco), porque se muestra sobre el rojo.
+  Si falta, se muestra la hamburguesa dibujada de siempre.
+
+Fotos de productos: pueden ser .jpg, .jpeg, .png o .webp. Si data.js dice .jpg y tu archivo
+es .jpeg, la página lo encuentra sola. Los productos nuevos que crees en cocina guardan su
+foto dentro del menú: no necesitas subir archivos aparte.

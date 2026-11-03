@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>SMASH · Panel de dueños</title>
+<link rel="stylesheet" href="dueno.css">
+<link rel="stylesheet" href="ui.css">
+<link rel="stylesheet" href="modulos.css">
+</head>
+<body>
+
+<header class="topbar">
+  <img src="images/logo-smash.jpeg" alt="Logo SMASH" class="logo" onerror="this.remove()">
+  <div class="brand">
+    <h1>SMASH · Dueños</h1>
+    <p>Acceso restringido — solo propietarios</p>
+  </div>
+  <div id="staffBox" class="user-box" hidden>
+    <span id="staffName"></span>
+    <button id="staffLogoutBtn" class="btn-ghost" type="button">Salir</button>
+  </div>
+  <div class="top-links"><a href="cocina.html" class="link-btn"><span>👨‍🍳 Panel de cocina</span></a><a href="cliente.html" class="link-btn" target="_blank" rel="noopener"><span>🍔 Página de clientes</span></a></div>
+</header>
+
+<main class="container">
+
+  <section id="staffAuthSection" class="card">
+    <h2 class="section-title" style="margin-top:0">Acceso de dueños</h2>
+    <form id="staffLoginForm" class="auth-form">
+      <label>Correo electrónico</label>
+      <input type="email" id="staffUsuario" required autocomplete="username">
+      <label>Contraseña</label>
+      <input type="password" id="staffPassword" required autocomplete="current-password">
+      <p class="error" id="staffError"></p>
+      <button type="submit" class="btn-primary">Entrar al panel de dueños</button>
+    </form>
+  </section>
+
+  <section id="dashboardSection" class="shell" hidden>
+    <button id="menuToggle" class="menu-toggle" type="button">☰ Menú</button>
+    <aside class="side" id="side">
+      <nav class="side-nav" id="panelNav">
+        <button class="nav-btn active" data-section="pendientes" type="button">📦 Pedidos pendientes</button>
+        <button class="nav-btn" data-section="informes" type="button">📈 Informes</button>
+        <button class="nav-btn" data-section="gastos" type="button">💸 Gastos</button>
+        <button class="nav-btn" data-section="ventas" type="button">📊 Registro de ventas</button>
+        <button class="nav-btn" data-section="historial" type="button">📜 Historial de comandas</button>
+        <button class="nav-btn" data-section="cierres" type="button">🏦 Caja y cierres</button>
+        <button class="nav-btn" data-section="top" type="button">🏆 Más vendidas</button>
+        <button class="nav-btn" data-section="simulador" type="button">🧮 Simulador de costos</button>
+        <button class="nav-btn" data-section="contabilidad" type="button">💰 Contabilidad</button>
+        <button class="nav-btn" data-section="productos" type="button">🍽️ Productos</button>
+        <button class="nav-btn" data-section="inventario" type="button">🥩 Inventario</button>
+        <button class="nav-btn" data-section="recetas" type="button">📋 Recetas</button>
+        <button class="nav-btn" data-section="costos" type="button">💲 Costos por producto</button>
+        <button class="nav-btn" data-section="personal" type="button">👥 Personal</button>
+        <button class="nav-btn" data-section="clientes" type="button">⭐ Clientes</button>
+        <button class="nav-btn" data-section="auditoria" type="button">🛡️ Auditoría</button>
+        <button class="nav-btn" data-section="config" type="button">⚙️ Configuración</button>
+      </nav>
+    </aside>
+    <div class="content">
+    <section class="panel-section" id="section-pendientes">
+      <h2 class="section-title" style="margin-top:0">Pedidos pendientes</h2>
+      <div class="cupo-bar" id="cupoBar"></div>
+      <div class="import-box">
+        <b>📲 Agregar pedido de WhatsApp</b>
+        <p class="hint">Copia el mensaje del cliente y pégalo aquí tal como llegó. Se numera solo y queda listo para imprimir.</p>
+        <textarea id="importText" placeholder="*NUEVO PEDIDO - SMASH* ..."></textarea>
+        <button id="importBtn" class="btn-primary" type="button">Agregar pedido</button>
+        <p class="error" id="importMsg"></p>
+      </div>
+      <div class="board board-3">
+        <div class="column">
+          <h3>🆕 Recibidos <span class="col-n" id="n-nuevo"></span></h3>
+          <div class="orders" id="col-nuevo"></div>
+        </div>
+        <div class="column">
+          <h3>✔ Confirmados <span class="col-n" id="n-confirmado"></span></h3>
+          <div class="orders" id="col-confirmado"></div>
+        </div>
+        <div class="column">
+          <h3>🔥 En preparación <span class="col-n" id="n-preparando"></span></h3>
+          <div class="orders" id="col-preparando"></div>
+        </div>
+      </div>
+      <div class="board" style="margin-top:16px">
+        <div class="column">
+          <h3>📦 Listos para despacho <span class="col-n" id="n-listo"></span></h3>
+          <div class="orders" id="col-listo"></div>
+        </div>
+        <div class="column">
+          <h3>🛵 En camino <span class="col-n" id="n-en_camino"></span></h3>
+          <div class="orders" id="col-en_camino"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel-section" id="section-ventas" hidden>
+      <h2 class="section-title" style="margin-top:0">Registro de ventas</h2>
+      <div class="date-row">
+        <input type="date" id="ventasFecha">
+        <button id="ventasHoyBtn" class="btn-secondary" type="button">Hoy</button>
+        <button id="ventasTodoBtn" class="btn-secondary" type="button">Ver todo</button>
+        <button id="exportBtn" class="btn-secondary" type="button">Exportar CSV</button>
+      </div>
+      <div class="summary-grid" id="ventasResumen"></div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Items</th><th>Subtotal</th><th>Domicilio</th><th>Total</th><th>Costo</th><th>Utilidad bruta</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="ventasBody"></tbody>
+        </table>
+      </div>
+      <h3 class="section-title">Pedidos eliminados (versiones anteriores)</h3>
+      <p class="hint">Registro de auditoría de los pedidos que se borraban antes. Desde ahora los pedidos no se borran: se cancelan y quedan en el historial.</p>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Eliminado</th><th>Por</th><th>#</th><th>Cliente</th><th>Total</th><th>Estado</th></tr></thead>
+          <tbody id="delBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel-section" id="section-historial" hidden>
+      <h2 class="section-title" style="margin-top:0">Historial de comandas</h2>
+      <div class="hist-root"></div>
+    </section>
+
+    <section class="panel-section" id="section-informes" hidden>
+      <h2 class="section-title" style="margin-top:0">Informes gerenciales y financieros</h2>
+      <div class="inf-root"></div>
+    </section>
+
+    <section class="panel-section" id="section-gastos" hidden>
+      <h2 class="section-title" style="margin-top:0">Gastos</h2>
+      <div class="gas-root"></div>
+    </section>
+
+    <section class="panel-section" id="section-cierres" hidden>
+      <h2 class="section-title" style="margin-top:0">Caja y cierres</h2>
+      <div class="cierres-root"></div>
+    </section>
+
+    <section class="panel-section" id="section-top" hidden>
+      <h2 class="section-title" style="margin-top:0">Hamburguesas más vendidas</h2>
+      <div class="period-tabs" id="topTabs">
+        <button type="button" data-p="dia">Día</button><button type="button" data-p="semana" class="active">Semana</button>
+        <button type="button" data-p="mes">Mes</button><button type="button" data-p="anio">Año</button>
+      </div>
+      <div class="date-row"><input type="date" id="topFecha"><span class="hint" id="topRango"></span></div>
+      <div id="topHero"></div>
+      <div class="summary-grid" id="topResumen"></div>
+      <h3 class="section-title">Detalle por hamburguesa</h3>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>Hamburguesa</th><th>Cantidad</th><th>% del total</th></tr></thead><tbody id="topBody"></tbody></table></div>
+      <h3 class="section-title">Registro por día</h3>
+      <p class="hint">Se guarda automáticamente con cada pedido y se suma por día, semana, mes y año.</p>
+      <div class="table-wrap"><table class="data-table"><thead id="topDiasHead"></thead><tbody id="topDias"></tbody></table></div>
+    </section>
+
+    <section class="panel-section" id="section-simulador" hidden>
+      <h2 class="section-title" style="margin-top:0">Simulador de costo de hamburguesa</h2>
+      <p class="hint">Agrega o quita ingredientes con su costo. Se suma el costo de insumos y se sugiere un precio de venta para que quede el margen que elijas libre del costo de insumos (por defecto 52%).</p>
+      <div class="sim-grid">
+        <label>Nombre de la hamburguesa<input id="simNombre" maxlength="60" placeholder="Ej: Smash Doble"></label>
+        <label>Margen libre de insumos (%)<input id="simMargen" type="number" min="1" max="95" value="52"></label>
+      </div>
+      <div id="simLista"></div>
+      <form id="simForm" class="sim-add">
+        <input id="simIng" placeholder="Ingrediente (ej: Pan brioche)" maxlength="60" required>
+        <input id="simCant" type="number" min="0" step="0.01" value="1" title="Cantidad" required>
+        <input id="simCosto" type="number" min="0" step="1" placeholder="Costo unitario $" required>
+        <button class="btn-primary" type="submit">+ Agregar</button>
+      </form>
+      <div class="summary-grid" id="simResumen"></div>
+      <div class="banner" id="simNota"></div>
+      <button id="simLimpiar" class="btn-secondary" type="button">Limpiar simulación</button>
+    </section>
+
+    <section class="panel-section" id="section-contabilidad" hidden>
+      <h2 class="section-title" style="margin-top:0">Contabilidad del día</h2>
+      <div class="date-row">
+        <input type="date" id="contFecha">
+      </div>
+
+      <h3 class="section-title">Caja del día (sin domicilios)</h3>
+      <div class="summary-grid" id="contCaja"></div>
+
+      <h3 class="section-title">Gastos fijos del día</h3>
+      <div class="fixed-costs">
+        <div class="fixed-item"><label>Nómina</label><input type="number" id="gNomina"><button type="button" id="nomSug" class="btn-link"></button></div>
+        <div class="fixed-item"><label>Publicidad</label><input type="number" id="gPublicidad"></div>
+        <div class="fixed-item"><label>Servicios</label><input type="number" id="gServicios"></div>
+        <div class="fixed-item"><label>Otros</label><input type="number" id="gOtros"></div>
+      </div>
+      <p class="hint" id="gEstado"></p>
+      <button id="guardarGastosBtn" class="btn-secondary">Guardar gastos del día</button>
+
+      <h3 class="section-title">Resumen</h3>
+      <div class="summary-grid" id="contResumen"></div>
+      <div class="banner" id="contBanner"></div>
+      <h3 class="section-title">Resumen del mes</h3>
+      <div class="summary-grid" id="contMes"></div>
+    </section>
+
+    <section class="panel-section" id="section-productos" hidden>
+      <h2 class="section-title" style="margin-top:0">Productos del menú</h2>
+      <p class="hint">Los cambios (productos nuevos, precios, fotos, ocultar) se ven al instante en cocina y en la página de clientes.</p>
+      <button class="btn-secondary publish-btn" type="button" style="margin-bottom:14px">⬆️ Publicar menú (descargar menu.json)</button>
+      <div id="productosLista" class="productos-lista"></div>
+
+      <h3 class="section-title">Agregar producto nuevo</h3>
+      <form id="nuevoProductoForm" class="auth-form product-form">
+        <label>Nombre</label>
+        <input type="text" id="npNombre" required>
+        <label>Descripción</label>
+        <input type="text" id="npDesc">
+        <label>Categoría</label>
+        <select id="npCategoria">
+          <option value="hamburguesa">Hamburguesa</option>
+          <option value="combo">Combo</option>
+          <option value="adicional">Adicional</option>
+        </select>
+        <div class="two-col">
+          <div><label>Precio de venta</label><input type="number" id="npPrecio" required></div>
+          <div><label>Costo</label><input type="number" id="npCosto" required></div>
+        </div>
+        <label>Foto del producto</label>
+        <input type="file" id="npFoto" accept="image/*">
+        <button type="submit" class="btn-primary">Agregar producto</button>
+      </form>
+    </section>
+
+    <section class="panel-section" id="section-inventario" hidden>
+      <h2 class="section-title" style="margin-top:0">Inventario de materias primas</h2>
+      <div class="summary-grid" id="invResumen"></div>
+      <div class="period-tabs mod-tabs" id="invTabs">
+        <button type="button" data-t="ings" class="active">Materias primas</button>
+        <button type="button" data-t="compra">Registrar compra</button>
+        <button type="button" data-t="salida">Registrar salida</button>
+        <button type="button" data-t="conteo">Conteo físico</button>
+        <button type="button" data-t="movs">Movimientos</button>
+      </div>
+
+      <div class="inv-pane" id="inv-ings">
+        <details class="mod-box" id="ingBox">
+          <summary id="ingTitulo">+ Nuevo ingrediente</summary>
+          <form id="ingForm" class="mod-form">
+            <input type="hidden" id="ingId">
+            <label class="wide">Nombre<input id="ingNombre" maxlength="80" required></label>
+            <label>Categoría<input id="ingCat" list="ingCats" maxlength="40" placeholder="Ej: Carnes, Panes, Empaques"></label>
+            <label>Unidad de medida<select id="ingUnidad"></select></label>
+            <label id="ingIniWrap">Cantidad disponible hoy<input id="ingIni" type="number" min="0" step="any" inputmode="decimal" placeholder="0"></label>
+            <label><span>Costo de adquisición por <b class="u-lbl">unidad</b></span><input id="ingCosto" type="number" min="0" step="any" inputmode="decimal" required></label>
+            <label><span>Nivel mínimo (en <b class="u-lbl">unidad</b>)</span><input id="ingMin" type="number" min="0" step="any" inputmode="decimal" placeholder="0"></label>
+            <label>Proveedor<input id="ingProv" list="provList" maxlength="80"></label>
+            <label class="chk wide" id="ingActWrap" hidden><input type="checkbox" id="ingActivo" checked> Activo</label>
+            <p class="hint wide" id="ingAyuda">La cantidad disponible solo se fija al crear el ingrediente. Después cambia con compras, salidas y conteos físicos, para que quede historial.</p>
+            <div class="mod-actions wide"><button type="submit" class="btn-primary" id="ingGuardar">Guardar ingrediente</button><button type="button" class="btn-secondary" id="ingCancelar">Cancelar</button></div>
+            <p class="error wide" id="ingMsg"></p>
+          </form>
+        </details>
+        <div class="date-row">
+          <input type="search" id="ingBuscar" placeholder="Buscar ingrediente o categoría">
+          <select id="ingFiltro"><option value="">Todos</option><option value="bajo">Bajo mínimo / agotados</option><option value="inactivo">Inactivos</option></select>
+        </div>
+        <div id="ingLista" class="mod-cards"></div>
+      </div>
+
+      <div class="inv-pane" id="inv-compra" hidden>
+        <form id="compForm" class="mod-form mod-box">
+          <label class="wide">Ingrediente<select id="compIng" required></select></label>
+          <label>Cantidad comprada<input id="compCant" type="number" min="0" step="any" inputmode="decimal" required></label>
+          <label>Unidad<select id="compUnidad"></select></label>
+          <label>Precio total pagado (COP)<input id="compTotal" type="number" min="0" step="any" inputmode="decimal" required></label>
+          <label>Fecha de compra<input id="compFecha" type="date" required></label>
+          <label class="wide">Proveedor<input id="compProv" list="provList" maxlength="80"></label>
+          <label class="wide">Observaciones<input id="compObs" maxlength="200"></label>
+          <p class="hint wide" id="compCalc"></p>
+          <div class="mod-actions wide"><button type="submit" class="btn-primary">Registrar compra</button></div>
+          <p class="error wide" id="compMsg"></p>
+        </form>
+        <h3 class="section-title">Historial de compras</h3>
+        <div id="compHist"></div>
+      </div>
+
+      <div class="inv-pane" id="inv-salida" hidden>
+        <form id="salForm" class="mod-form mod-box">
+          <label class="wide">Ingrediente<select id="salIng" required></select></label>
+          <label>Tipo<select id="salTipo"></select></label>
+          <label>Fecha<input id="salFecha" type="date" required></label>
+          <label>Cantidad<input id="salCant" type="number" min="0" step="any" inputmode="decimal" required></label>
+          <label>Unidad<select id="salUnidad"></select></label>
+          <label class="wide">Motivo<input id="salMotivo" maxlength="200" required placeholder="Ej: se quemó una tanda, vencido, comida del personal"></label>
+          <p class="hint wide" id="salInfo"></p>
+          <div class="mod-actions wide"><button type="submit" class="btn-primary">Registrar movimiento</button></div>
+          <p class="error wide" id="salMsg"></p>
+        </form>
+        <p class="hint">Los consumos por ventas se registran solos cuando un pedido pasa a <b>En preparación</b>, según la receta de cada producto.</p>
+      </div>
+
+      <div class="inv-pane" id="inv-conteo" hidden>
+        <p class="hint">Escribe lo que encuentres físicamente. Deja vacío lo que no contaste. Al guardar, el sistema ajusta las existencias a lo contado y deja el registro de la diferencia.</p>
+        <div id="conteoLista"></div>
+        <div class="summary-grid" id="conteoTot"></div>
+        <label class="mod-inline">Nota del conteo<input id="conteoNota" maxlength="120" placeholder="Ej: cierre del domingo"></label>
+        <div class="mod-actions"><button type="button" class="btn-primary" id="conteoGuardar">Guardar conteo y ajustar</button></div>
+        <p class="error" id="conteoMsg"></p>
+        <h3 class="section-title">Conteos anteriores</h3>
+        <div id="conteoHist"></div>
+      </div>
+
+      <div class="inv-pane" id="inv-movs" hidden>
+        <div class="date-row">
+          <select id="movIng"></select>
+          <select id="movTipo"></select>
+          <button type="button" class="btn-secondary" id="movExport">Exportar CSV</button>
+        </div>
+        <div id="movLista"></div>
+      </div>
+      <datalist id="ingCats"></datalist>
+      <datalist id="provList"></datalist>
+    </section>
+
+    <section class="panel-section" id="section-recetas" hidden>
+      <h2 class="section-title" style="margin-top:0">Recetas por producto</h2>
+      <p class="hint">Ficha técnica de producción: qué materias primas y qué cantidad lleva cada producto (incluye empaques). Con esto el inventario se descuenta solo con cada venta.</p>
+      <div class="date-row"><select id="recProd"></select></div>
+      <div id="recEditor" class="mod-box"></div>
+      <h3 class="section-title">Estado de las recetas</h3>
+      <div id="recEstado"></div>
+    </section>
+
+    <section class="panel-section" id="section-costos" hidden>
+      <h2 class="section-title" style="margin-top:0">Costos y márgenes por producto</h2>
+      <p class="hint">El costo se calcula con la receta y el costo actual de cada ingrediente; si un producto no tiene receta se usa el costo escrito a mano en Productos. Los precios de venta nunca cambian solos.</p>
+      <div class="summary-grid" id="cosResumen"></div>
+      <div class="period-tabs mod-tabs" id="cosTabs">
+        <button type="button" data-t="tabla" class="active">Costos actuales</button>
+        <button type="button" data-t="hist">Historial de cambios</button>
+      </div>
+      <div class="cos-pane" id="cos-tabla"></div>
+      <div class="cos-pane" id="cos-hist" hidden>
+        <div class="date-row"><select id="histTipo">
+          <option value="">Todos los cambios</option><option value="precio">Precios de venta</option>
+          <option value="costo">Costos de ingredientes</option><option value="receta">Recetas</option>
+        </select></div>
+        <div id="histLista"></div>
+      </div>
+    </section>
+
+    <section class="panel-section" id="section-personal" hidden>
+      <h2 class="section-title" style="margin-top:0">Personal</h2>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Nombre completo</th><th>Cargo</th><th>Teléfono</th><th>Pago diario</th><th>Días que asiste</th><th>Antigüedad</th><th>Registro</th><th></th></tr></thead>
+          <tbody id="persBody"></tbody>
+        </table>
+      </div>
+      <h3 class="section-title">Agregar persona</h3>
+      <form id="persForm" class="auth-form product-form">
+        <label>Nombre completo</label><input type="text" id="pNombre" required maxlength="80">
+        <label>Cargo</label><input type="text" id="pCargo" required maxlength="60" placeholder="Ej: Cocinero, Domiciliario">
+        <label>Número de teléfono</label><input type="tel" id="pTel" required maxlength="20">
+        <label>Pago diario (COP)</label><input type="number" id="pPago" min="0" step="1000" required placeholder="Ej: 60000">
+        <label>Días que asiste</label>
+        <div class="days" id="pDias"></div>
+        <p class="hint">La antigüedad se cuenta desde el momento en que se registra en el sistema.</p>
+        <button type="submit" class="btn-primary">Agregar al personal</button>
+        <p class="error" id="pError"></p>
+      </form>
+    </section>
+
+    <section class="panel-section" id="section-clientes" hidden>
+      <h2 class="section-title" style="margin-top:0">Clientes y fidelidad</h2>
+      <div class="cli-root"></div>
+    </section>
+
+    <section class="panel-section" id="section-auditoria" hidden>
+      <h2 class="section-title" style="margin-top:0">Registro de auditoría</h2>
+      <div class="aud-root"></div>
+    </section>
+
+    <section class="panel-section" id="section-config" hidden>
+      <h2 class="section-title" style="margin-top:0">Configuración</h2>
+      <h3 class="section-title">Zonas de cobertura y tarifas de domicilio</h3>
+      <p class="hint">Solo los dueños pueden cambiar zonas y tarifas. Una zona desactivada deja de aparecer para los clientes. Las zonas de <b>valor variable</b> (como "Otros") no tienen tarifa fija: caja escribe el valor de la agencia en cada pedido.</p>
+      <div id="zonasLista"></div>
+      <div class="mod-actions">
+        <button id="zonaAgregar" class="btn-secondary" type="button">+ Agregar zona</button>
+        <button id="guardarZonasBtn" class="btn-primary" type="button">Guardar zonas y tarifas</button>
+      </div>
+      <p class="hint" id="zonasOk"></p>
+      <h3 class="section-title">Publicar menú</h3>
+      <p class="hint">Si el sitio está en un hosting, tras cambiar productos o tarifas descarga <b>menu.json</b> y súbelo reemplazando el anterior.</p>
+      <button class="btn-secondary publish-btn" type="button">⬆️ Publicar menú (descargar menu.json)</button>
+      <h3 class="section-title">Respaldo de datos</h3>
+      <p class="hint">Todos los datos viven en este navegador. Descarga un respaldo cada noche y guárdalo fuera del computador (correo, Drive o memoria USB).</p>
+      <div class="summary-grid" id="bkResumen"></div>
+      <div class="mod-actions">
+        <button type="button" class="btn-primary" id="bkDescargar">⬇️ Descargar respaldo completo</button>
+        <label class="btn-secondary bk-file">⬆️ Restaurar desde archivo<input type="file" id="bkArchivo" accept="application/json,.json" hidden></label>
+      </div>
+      <p class="error" id="bkMsg"></p>
+      <h3 class="section-title">Clave de caja</h3>
+      <p class="hint" id="ccEstado"></p>
+      <form id="ccForm" class="auth-form product-form">
+        <label>Nueva clave de caja (mínimo 8 caracteres)</label><input type="password" id="ccNueva" autocomplete="new-password" required>
+        <label>Repite la clave</label><input type="password" id="ccNueva2" autocomplete="new-password" required>
+        <button type="submit" class="btn-primary">Cambiar clave de caja</button>
+        <p class="error" id="ccMsg"></p>
+      </form>
+      <h3 class="section-title">Cambiar mi contraseña</h3>
+      <form id="pwForm" class="auth-form product-form">
+        <label>Contraseña actual</label><input type="password" id="pwActual" autocomplete="current-password" required>
+        <label>Contraseña nueva (mínimo 10 caracteres)</label><input type="password" id="pwNueva" autocomplete="new-password" required>
+        <label>Repite la contraseña nueva</label><input type="password" id="pwNueva2" autocomplete="new-password" required>
+        <button type="submit" class="btn-primary">Cambiar contraseña</button>
+        <p class="error" id="pwMsg"></p>
+      </form>
+    </section>
+    </div>
+  </section>
+</main>
+
+<footer>SMASH · Panel de dueños · Los datos se actualizan automáticamente.</footer>
+<div id="printArea" class="print-area"></div>
+
+<script src="data.js"></script>
+<script src="data-ext.js"></script>
+<script src="store.js"></script>
+<script src="inventario.js"></script>
+<script src="costos.js"></script>
+<script src="comandas.js"></script>
+<script src="caja.js"></script>
+<script src="clientes.js"></script>
+<script src="finanzas.js"></script>
+<script src="ticket.js"></script>
+<script src="orders-ui.js"></script>
+<script src="dueno.js"></script>
+<script src="inventario-ui.js"></script>
+<script src="costos-ui.js"></script>
+<script src="comandas-ui.js"></script>
+<script src="caja-ui.js"></script>
+<script src="clientes-ui.js"></script>
+<script src="finanzas-ui.js"></script>
+<script src="auditoria.js"></script>
+<script src="auditoria-ui.js"></script>
+</body>
+</html>

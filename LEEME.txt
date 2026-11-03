@@ -1,0 +1,249 @@
+NOVEDADES (versión con panel de dueños)
+  Páginas: cliente.html (público) · cocina.html (personal) · dueno.html (solo propietarios)
+  - cocina.html: ya NO muestra costos, utilidad, gastos, registro de ventas, productos ni tarifas de domicilio.
+    Solo ve lo facturado, el conteo del día, pedidos, clientes y el cupo de hamburguesas. Puede eliminar pedidos.
+  - dueno.html: menú lateral izquierdo. Pedidos pendientes (mismo tablero que cocina), Registro de ventas con
+    costo y utilidad (y botón eliminar + registro de pedidos eliminados), Contabilidad diaria y del mes,
+    Productos (crear, editar precio/costo/foto, ocultar, eliminar), Personal, Clientes y Configuración
+    (tarifas de domicilio y cambio de contraseña). El cupo de hamburguesas lo maneja solo cocina.
+  - Entrada de dueños: correo jefersoncamilo12@hotmail.com. La contraseña NO está escrita en los archivos
+    (solo su huella). CÁMBIALA al entrar, en Configuración > Cambiar mi contraseña, porque se compartió en un chat.
+  - Cocina tiene un enlace "Panel de dueños" que pide el inicio de sesión antes de entrar.
+  - Los cambios del panel de dueños (productos, fotos, precios, tarifas) se ven en cocina y en la página
+    de clientes del mismo navegador al instante; en un hosting real hay que "Publicar menú" (menu.json).
+
+LÍMITE IMPORTANTE DE SEGURIDAD (sin backend)
+  Esta separación de permisos es de pantalla, no de seguridad real. Todo vive en el navegador del equipo de
+  cocina: quien sepa abrir las herramientas del navegador, o el archivo data.js, puede ver los costos y saltarse
+  el acceso de dueños. Sirve para orden y para que el personal no vea esos datos por accidente. Para que de
+  verdad no puedan verlos hace falta el backend (carpeta smash-pro: allí los costos nunca llegan al navegador
+  del personal) con roles de dueño y de cocina.
+
+SMASH · versión SIN backend (funciona con Live Server)
+=====================================================
+
+CÓMO ABRIRLO CON LIVE SERVER (VS Code)
+  1. Abre esta carpeta en VS Code. Clic derecho en cliente.html > Open with Live Server.
+  2. Abre cocina.html con la MISMA dirección. Ojo: 127.0.0.1:5500 y localhost:5500 cuentan
+     como sitios distintos y NO comparten datos. Usa el mismo host en las dos pestañas.
+  3. Usuario de cocina: cocina / smash2026
+  4. Haz un pedido en la pestaña de cliente: aparece SOLO en la pestaña de cocina (con aviso sonoro),
+     el cupo baja y el cliente queda registrado en la sección Clientes.
+
+LO QUE SÍ Y LO QUE NO HACE ESTA VERSIÓN
+  - Todo funciona entre pestañas del MISMO navegador y computador (por ejemplo, el de cocina).
+  - Un cliente desde su celular NO llega solo a cocina: sus datos quedan en su propio navegador.
+    Por eso, el cliente envía el pedido por WhatsApp y en cocina se pega ese mensaje en
+    "Agregar pedido de WhatsApp". Para que llegue solo hace falta el backend (carpeta smash-pro).
+  - La clave de cocina y los costos están visibles en data.js: no es seguridad real.
+
+SMASH · sitio de pedidos y panel de cocina
+==========================================
+
+ARCHIVOS
+  index.html / cliente.html  -> página pública para pedir (enlace para Instagram y clientes)
+  cocina.html                -> panel interno (NO publiques este enlace)
+  data.js                    -> tu base de datos original, SIN modificar
+  data-ext.js                -> extensión nueva: zonas de domicilio, medio de pago, # de pedido del día
+  images/                    -> logo y fotos de productos
+
+CÓMO USARLO
+  1. Súbelo completo a un hosting estático (Netlify Drop, Cloudflare Pages o GitHub Pages).
+     Ambas páginas deben estar en el mismo dominio para compartir datos.
+  2. El cliente arma su pedido en cliente.html y lo envía por WhatsApp (3146836097).
+  3. Quien atiende abre cocina.html en SU dispositivo, inicia sesión,
+     y en "Pedidos pendientes" pega el mensaje de WhatsApp -> el pedido queda numerado
+     (#1, #2, #3... del día) y se imprime con "Imprimir comanda" (80 mm, un pedido a la vez).
+  4. Cada pedido tiene "Imprimir comanda" (80 mm, solo ese pedido) y "PDF" (descarga el ticket).
+     Logo del ticket: images/logo-ticket.jpeg
+
+IMPRIMIR DIRECTO A LA TÉRMICA, SIN VENTANA (Chrome en Windows)
+  1. Instala la térmica y ponla como impresora PREDETERMINADA, con papel de 80 mm.
+  2. Cierra todas las ventanas de Chrome.
+  3. Clic derecho en el acceso directo de Chrome > Propiedades > en "Destino" agrega al final,
+     con un espacio antes:  --kiosk-printing
+  4. Abre cocina.html desde ese acceso directo. Al pulsar "Imprimir comanda" sale directo.
+  Los navegadores no permiten imprimir directo sin esta opción (es una medida de seguridad).
+  Si en el celular o en un visor integrado no abre la impresión, usa el botón PDF.
+
+MENÚ, FOTOS Y CUPO PARA CLIENTES (cómo se actualiza)
+  Cocina > Configuración: define el cupo de hamburguesas de hoy (al iniciar el día).
+  Cocina muestra "vendidas / quedan" y baja sola con cada pedido que agregas.
+  Para que los clientes vean cambios (productos nuevos o quitados, fotos, precios, tarifas, cupo):
+  pulsa "Publicar menú" -> se descarga menu.json -> súbelo a tu hosting reemplazando el anterior.
+  La página del cliente muestra la hora de esa publicación. NO se actualiza sola en cada venta.
+
+LÍMITES (importante)
+  - La "base de datos" es localStorage: vive en cada navegador/dispositivo. El pedido hecho en
+    el celular del cliente NO llega solo al dispositivo de cocina; por eso el paso de pegar el mensaje.
+  - Usuario de cocina por defecto (en data.js): cocina / smash2026. Cualquiera que abra data.js lo ve.
+    Esto no es seguridad real. Para seguridad real y pedidos automáticos hace falta un backend.
+  - Si borras los datos del navegador de cocina, se pierden los pedidos. Exporta el CSV de
+    "Registro de ventas" cada noche como respaldo.
+
+
+=========== NOVEDADES v4 ===========
+1. Cocina: menú vertical a la izquierda (como el de dueños).
+2. Cliente: responsive para celular, tablet y PC (cliente-resp.css).
+3. Enlaces entre paneles como botones (cambian de color/tamaño/negrita y el texto se mueve al pasar el mouse) - ui.css.
+4. Dueños > Personal: campo "Pago diario"; en Contabilidad aparece "Usar pago diario del personal" para la nómina.
+5. Sonido de campana en cocina al llegar un pedido. El navegador exige un toque en pantalla una vez para habilitar audio (hay botón Sonido en el menú).
+6. Zona "Norte, Después de la Calle 19" ($9.000).
+7. Zona "Otros": cocina/dueños escriben el valor de la agencia; se suma al total y sale en la comanda.
+8. Pedidos editables (Editar): productos, cantidades, notas, datos, domicilio.
+9. Cocina > Crear pedido: productos del panel de dueños con foto, precio, nota por producto.
+10. Dueños > Más vendidas: día/semana/mes/año, hamburguesa top con foto, total y registro por día.
+11. Cronómetro mm:ss en cada pedido.
+12. Repartidor: botón tras imprimir; se ve en el sistema, NO en la comanda.
+13. Caja del día (efectivo vs transferencia) en cocina y dueños, SIN domicilios.
+14. Dueños > Simulador de costos: ingredientes, costo total y precio sugerido (margen 52% libre de insumos = costo / 0.48).
+
+
+=========== FASE 2 (2026-11-02): INVENTARIO, RECETAS Y RESPALDO ===========
+Archivos nuevos: store.js, inventario.js, inventario-ui.js, modulos.css
+Cambios en existentes: dueno.html (2 secciones + respaldo), cocina.html (carga store.js e inventario.js),
+  orders-ui.js (al pasar un pedido a "En preparación" descuenta la receta).
+
+1. Dueños > Inventario: materias primas (g, kg, ml, l, und), compras, salidas (desperdicio, dañado,
+   consumo interno, error de preparación, ajustes), conteo físico y movimientos (exportables a CSV).
+   - La cantidad disponible solo se escribe al crear el ingrediente; luego cambia SOLO con movimientos.
+   - El costo del ingrediente es el de la última compra (precio total / cantidad). Queda historial.
+   - Un ingrediente con historial no se borra: se desactiva.
+2. Dueños > Recetas: qué lleva cada producto (por unidad). Sin receta, el producto no descuenta inventario.
+3. Descuento automático: cuando caja pulsa "Iniciar preparación". Se descuenta UNA sola vez por pedido.
+   Los pedidos que ya estaban en preparación antes de esta versión no se descuentan (no es retroactivo).
+4. Guardado seguro: si el navegador no puede guardar (memoria llena), la operación se cancela completa
+   y aparece un aviso; nunca queda a medias.
+
+=========== FASE 3 (2026-11-02): COSTOS AUTOMÁTICOS POR PRODUCTO ===========
+Archivos nuevos: costos.js, costos-ui.js
+Cambios: dueno.html (sección "Costos por producto"), cocina.html (carga costos.js), dueno.js (informes),
+  inventario-ui.js (costos en el editor de recetas).
+1. Costo de un producto = suma de (cantidad × costo unitario) de su receta. Si no tiene receta se usa el
+   "costo manual" del producto. Cambia solo cuando cambia el costo de un ingrediente.
+2. El precio de venta NUNCA cambia solo. Se modifica en Productos, y cada cambio queda en el historial.
+3. Cada pedido conserva el costo que tenía cuando se registró (llave smash_costos_pedidos), así los
+   informes pasados no cambian. Los pedidos anteriores a esta versión usan el costo manual que tenía cada
+   producto el día que se activó (llave smash_costos_base).
+4. Contabilidad: los domicilios ya NO suman como ingreso ni utilidad (son del domiciliario). Se muestran
+   aparte, con total del mes y por domiciliario, para decidir a futuro si conviene contratar a alguien.
+5. Contabilidad: se quitaron los gastos por defecto (170.000 / 50.000 / 25.000). Solo cuentan los gastos
+   que se guardan. El resumen del mes suma todos los días con gastos registrados.
+
+=========== FASE 4 (2026-11-02): COMANDAS, DOMICILIOS Y CANCELACIONES ===========
+Archivos nuevos: comandas.js, comandas-ui.js
+Cambios: orders-ui.js (tarjeta), cocina.html/js y dueno.html/js (tableros, historial, zonas),
+  data-ext.js (horas de los estados nuevos, cancelados fuera del cupo, zonas configurables),
+  inventario.js (reintegro), modulos.css (ahora también en cocina).
+1. Estados: Recibido → Confirmado → En preparación → Listo para despacho → En camino → Entregado,
+   o Cancelado. Cada paso guarda su hora. Al pasar a "En camino" caja escribe el domiciliario.
+2. Número de comanda único: AAMMDD-NN (fecha + número del día), visible en tarjeta, ventas e historial.
+3. La tarjeta muestra siempre por separado: productos, adicionales, descuento, domicilio y total.
+   El teléfono se puede tocar para llamar. "📝 Novedad" deja anotaciones con hora en el pedido.
+4. Los pedidos YA NO se eliminan: "✕ Cancelar" pide motivo y responsable y el pedido queda guardado
+   como Cancelado (sale de ventas, caja, cupo, conteo, clientes y más vendidas).
+   - Cancelado antes de cocina: sin pérdida, no toca el inventario.
+   - Cancelado desde "En preparación": si se alcanzó a preparar, el costo queda como pérdida (suma al
+     costo variable en Contabilidad); si no, los insumos vuelven al inventario.
+5. "📜 Historial de comandas" (caja y dueños): horas de cada paso, tiempos promedio de confirmación,
+   preparación, entrega y total, cancelaciones y novedades. Caja no ve valores de pérdida.
+6. Configuración > Zonas: agregar, renombrar, cambiar tarifa, marcar valor variable o desactivar.
+   Se conservaron las tarifas que ya estaban guardadas.
+
+=========== FASE 5 (2026-11-02): CAJA, PAGOS Y CIERRES ===========
+Archivos nuevos: caja.js, caja-ui.js
+Cambios: orders-ui.js (estado de pago y botón Cobrar, resumen diario con pagos reales),
+  cocina.html (sección Caja), dueno.html (sección Caja y cierres), modulos.css.
+1. Caja > Abrir caja: quién abre y dinero inicial. Solo puede haber una caja abierta.
+   Sin caja abierta no se registran pagos ni movimientos.
+2. "💰 Cobrar" en cada pedido: uno o varios medios (pago combinado). En transferencias se elige la
+   cuenta que recibió el dinero. Calcula el cambio. Un pedido no se puede cobrar dos veces.
+   Un pago mal registrado se anula (con motivo) solo dentro del mismo turno; después, devolución.
+3. Domicilio: lo que se cobra es el valor de los productos. Si el cliente le pagó también el domicilio
+   a SMASH, se marca, y lo que se le entrega al domiciliario se registra como "Pago a domiciliario".
+4. Movimientos de caja: ingreso adicional, gasto de caja, retiro, devolución a cliente, pago a domiciliario.
+5. Cierre: dinero esperado = base + ingresos en efectivo − egresos en efectivo;
+   diferencia = contado − esperado. El cierre no se puede deshacer ni repetir.
+6. Dueños > Caja y cierres: todos los turnos con su arqueo, cobros por medio de pago y por cuenta en
+   cualquier periodo, y las cuentas bancarias (crear, editar, activar/desactivar, historial).
+   No se guardan contraseñas ni claves bancarias.
+7. Pedidos anteriores a esta versión no aparecen como "pendientes de pago": en los resúmenes se suman
+   por el medio de pago que indicó el cliente, como antes.
+
+=========== FASE 6 (2026-11-02): CLIENTES Y FIDELIZACIÓN ===========
+Archivos nuevos: clientes.js, clientes-ui.js
+Cambios: cocina.js y dueno.js (la lista de clientes repetida pasó a clientes-ui.js, con las mismas funciones),
+  cocina.html/dueno.html (sección Clientes), data-ext.js (el total descuenta los descuentos al editar),
+  ticket.js (línea de descuento), dueno.js/cocina.js/orders-ui.js (ventas = productos − descuentos).
+1. Ficha de cliente: teléfonos, dirección, pedidos, gasto histórico / del mes / últimos 7 días,
+   ticket promedio, frecuencia, primera y última compra, productos más pedidos y puntos.
+   El gasto es en productos (sin domicilio). Los pedidos cancelados no cuentan.
+2. Teléfonos: se reconocen igual "300 111 2233", "+57 3001112233", etc. Los dueños ven "Posibles
+   duplicados" (un dígito distinto o el mismo nombre completo) y pueden unirlos o descartarlos.
+3. Programa de puntos (Dueños > Clientes > Programa de puntos): arranca apagado. Los dueños definen
+   cuánto gastar, cuántos puntos se ganan, si vencen y las recompensas (con descuento opcional).
+   Los puntos se suman solos cuando el pedido queda Entregado (una vez por pedido).
+   Caja canjea desde la ficha; si la recompensa tiene valor, se descuenta de un pedido sin pagar.
+4. Datos personales (solo dueños): "Exportar sus datos" descarga lo guardado del cliente;
+   "Anonimizar" borra nombre, teléfono, dirección y notas en todos sus pedidos y pagos (las ventas se
+   conservan). Todo queda en "Solicitudes sobre datos personales".
+
+=========== FASE 7 (2026-11-02): INFORMES GERENCIALES Y FINANCIEROS ===========
+Archivos nuevos: finanzas.js, finanzas-ui.js
+Cambios: dueno.html (secciones Informes y Gastos), dueno.js (Contabilidad usa el mismo cálculo que Informes).
+1. Dueños > Informes: día, semana, mes o periodo personalizado. Ventas brutas, descuentos, devoluciones,
+   ventas netas, pedidos, ticket promedio, cobrado por efectivo/transferencia/otros, costo de lo vendido,
+   margen bruto, gastos operativos, costos fijos, nómina y utilidad operativa estimada, con comparación
+   contra el periodo anterior. Gráfico de ventas netas por día (con vista de tabla).
+2. Productos: más y menos vendido, más y menos rentable, cantidad, ganancia y margen por producto, y
+   clasificación Estrella / Caballo de batalla / Rompecabezas / Bajo rendimiento.
+3. Dueños > Gastos: registro con conceptos editables (arriendo, servicios, internet, nómina, publicidad,
+   empaques, transporte, compras, otros, y los que agreguen). Cada concepto tiene una clase: costo fijo,
+   gasto operativo, nómina, otro egreso o compra de insumos (esta última NO se resta). Los gastos
+   "mensuales" (arriendo, internet) se reparten en los días del mes. Los gastos se anulan, no se borran.
+4. Para no duplicar: compras de insumos → Inventario (entran como costo al venderse); gastos de caja y
+   gastos del día de Contabilidad se suman solos; mermas del inventario cuentan como gasto operativo;
+   el reembolso de un pedido ya cancelado no se resta otra vez; domicilios quedan fuera.
+5. Nómina: se suma la registrada (Contabilidad o Gastos). La "nómina estimada según Personal" se muestra
+   solo como referencia.
+
+=========== FASE 8 (2026-11-02): AUDITORÍA, SEGURIDAD Y PRUEBAS ===========
+Archivos nuevos: auditoria.js (caja y dueños), auditoria-ui.js (dueños)
+Cambios: inventario.js (reajuste al editar), cocina.js (pedido repetido), dueno.js (producto con ventas),
+  orders-ui.js (pedido pagado no se edita), comandas-ui.js (historial compacto), dueno.html, cocina.html.
+1. Dueños > Auditoría: quién, cuándo, acción, registro, valor anterior y nuevo de: precios y productos,
+   recetas, inventario, pedidos (creación, estados, edición, cancelación, novedades), caja (apertura,
+   pagos, anulaciones, movimientos, cierre), cuentas, zonas, cupo, personal, gastos, puntos, clientes,
+   respaldos e inicios de sesión. Filtros y exportación a CSV. Guarda las últimas 4.000 anotaciones:
+   exporta el CSV o descarga un respaldo con regularidad.
+2. Validaciones nuevas:
+   - Pedido repetido (mismo cliente y mismos productos en 3 minutos): pide confirmación.
+   - Cambio de precio mayor al 30%: pide confirmación.
+   - Producto con ventas: no se elimina (se oculta con "Visible para clientes").
+   - Pedido pagado: no se edita hasta anular el pago.
+   - Pedido editado después de preparar: el inventario se ajusta solo con la diferencia.
+   - Si el navegador no puede guardar un producto, aparece un aviso (antes fallaba en silencio).
+3. Seguridad:
+   - Configuración > Clave de caja: los dueños definen la clave; se guarda solo su huella y la clave
+     escrita en data.js deja de servir. CÁMBIALA, porque la inicial es visible en el código.
+   - 5 intentos fallidos de caja bloquean 30 segundos (dueños ya lo tenía).
+   - El panel de dueños se cierra solo tras 30 minutos sin actividad.
+   - Al anonimizar un cliente también se borran sus datos del registro de auditoría.
+
+LÍMITES QUE SIGUEN (por no tener servidor)
+  - Todo vive en el navegador del equipo de caja. Otro celular o computador NO ve estos datos.
+    Para administrar desde el celular de un dueño hay que usar el MISMO navegador/equipo, o pasar
+    los datos con "Descargar respaldo" → "Restaurar desde archivo" (reemplaza los datos del destino).
+  - Los permisos son de pantalla: quien abra las herramientas del navegador puede ver costos o datos.
+  - Los pedidos que el cliente hace desde su propio celular siguen llegando por WhatsApp (sin cambios).
+
+RESPALDO Y RECUPERACIÓN
+  Hacer respaldo: Dueños > Configuración > "Descargar respaldo completo". Descarga un archivo
+    respaldo_smash_AAAA-MM-DD-HH-MM-SS.json con TODOS los datos (pedidos, productos, inventario,
+    recetas, personal, clientes, contraseña de dueños). Hazlo cada noche y guárdalo fuera del equipo.
+  Recuperar: en el mismo navegador (o en uno nuevo, abierto con la MISMA dirección), Dueños >
+    Configuración > "Restaurar desde archivo" y elige el .json. Antes de restaurar se descarga solo un
+    respaldo del estado actual ("antes_de_restaurar_...json"), por si te equivocas de archivo.
+  Ojo: restaurar también devuelve la contraseña de dueños que existía cuando se hizo ese respaldo.
+  En un navegador nuevo y vacío, el panel de dueños pide la contraseña ORIGINAL (la que venía con el
+  sistema, antes de cambiarla). Entra con ella, restaura, y desde ahí vale la contraseña del respaldo.

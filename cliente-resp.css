@@ -1,0 +1,46 @@
+/* SMASH · cliente: ajustes responsive (celular, tablet, PC) */
+html{-webkit-text-size-adjust:100%}
+body{min-height:100vh;min-height:100dvh}
+.wrap{width:100%;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+.hero{padding-top:max(28px,env(safe-area-inset-top))}
+button,.chip,.go,.qty button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.chip{min-height:52px}
+.qty button{width:44px;height:44px}
+.form input{min-height:48px}
+img{max-width:100%}
+/* celulares pequeños */
+@media (max-width:380px){
+  .hero h1{font-size:3.4rem}
+  .tl{font-size:1rem}
+  h2{font-size:1.4rem}
+  .chips{grid-template-columns:1fr 1fr}
+  .item{flex-wrap:wrap}
+  .cart{flex-direction:column;align-items:stretch;text-align:center}
+  .go{width:100%}
+}
+@media (max-width:560px){
+  .cart{border-radius:16px}
+  .go{padding:14px 18px}
+  .pimg{aspect-ratio:16/10}
+}
+/* tablets */
+@media (min-width:700px){
+  .wrap{max-width:900px;padding-left:28px;padding-right:28px}
+  .grid{grid-template-columns:1fr 1fr;gap:18px}
+  .small #extras{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .small .item{margin-bottom:0}
+  .form{grid-template-columns:1fr 1fr;gap:16px;padding:22px}
+  .form>div,.form>label:nth-of-type(n+3){grid-column:1/-1}
+  .form>label:nth-of-type(1),.form>label:nth-of-type(2){grid-column:auto}
+  .cart{max-width:900px}
+}
+/* PC */
+@media (min-width:1100px){
+  .wrap{max-width:1080px}
+  .grid{grid-template-columns:repeat(3,1fr)}
+  .hero{padding-top:52px}
+}
+/* móvil horizontal */
+@media (max-height:480px) and (orientation:landscape){
+  .hero{padding-top:14px}.burger{width:140px}.cart{position:static}
+}

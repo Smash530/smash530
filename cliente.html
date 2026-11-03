@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SMASH · Hamburguesas smash en Armenia</title>
+<link rel="stylesheet" href="cliente.css">
+<link rel="stylesheet" href="cliente-resp.css">
+</head>
+<body>
+<header class="hero">
+  <h1>SMASH</h1>
+  <p class="tl">Hamburguesas smash con borde crujiente. Solo domicilios en Armenia.</p>
+  <div class="cupo" id="cupo" hidden></div>
+  <div class="status" id="st"><span class="dot"></span><span id="stt">Atención de 5:30 pm a 10:00 pm</span></div>
+  <img class="burger" id="logoImg" src="images/logo-cliente.png" alt="Logo SMASH" onerror="this.hidden=true;document.getElementById('fbLogo').hidden=false">
+  <svg class="burger" id="fbLogo" hidden viewBox="0 0 240 190" role="img" aria-label="Hamburguesa smash">
+    <path d="M30 70c0-38 40-58 90-58s90 20 90 58z" fill="#f2a63b"/>
+    <path d="M24 74q16 14 32 0t32 0 32 0 32 0 32 0 32 0v12H24z" fill="#5fb94a"/>
+    <path d="M30 88h180l-14 26-24-10-20 22-20-22-20 22-20-22-24 10z" fill="#ffc933"/>
+    <rect x="26" y="96" width="188" height="26" rx="13" fill="#5b2a1a"/>
+    <rect x="30" y="124" width="180" height="22" rx="11" fill="#7a3a22"/>
+    <path d="M30 148h180c0 20-20 30-90 30s-90-10-90-30z" fill="#f2a63b"/>
+  </svg>
+  <div class="marquee" aria-hidden="true"><span>SMASH · CARNE APLASTADA · BORDE CRUJIENTE · QUESO DERRETIDO · PRODUCCIÓN LIMITADA · SMASH · CARNE APLASTADA · BORDE CRUJIENTE · QUESO DERRETIDO · PRODUCCIÓN LIMITADA ·</span></div>
+</header>
+
+<main class="wrap">
+  <section>
+    <h2>Arma tu pedido</h2>
+    <p class="sub">Elige cuántas quieres y te armamos el mensaje listo para WhatsApp.</p>
+    <div id="burgers"></div>
+  </section>
+  <section class="small">
+    <h2>Adicionales</h2>
+    <p class="sub">Súbele el nivel a tu pedido.</p>
+    <div id="extras"></div>
+  </section>
+
+  <section>
+    <h2>Tus datos</h2>
+    <p class="sub">Para llevarte el pedido a la puerta.</p>
+    <div class="form">
+      <label>Nombre<input id="fn" autocomplete="name" placeholder="Tu nombre"></label>
+      <label>Teléfono<input id="fp" type="tel" inputmode="tel" autocomplete="tel" placeholder="3XX XXX XXXX"></label>
+      <div><div class="lb">¿Para qué zona es?</div><div class="chips" id="zones"></div></div>
+      <label>Dirección<input id="fa" autocomplete="street-address" placeholder="Calle o carrera, barrio, referencia"></label>
+      <div><div class="lb">Medio de pago</div><div class="chips" id="pays"></div></div>
+      <label>Notas (opcional)<input id="fo" placeholder="Ej: sin cebolla, pago con $50.000"></label>
+    </div>
+  </section>
+
+  <div class="cart">
+    <div><small id="cnt">Tu pedido está vacío</small><br><b id="tot">$0</b><br><small id="dl"></small><br><small id="err"></small></div>
+    <a class="go" id="go" href="#" target="_blank" rel="noopener">Enviar pedido</a>
+  </div>
+
+  <section>
+    <h2>Cómo funciona</h2>
+    <p class="sub">Tres pasos y listo.</p>
+    <div class="steps">
+      <div class="step"><i>1</i><br><b>Elige</b><br>Marca tus hamburguesas y adicionales.</div>
+      <div class="step"><i>2</i><br><b>Escríbenos</b><br>Pon tus datos y tu zona; se abre WhatsApp con el pedido ya organizado.</div>
+      <div class="step"><i>3</i><br><b>Recibe</b><br>Confirmamos y salimos a tu puerta.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Síguenos</h2>
+    <a class="ig" href="https://www.instagram.com/530.smash/" target="_blank" rel="noopener">Mira lo nuevo en Instagram<br><b>@530.smash</b></a>
+  </section>
+</main>
+<footer>SMASH · Armenia, Quindío · Todos los días 5:30 pm a 10:00 pm<br>Producimos por tandas limitadas: si algo se agota, te avisamos.</footer>
+
+<script src="data.js"></script>
+<script src="data-ext.js"></script>
+<script src="cliente.js"></script>
+</body>
+</html>

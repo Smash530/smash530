@@ -1,0 +1,170 @@
+/* SMASH · estilos de los módulos nuevos (inventario, recetas, respaldo...)
+   Usa las variables de dueno.css / cocina.css. Pensado primero para celular. */
+
+/* ---- Pestañas internas: en celular se desplazan sin romper la página ---- */
+.mod-tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;scrollbar-width:thin}
+.mod-tabs button{white-space:nowrap;min-height:44px;flex-shrink:0}
+
+/* ---- Cajas y formularios ---- */
+.mod-box{background:var(--card);border:2px solid var(--border);border-radius:14px;padding:14px;margin-bottom:14px}
+details.mod-box>summary{cursor:pointer;font-weight:800;color:var(--red);min-height:32px;display:flex;align-items:center;list-style:none}
+details.mod-box>summary::-webkit-details-marker{display:none}
+details.mod-box[open]>summary{margin-bottom:8px}
+.mod-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px}
+.mod-form label,.mod-inline{display:flex;flex-direction:column;gap:4px;font-size:.78rem;color:var(--muted)}
+.mod-form .wide{grid-column:1/-1}
+.mod-form input,.mod-form select,.mod-inline input,.mod-box select,.mod-box input[type="number"],.mod-box input[type="text"]{padding:10px;border-radius:10px;border:2px solid var(--border);background:var(--bg);color:var(--text);font:inherit;font-size:16px;min-height:44px;width:100%}
+.mod-form .chk{flex-direction:row;color:var(--text)}
+.mod-form .chk input{width:auto;min-height:0}
+.mod-form .hint,.mod-form .error{margin:0}
+.mod-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0}
+.mod-actions .btn-primary{margin:0;min-height:46px;padding:12px 18px}
+.mod-actions .btn-secondary{min-height:46px}
+.mod-inline{margin:10px 0}
+.date-row select{min-height:44px}
+.date-row input[type="search"]{flex:1 1 200px;min-width:0}
+@media (max-width:480px){.date-row input[type="search"],.date-row select{flex:1 1 100%}}
+
+/* ---- Tarjetas de ingredientes ---- */
+.mod-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr));gap:12px}
+.ing-card{background:var(--card);border:2px solid var(--border);border-left:6px solid var(--green);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.ing-card.bajo{border-left-color:var(--yellow)}
+.ing-card.agotado{border-left-color:var(--danger)}
+.ing-card.inactivo{border-left-color:var(--muted);opacity:.7}
+.ing-card h4{margin:0;font-size:1rem;display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.ing-card h4 span{overflow-wrap:anywhere}
+.ing-card .ing-stock{font-size:1.4rem;font-weight:900}
+.ing-card .kv{display:flex;justify-content:space-between;gap:8px;font-size:.82rem}
+.ing-card .kv span:first-child{color:var(--muted)}
+.ing-card .kv span:last-child{text-align:right;overflow-wrap:anywhere}
+.ing-card .mod-actions button{flex:1;min-height:42px;padding:8px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-weight:700;cursor:pointer;font-size:.8rem}
+.badge{display:inline-block;font-size:.68rem;font-weight:800;text-transform:uppercase;padding:3px 8px;border-radius:999px;white-space:nowrap;background:rgba(30,138,76,.12);color:var(--green)}
+.badge.bajo{background:rgba(199,138,0,.14);color:var(--yellow)}
+.badge.agotado{background:rgba(192,57,43,.12);color:var(--danger)}
+.badge.inactivo{background:var(--bg);color:var(--muted)}
+.neg{color:var(--danger)}
+.pos{color:var(--green)}
+
+/* ---- Tabla que se vuelve tarjetas en pantallas angostas ---- */
+.rtable{width:100%;border-collapse:collapse;font-size:.85rem;background:var(--card);border:2px solid var(--border);border-radius:12px;overflow:hidden}
+.rtable th{text-align:left;color:var(--muted);font-size:.7rem;text-transform:uppercase;padding:10px;border-bottom:1px solid var(--border);white-space:nowrap}
+.rtable td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.rtable tr:last-child td{border-bottom:none}
+.rtable td.num,.rtable th.num{text-align:right;font-variant-numeric:tabular-nums}
+.rtable input{padding:8px;border-radius:8px;border:2px solid var(--border);background:var(--bg);color:var(--text);font-size:16px;width:100%;min-width:90px;min-height:42px}
+.rtable select{padding:8px;border-radius:8px;border:2px solid var(--border);background:var(--bg);color:var(--text);font-size:16px;min-height:42px;width:100%}
+.rtable .empty{text-align:center;color:var(--muted)}
+@media (max-width:700px){
+  .rtable,.rtable tbody,.rtable tr,.rtable td{display:block;width:100%}
+  .rtable{border:none;background:none}
+  .rtable thead{display:none}
+  .rtable tr{background:var(--card);border:2px solid var(--border);border-radius:12px;margin-bottom:10px;padding:6px 4px}
+  .rtable td{display:flex;justify-content:space-between;align-items:center;gap:10px;border:none;padding:6px 10px;text-align:right}
+  .rtable td.num{text-align:right}
+  .rtable td[data-l]::before{content:attr(data-l);color:var(--muted);font-size:.74rem;text-transform:uppercase;text-align:left;flex-shrink:0;max-width:45%}
+  .rtable td.first{font-weight:800;font-size:.95rem;justify-content:flex-start;text-align:left}
+  .rtable td input,.rtable td select{max-width:60%}
+  .rtable td.full{display:block;text-align:left}
+}
+
+/* ---- Recetas ---- */
+.rec-add{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.rec-add select{flex:1;min-width:0}
+.rec-add button{min-height:44px}
+.btn-x{border:1px solid var(--danger);background:transparent;color:var(--danger);border-radius:10px;min-width:44px;min-height:42px;cursor:pointer;font-weight:800}
+
+/* ---- Comandas: estados, desglose y tableros ---- */
+@media (min-width:1100px){.board-3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.column h3{display:flex;align-items:center;gap:8px}
+.col-n{margin-left:auto;background:var(--red);color:#fff;border-radius:999px;font-size:.75rem;padding:2px 9px;min-width:24px;text-align:center}
+.col-n:empty{display:none}
+.order-card .row{flex-wrap:wrap}
+.st-badge{display:inline-block;font-size:.68rem;font-weight:800;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:var(--bg);color:var(--muted);border:1px solid var(--border);white-space:nowrap}
+.st-badge.st-nuevo{background:#fde2e0;color:#c0392b;border-color:#f5b7b1}
+.st-badge.st-confirmado{background:#e3eefc;color:#1e6fd9;border-color:#b8d3f6}
+.st-badge.st-preparando{background:#fff3d6;color:#a46a00;border-color:#f3d48a}
+.st-badge.st-listo{background:#e6f6ec;color:#1e8a4c;border-color:#a8dcbc}
+.st-badge.st-en_camino{background:#ede4fb;color:#6b3fc4;border-color:#cdb8f1}
+.st-badge.st-entregado{background:#e8e8e8;color:#444}
+.st-badge.st-cancelado{background:#333;color:#fff;border-color:#333}
+.order-card.st-confirmado{border-left-color:#1e6fd9}
+.order-card.st-preparando{border-left-color:#c78a00}
+.order-card.st-listo{border-left-color:#1e8a4c}
+.order-card.st-en_camino{border-left-color:#6b3fc4}
+.otel{font-weight:600;font-size:.85rem;color:var(--red);text-decoration:none;white-space:nowrap;display:inline-block;padding:4px 0}
+.desg{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;font-size:.78rem;color:var(--muted);margin:6px 0 2px}
+.desg strong{margin-left:auto;color:var(--text);font-size:1rem}
+.nov{font-size:.8rem;margin:4px 0;padding:4px 8px;border-radius:8px;background:rgba(199,138,0,.14)}
+.marcas{margin:2px 0 8px}
+.order-actions .btn-advance{flex:1 1 100%;font-size:.95rem;min-height:50px}
+.order-actions .btn-nov{background:var(--card)}
+.order-actions .btn-del{min-width:auto;padding:8px 12px}
+.row-cancel td{opacity:.65}
+.row-cancel td:first-child{text-decoration:line-through}
+.sm-box .chk{flex-direction:row;align-items:center;color:var(--text);font-size:.88rem}
+.sm-box .chk input{width:auto}
+
+/* ---- Caja y pagos ---- */
+.pago-ok{font-size:.8rem;margin:4px 0;padding:4px 8px;border-radius:8px;background:rgba(30,138,76,.12);color:var(--green);font-weight:700}
+.pago-pend{font-size:.8rem;margin:4px 0;padding:4px 8px;border-radius:8px;background:rgba(192,57,43,.1);color:var(--danger);font-weight:700}
+.order-actions .btn-pay{background:var(--green);color:#fff;border-color:var(--green)}
+.order-actions .btn-pay.done{background:var(--card);color:var(--green)}
+.pg-debe{font-size:1.05rem;margin:10px 0 6px}
+.pg-debe b{font-size:1.3rem}
+.pg-lineas{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+.pg-linea{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;padding:10px;border:2px solid var(--border);border-radius:12px}
+.pg-linea .pg-wide{grid-column:1/3}
+.pg-linea select,.pg-linea input{min-height:44px}
+.pend-list{display:flex;flex-direction:column;gap:8px}
+.pend-item{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;background:var(--card);border:2px solid var(--border);border-radius:12px;padding:10px}
+.pend-item .btn-primary{margin:0;min-height:44px;padding:8px 14px}
+@media (max-width:520px){
+  .pend-item{grid-template-columns:1fr auto}
+  .pend-item .btn-primary{grid-column:1/-1}
+  .pg-linea{grid-template-columns:1fr 1fr}
+  .pg-linea .btn-x{grid-column:1/-1}
+}
+.banner b{font-weight:900}
+
+/* ---- Clientes y fidelización ---- */
+.cli-row{cursor:pointer}
+.cli-row:hover td{background:var(--bg)}
+.ficha-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.detail-box h4{margin:14px 0 6px;font-size:.9rem}
+.pts{color:var(--red);font-size:1.2rem}
+.dup-item{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding:10px 0;border-top:1px solid var(--border)}
+.danger-btn{color:var(--danger);border-color:var(--danger)}
+
+/* ---- Informes ---- */
+.kpi-hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px;margin-bottom:6px}
+.kpi-hero .value{font-size:1.7rem}
+.summary-box .sub.pos{color:var(--green)}
+.summary-box .sub.neg{color:var(--danger)}
+.pyg .row span:last-child{font-variant-numeric:tabular-nums}
+.pyg .row.tot{background:var(--bg)}
+/* Gráfico de barras de una serie: barras finas, extremo redondeado, 2px de separación, eje recesivo */
+.chart-box{position:relative;background:var(--card);border:2px solid var(--border);border-radius:12px;padding:22px 10px 8px;margin-bottom:8px}
+.chart-max{position:absolute;top:4px;left:10px;font-size:.7rem;color:var(--muted)}
+.chart{display:flex;align-items:flex-end;gap:2px;height:170px;border-bottom:1px solid var(--border);border-top:1px dashed var(--border)}
+.bar-hit{flex:1 1 0;min-width:0;height:100%;display:flex;align-items:flex-end;justify-content:center;background:none;border:none;padding:0;cursor:pointer}
+.bar{display:block;width:100%;max-width:28px;background:var(--red);border-radius:4px 4px 0 0}
+.bar-hit:hover .bar,.bar-hit:focus-visible .bar{opacity:.75}
+.bar-hit:focus-visible{outline:2px solid var(--text);outline-offset:1px}
+.chart-x{display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);margin-top:4px}
+.chart-tip{position:absolute;top:22px;width:150px;background:var(--text);color:var(--card);font-size:.78rem;padding:6px 8px;border-radius:8px;pointer-events:none;text-align:center;z-index:2}
+.clase-badge{display:inline-block;font-size:.7rem;font-weight:800;padding:3px 8px;border-radius:999px;border:1px solid var(--border);background:var(--bg);color:var(--text);white-space:nowrap}
+.clase-badge.c-estrella::before{content:"★ "}
+.clase-badge.c-caballo::before{content:"▲ "}
+.clase-badge.c-enigma::before{content:"◆ "}
+.clase-badge.c-perro::before{content:"▼ "}
+.clasif-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px;margin-top:12px}
+
+.h-horas span{display:block;font-size:.76rem;white-space:nowrap}
+@media (max-width:700px){.h-horas{flex-wrap:wrap;justify-content:flex-end;gap:2px 10px}.h-horas span{display:inline}}
+.rtable td{overflow-wrap:anywhere}
+
+/* ---- Auditoría ---- */
+.au-v{font-size:.76rem;max-width:280px;overflow-wrap:anywhere}
+
+/* ---- Respaldo ---- */
+.bk-file{display:inline-flex;align-items:center;min-height:46px;cursor:pointer;font-weight:600}
