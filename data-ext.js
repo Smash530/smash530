@@ -344,25 +344,70 @@ const SmashExt = (function () {
   function loginOwner(email, pw) {
     const lock = rd('smash_owner_lock', { n: 0, until: 0 });
     if (Date.now() < lock.until) return { ok: false, error: 'Demasiados intentos. Espera ' + Math.ceil((lock.until - Date.now()) / 1000) + ' segundos.' };
-    const c = ownerCred();
-    if (String(email).trim().toLowerCase() === OWNER_EMAIL && hashPassword(String(pw), c.salt) === c.hash) {
+    const c = ownerCred(), em = String(email).trim().toLowerCase();
+    const extra = rd(DK, []).find((u) => u.correo === em);
+    if ((em === OWNER_EMAIL && hashPassword(String(pw), c.salt) === c.hash) || (extra && hashPassword(String(pw), extra.salt) === extra.hash)) {
       wr('smash_owner_lock', { n: 0, until: 0 });
-      sessionStorage.setItem('smash_session_owner', OWNER_EMAIL);
-      return { ok: true, email: OWNER_EMAIL };
+      sessionStorage.setItem('smash_session_owner', em);
+      return { ok: true, email: em };
     }
     const n = lock.n + 1;
     wr('smash_owner_lock', { n: n >= 5 ? 0 : n, until: n >= 5 ? Date.now() + 30000 : 0 });
     return { ok: false, error: 'Correo o contraseña incorrectos.' };
   }
-  const currentOwner = () => sessionStorage.getItem('smash_session_owner');
+  // Un dueño eliminado pierde la sesión aunque la tuviera abierta
+  const currentOwner = () => { const s = sessionStorage.getItem('smash_session_owner'); return s && (s === OWNER_EMAIL || rd(DK, []).some((u) => u.correo === s)) ? s : null; };
   const logoutOwner = () => sessionStorage.removeItem('smash_session_owner');
   function changeOwnerPassword(actual, nueva, nueva2) {
-    const c = ownerCred();
+    const yo = currentOwner(), l = rd(DK, []), extra = l.find((u) => u.correo === yo);
+    const c = extra || ownerCred();
     if (hashPassword(String(actual), c.salt) !== c.hash) return { ok: false, error: 'La contraseña actual no es correcta.' };
     if (String(nueva).length < 10) return { ok: false, error: 'La nueva contraseña debe tener al menos 10 caracteres.' };
     if (nueva !== nueva2) return { ok: false, error: 'Las contraseñas nuevas no coinciden.' };
-    const salt = 's' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-    wr('smash_owner_cred', { salt, hash: hashPassword(String(nueva), salt) });
+    if (extra) { Object.assign(extra, huella(nueva)); wr(DK, l); } else wr('smash_owner_cred', huella(nueva));
+    return { ok: true };
+  }
+
+  /* ---- Usuarios creados por los dueños ----
+     Caja: se agregan a smash_staff con su propia clave (solo la huella, nunca la clave).
+     Dueños: smash_duenos, entran con su correo. El dueño principal no se puede eliminar. */
+  const DK = 'smash_duenos', SK = 'smash_staff';
+  function huella(pw) { const salt = 'u' + Math.random().toString(36).slice(2) + Date.now().toString(36); return { salt, hash: hashPassword(String(pw), salt) }; }
+  function getUsuarios() {
+    return {
+      caja: rd(SK, []).map((u) => ({ usuario: u.usuario, nombre: u.nombre, propio: !!u.propio })),
+      duenos: [{ correo: OWNER_EMAIL, nombre: 'Dueño principal', principal: true }].concat(rd(DK, []).map((u) => ({ correo: u.correo, nombre: u.nombre }))),
+    };
+  }
+  function crearUsuario(tipo, usuario, nombre, clave, clave2) {
+    usuario = String(usuario || '').trim().toLowerCase(); nombre = String(nombre || '').trim();
+    if (!usuario || !nombre) return { ok: false, error: 'Escribe el usuario y el nombre.' };
+    if (String(clave).length < 8) return { ok: false, error: 'La clave debe tener al menos 8 caracteres.' };
+    if (clave !== clave2) return { ok: false, error: 'Las claves no coinciden.' };
+    const nuevo = Object.assign({ nombre, creado: new Date().toISOString() }, huella(clave));
+    if (tipo === 'dueno') {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(usuario)) return { ok: false, error: 'Los dueños entran con su correo: escribe un correo válido.' };
+      const l = rd(DK, []);
+      if (usuario === OWNER_EMAIL || l.some((u) => u.correo === usuario)) return { ok: false, error: 'Ya existe un dueño con ese correo.' };
+      l.push(Object.assign({ correo: usuario }, nuevo)); wr(DK, l);
+    } else {
+      if (!/^[a-z0-9._-]{3,30}$/.test(usuario)) return { ok: false, error: 'El usuario de caja: de 3 a 30 letras o números, sin espacios.' };
+      const l = rd(SK, []);
+      if (l.some((u) => String(u.usuario).toLowerCase() === usuario)) return { ok: false, error: 'Ya existe un usuario de caja con ese nombre.' };
+      l.push(Object.assign({ usuario, propio: true }, nuevo)); wr(SK, l);
+    }
+    return { ok: true };
+  }
+  function eliminarUsuario(tipo, usuario) {
+    if (tipo === 'dueno') {
+      if (usuario === OWNER_EMAIL) return { ok: false, error: 'El dueño principal no se puede eliminar.' };
+      if (usuario === currentOwner()) return { ok: false, error: 'No puedes eliminar tu propio usuario mientras estás conectado.' };
+      wr(DK, rd(DK, []).filter((u) => u.correo !== usuario));
+    } else {
+      const l = rd(SK, []);
+      if (l.length <= 1) return { ok: false, error: 'Debe quedar al menos un usuario de caja.' };
+      wr(SK, l.filter((u) => u.usuario !== usuario));
+    }
     return { ok: true };
   }
 
@@ -371,6 +416,7 @@ const SmashExt = (function () {
     setStatus, updateOrder, getRepartidores, rememberRepartidor, soundOn, setSound, unlockAudio, audioReady, chime,
     refreshLedger, getLedger, deleteOrder, getDeletedOrders, DIAS, getPersonal, addPersonal, deletePersonal, antiguedad,
     hashPassword, loginOwner, currentOwner, logoutOwner, changeOwnerPassword, OWNER_DEF,
+    getUsuarios, crearUsuario, eliminarUsuario,
   };
 })();
 

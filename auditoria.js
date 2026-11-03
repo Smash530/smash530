@@ -114,6 +114,9 @@ const SmashAudit = (function () {
   wrap(SmashExt, 'deletePersonal', (id) => ({ p: clon(SmashExt.getPersonal().find((x) => x.id === id)) }), (r, ctx) => {
     if (ctx.p) log('Personal eliminado', ctx.p.nombre, { cargo: ctx.p.cargo, telefono: ctx.p.telefono, pago: ctx.p.pago, dias: (ctx.p.dias || []).join(', '), registro: ctx.p.registro }, null);
   });
+  const tipoU = (t) => (t === 'dueno' ? 'dueño' : 'caja');
+  wrap(SmashExt, 'crearUsuario', null, (r, c, a) => { if (r && r.ok) log('Usuario creado', tipoU(a[0]) + ': ' + String(a[1]).trim().toLowerCase(), null, { nombre: a[2] }); });
+  wrap(SmashExt, 'eliminarUsuario', null, (r, c, a) => { if (r && r.ok) log('Usuario eliminado', tipoU(a[0]) + ': ' + a[1], null, null); });
   wrap(SmashExt, 'changeOwnerPassword', null, (r) => log(r && r.ok ? 'Contraseña de dueños cambiada' : 'Intento fallido de cambiar contraseña de dueños', 'Acceso de dueños', null, null));
   wrap(SmashExt, 'loginOwner', null, (r, c, args) => log(r && r.ok ? 'Inicio de sesión de dueños' : 'Inicio de sesión fallido (dueños)', String(args[0] || '').slice(0, 60), null, null));
   wrap(SmashDB, 'setGastosDia', (f) => ({ g: clon(S.read(SmashDB.KEYS.GASTOS_DIA, {})[f]) }), (r, ctx, args) => {
@@ -212,10 +215,15 @@ const SmashAudit = (function () {
     SmashDB.loginStaff = function (usuarioIn, pw) {
       const lock = S.read(K.STAFF_LOCK, { n: 0, until: 0 });
       if (Date.now() < lock.until) return { ok: false, error: 'Demasiados intentos. Espera ' + Math.ceil((lock.until - Date.now()) / 1000) + ' segundos.' };
-      const cred = staffCred();
+      const cred = staffCred(), staff = S.read(SmashDB.KEYS.STAFF, []), quien = String(usuarioIn).trim().toLowerCase();
+      const propio = staff.find((x) => x.propio && x.usuario.toLowerCase() === quien);
       let res;
-      if (cred) {
-        const staff = S.read(SmashDB.KEYS.STAFF, []), u = staff.find((x) => x.usuario.toLowerCase() === String(usuarioIn).trim().toLowerCase());
+      if (propio) {
+        // Usuario creado por los dueños: entra solo con su propia clave
+        if (SmashExt.hashPassword(String(pw), propio.salt) === propio.hash) { localStorage.setItem(SmashDB.KEYS.SESSION_STAFF, propio.usuario); res = { ok: true, user: propio }; }
+        else res = { ok: false, error: 'Usuario o contraseña de caja incorrectos.' };
+      } else if (cred) {
+        const u = staff.find((x) => !x.propio && x.usuario.toLowerCase() === quien);
         if (u && SmashExt.hashPassword(String(pw), cred.salt) === cred.hash) { localStorage.setItem(SmashDB.KEYS.SESSION_STAFF, u.usuario); res = { ok: true, user: u }; }
         else res = { ok: false, error: 'Usuario o contraseña de caja incorrectos.' };
       } else res = origLogin.call(this, usuarioIn, pw);

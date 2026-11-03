@@ -247,3 +247,31 @@ RESPALDO Y RECUPERACIÓN
   Ojo: restaurar también devuelve la contraseña de dueños que existía cuando se hizo ese respaldo.
   En un navegador nuevo y vacío, el panel de dueños pide la contraseña ORIGINAL (la que venía con el
   sistema, antes de cambiarla). Entra con ella, restaura, y desde ahí vale la contraseña del respaldo.
+
+=========== USUARIOS (2026-11-02) ===========
+  Dueños > Configuración > Usuarios: crear y eliminar usuarios.
+  - Caja / cocina: entran al panel de caja con su usuario y SU PROPIA clave (la clave de caja
+    general no les sirve). El usuario "cocina" que venía de fábrica usa la clave general; se puede
+    eliminar cuando ya tengan sus propios usuarios (siempre debe quedar al menos uno).
+  - Dueños: entran al panel de dueños con su correo y su clave. "Cambiar mi contraseña" cambia la
+    del dueño que está conectado. El dueño principal no se puede eliminar, y nadie puede eliminarse
+    a sí mismo mientras está conectado.
+  - Solo se guarda la huella de cada clave. Crear y eliminar usuarios queda en la Auditoría.
+  - Como todo, viven en el navegador de este equipo: viajan en el respaldo.
+
+=========== PROTECCIÓN EN VERCEL (2026-11-02) ===========
+  Archivos: middleware.js, vercel.json, package.json (sin dependencias ni compilación).
+  - La página de clientes (cliente.html, sus estilos, data.js, data-ext.js, menu.json e images/)
+    sigue pública y sin cambios.
+  - TODO lo demás (panel de caja, panel de dueños y sus scripts) lo bloquea el servidor de Vercel
+    con una ventana de usuario y clave ANTES de entregar el archivo. Sin la clave ni siquiera se
+    descarga el código del panel.
+  - Las claves NO están en el código. Se configuran en Vercel → Settings → Environment Variables:
+      CAJA_USUARIO, CAJA_CLAVE     → abre el panel de caja
+      DUENO_USUARIO, DUENO_CLAVE   → abre el panel de dueños (y también el de caja)
+    Después de crear o cambiar una variable: Deployments → Redeploy.
+  - Si falta alguna variable, los paneles quedan cerrados (mensaje "Falta configurar...").
+  - Es una puerta ADICIONAL: después siguen pidiendo su usuario/clave de caja o de dueños de siempre.
+  - Para cambiar una clave: edítala en Vercel y vuelve a desplegar. Usa claves largas y al azar.
+  - Solo funciona publicado en Vercel. Abriendo los archivos directo en el equipo no hay esta puerta.
+  - Nunca subas a Vercel ni a GitHub el archivo con las claves.

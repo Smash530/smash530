@@ -63,6 +63,31 @@
     e.target.reset(); $('ccMsg').className = 'ok-msg'; $('ccMsg').textContent = '✓ Clave de caja cambiada. Compártela solo con el personal de caja.'; renderClave();
   });
 
-  document.querySelectorAll('.nav-btn').forEach((b) => b.addEventListener('click', () => { render(); renderClave(); }));
-  render(); renderClave();
+  /* ---------------- Usuarios de caja y de dueños (Configuración) ---------------- */
+  function renderUsuarios() {
+    const U = SmashExt.getUsuarios(), yo = SmashExt.currentOwner();
+    const fila = (tipo, id, nombre, nota, borrable) => `<tr><td class="first">${esc(id)}</td><td data-l="Nombre">${esc(nombre)}</td><td data-l="Tipo">${tipo === 'dueno' ? 'Dueño' : 'Caja'}</td><td data-l="Acceso">${nota}</td>
+      <td class="full" data-l="">${borrable ? `<button type="button" class="btn-sm" data-usdel="${esc(id)}" data-ustipo="${tipo}">Eliminar</button>` : ''}</td></tr>`;
+    $('usLista').innerHTML = '<table class="rtable"><thead><tr><th>Usuario</th><th>Nombre</th><th>Tipo</th><th>Acceso</th><th></th></tr></thead><tbody>' +
+      U.caja.map((u) => fila('caja', u.usuario, u.nombre, u.propio ? 'Clave propia' : 'Clave de caja general', U.caja.length > 1)).join('') +
+      U.duenos.map((u) => fila('dueno', u.correo, u.nombre, u.principal ? 'Dueño principal' : 'Clave propia', !u.principal && u.correo !== yo)).join('') + '</tbody></table>';
+  }
+  $('usTipo').addEventListener('change', () => { $('usUsuarioL').textContent = $('usTipo').value === 'dueno' ? 'Correo' : 'Usuario'; });
+  $('usForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const r = SmashExt.crearUsuario($('usTipo').value, $('usUsuario').value, $('usNombre').value, $('usClave').value, $('usClave2').value);
+    $('usClave').value = $('usClave2').value = '';
+    if (!r.ok) { $('usMsg').className = 'error'; $('usMsg').textContent = r.error; return; }
+    $('usUsuario').value = $('usNombre').value = '';
+    $('usMsg').className = 'ok-msg'; $('usMsg').textContent = '✓ Usuario creado.'; renderUsuarios();
+  });
+  $('usLista').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-usdel]'); if (!b) return;
+    if (!confirm('¿Eliminar el usuario ' + b.dataset.usdel + '? Ya no podrá entrar.')) return;
+    const r = SmashExt.eliminarUsuario(b.dataset.ustipo, b.dataset.usdel);
+    $('usMsg').className = r.ok ? 'ok-msg' : 'error'; $('usMsg').textContent = r.ok ? '✓ Usuario eliminado.' : r.error; renderUsuarios();
+  });
+
+  document.querySelectorAll('.nav-btn').forEach((b) => b.addEventListener('click', () => { render(); renderClave(); renderUsuarios(); }));
+  render(); renderClave(); renderUsuarios();
 })();

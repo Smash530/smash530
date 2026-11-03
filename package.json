@@ -1,0 +1,5 @@
+{
+  "name": "smash-pos",
+  "private": true,
+  "description": "SMASH: sitio estático. Este archivo solo existe para que Vercel active middleware.js (sin dependencias ni compilación)."
+}

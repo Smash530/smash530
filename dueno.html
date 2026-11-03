@@ -403,6 +403,18 @@
         <label class="btn-secondary bk-file">⬆️ Restaurar desde archivo<input type="file" id="bkArchivo" accept="application/json,.json" hidden></label>
       </div>
       <p class="error" id="bkMsg"></p>
+      <h3 class="section-title">Usuarios</h3>
+      <p class="hint">Crea los accesos de caja y de dueños. Cada usuario creado aquí entra con su propia clave.</p>
+      <div id="usLista"></div>
+      <form id="usForm" class="auth-form product-form">
+        <label>Tipo<select id="usTipo"><option value="caja">Caja / cocina</option><option value="dueno">Dueño</option></select></label>
+        <label id="usUsuarioL">Usuario</label><input id="usUsuario" maxlength="80" autocomplete="off" required>
+        <label>Nombre</label><input id="usNombre" maxlength="60" required>
+        <label>Clave (mínimo 8 caracteres)</label><input type="password" id="usClave" autocomplete="new-password" required>
+        <label>Repite la clave</label><input type="password" id="usClave2" autocomplete="new-password" required>
+        <button type="submit" class="btn-primary">Crear usuario</button>
+        <p class="error" id="usMsg"></p>
+      </form>
       <h3 class="section-title">Clave de caja</h3>
       <p class="hint" id="ccEstado"></p>
       <form id="ccForm" class="auth-form product-form">
