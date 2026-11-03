@@ -45,7 +45,6 @@
   .go{width:100%}
   body{padding-bottom:0}
   .hero-in{padding-top:64px;padding-bottom:64px}
-  .hero h1{max-width:16ch}
 }
 @media (min-width:1640px){
   .wrap,.tb-in,.hero-in{max-width:1440px}

@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#151010">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Permanent+Marker&family=Sedgwick+Ave+Display&display=swap">
 <link rel="stylesheet" href="cliente.css">
 <link rel="stylesheet" href="cliente-resp.css">
 </head>
@@ -36,15 +36,17 @@
 
 <section class="hero" id="inicio">
   <div class="hero-media" aria-hidden="true">
-    <img class="hero-img" data-src="images/portada.jpeg" alt="" onload="this.dataset.ok=1" onerror="smashImgFallback(this)">
+    <img class="hero-img" data-src="images/portada.jpg" alt="" onload="this.dataset.ok=1" onerror="smashImgFallback(this)">
     <video class="hero-video" autoplay muted loop playsinline preload="metadata">
       <source src="images/portada.mp4" type="video/mp4" onerror="this.parentNode.remove()">
     </video>
   </div>
   <div class="hero-in">
     <div class="status" id="st"><span class="dot"></span><span id="stt">Atención de 5:30 pm a 10:00 pm</span></div>
-    <h1>Hamburguesas smash<br><em>con borde crujiente</em></h1>
-    <p class="tl">Carne aplastada al momento, queso derretido y pan brioche. Producción limitada cada noche, solo domicilios en Armenia.</p>
+    <h1 class="graf" aria-label="SMASH · hamburguesas smash">
+      <span class="graf-w" data-t="SMASH" aria-hidden="true"><span class="graf-f">SMASH</span><i class="drip d1"></i><i class="drip d2"></i><i class="drip d3"></i></span>
+      <span class="graf-tag" aria-hidden="true">smash burgers</span>
+    </h1>
     <div class="hero-cta">
       <a class="btn btn-red" href="#menu">Ver el menú</a>
       <a class="btn btn-line" href="https://www.instagram.com/530.smash/" target="_blank" rel="noopener">@530.smash</a>
@@ -135,8 +137,7 @@
   </div>
 </div>
 
-<script src="data.js"></script>
-<script src="data-ext.js"></script>
-<script src="cliente.js"></script>
+<script src="boot.js"></script>
+<script>SmashBoot.cargar(['data.js', 'data-ext.js', 'cliente.js']);</script>
 </body>
 </html>

@@ -51,16 +51,29 @@ button,.chip,.go,.btn,.qty button{touch-action:manipulation;-webkit-tap-highligh
 .hero-img,.hero-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 /* oscurece la foto/video para que el texto siempre se lea */
 .hero-media::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(21,16,16,.72) 0%,rgba(21,16,16,.88) 100%)}
-@media (min-width:640px){.hero-media::after{background:linear-gradient(90deg,rgba(21,16,16,.92) 0%,rgba(21,16,16,.65) 55%,rgba(21,16,16,.3) 100%)}}
-.hero-in{text-shadow:0 1px 14px rgba(0,0,0,.25)}
-.hero-in{max-width:1200px;margin:0 auto;padding:26px max(16px,env(safe-area-inset-right)) 30px max(16px,env(safe-area-inset-left))}
-.hero h1{font-size:clamp(2rem,8vw,3.8rem);font-weight:900;margin:14px 0 10px;max-width:14ch}
-.hero h1 em{font-style:normal;color:#ffb3a8}
-.tl{margin:0;max-width:52ch;color:rgba(255,247,242,.82);font-size:clamp(.98rem,2.6vw,1.12rem)}
+@media (min-width:640px){.hero-media::after{background:radial-gradient(75% 85% at 50% 50%,rgba(21,16,16,.5) 0%,rgba(21,16,16,.86) 100%)}}
+.hero-in{max-width:1200px;margin:0 auto;padding:22px max(16px,env(safe-area-inset-right)) 28px max(16px,env(safe-area-inset-left));text-align:center}
+
+/* Nombre en grafiti, colores de la marca: letras en spray rojo, contorno en spray blanco y gotas de pintura */
+.graf{margin:14px 0 4px;font-weight:400;line-height:1;position:relative;display:flex;flex-direction:column;align-items:center}
+.graf::before{content:"";position:absolute;left:50%;top:46%;width:min(92vw,720px);height:70%;transform:translate(-50%,-50%);z-index:-1;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.45),rgba(0,0,0,0));filter:blur(6px)}
+.graf-w{position:relative;display:inline-block;font-family:"Sedgwick Ave Display","Permanent Marker",Impact,"Arial Black",sans-serif;font-size:clamp(4.4rem,25vw,11.5rem);letter-spacing:.02em;transform:rotate(-6deg);padding:0 .12em .1em;animation:graf-in .55s cubic-bezier(.2,1.4,.4,1) both}
+/* contorno blanco: trazo grueso con bordes suaves y neblina, como pintura en aerosol */
+.graf-w::before{content:attr(data-t);position:absolute;inset:0;padding:inherit;color:#fff;-webkit-text-stroke:.15em #fff;filter:blur(.6px);text-shadow:0 0 .04em #fff,0 0 .12em rgba(255,255,255,.55),.05em .07em .14em rgba(0,0,0,.55)}
+/* letras rojas con neblina roja alrededor del trazo */
+.graf-f{position:relative;color:#e4161c;-webkit-text-stroke:.012em #c3121a;text-shadow:0 0 .025em rgba(228,22,28,.95),0 0 .07em rgba(228,22,28,.5)}
+.drip{position:absolute;top:63%;width:.06em;border-radius:0 0 .05em .05em;background:linear-gradient(#e4161c,#b31217);transform-origin:top;animation:drip 1.4s .5s ease-out both}
+.drip::after{content:"";position:absolute;left:50%;bottom:-.035em;width:.09em;height:.09em;border-radius:50%;background:#b31217;transform:translateX(-50%)}
+.d1{left:24%;height:.3em}
+.d2{left:55%;height:.42em}
+.d3{left:80%;height:.24em}
+.graf-tag{display:inline-block;margin-top:-.15em;font-family:"Permanent Marker","Archivo",cursive;font-size:clamp(.95rem,3.8vw,1.35rem);color:var(--ink);background:#fff;padding:3px 14px 2px;border-radius:6px;transform:rotate(-3deg);box-shadow:3px 3px 0 var(--red);letter-spacing:.04em}
+@keyframes graf-in{from{opacity:0;transform:rotate(-6deg) scale(.82)}to{opacity:1;transform:rotate(-6deg) scale(1)}}
+@keyframes drip{from{transform:scaleY(0)}to{transform:scaleY(1)}}
 .status{display:inline-flex;gap:8px;align-items:center;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);color:#fff;font-weight:700;font-size:.85rem;padding:6px 12px;border-radius:999px;backdrop-filter:blur(6px)}
 .dot{width:9px;height:9px;border-radius:50%;background:#9a8c8c;flex-shrink:0}
 .status.open .dot{background:var(--ok);animation:pulse 1.8s infinite}
-.hero-cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.hero-cta{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:20px}
 .btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 20px;border-radius:999px;font-weight:800;text-decoration:none;font-size:.98rem}
 .btn-red{background:var(--red);color:#fff}
 .btn-red:hover{background:var(--red-2)}
@@ -193,4 +206,4 @@ body{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
 .gbox .gsub{font-size:.9rem;font-weight:500;color:var(--muted)}
 .gbox button{margin-top:8px;min-height:46px;padding:0 30px;border:0;border-radius:999px;background:var(--red);color:#fff;font-weight:800;font-size:1rem;cursor:pointer}
 
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.status.open .dot{animation:none}.hero-video{display:none}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.status.open .dot{animation:none}.hero-video{display:none}.graf-w,.drip{animation:none}}
