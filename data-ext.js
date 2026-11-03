@@ -88,6 +88,7 @@ const SmashExt = (function () {
         return line;
       }),
       notas: d.notas || '',
+      reserva: !!d.reserva,
       domicilioPendiente: !!d.domicilioPendiente,
       impresa: false,
       subtotal,
@@ -99,6 +100,35 @@ const SmashExt = (function () {
     orders.push(order);
     wr(K.ORDERS, orders);
     return { ok: true, order };
+  }
+
+  /* ---- Productos de un mensaje de WhatsApp ("- 2 x Nombre ($00.000)") ----
+     Un combo llega como "- 1 x Combo (papas + gaseosa) para Smash Toci ($6.900)": se reconoce
+     el combo y la hamburguesa queda como nota de la línea. */
+  function leerItems(texto) {
+    const products = SmashDB.getProducts(), mny = (s) => parseInt(String(s).replace(/\D/g, ''), 10) || 0;
+    const porNombre = (n) => products.find((p) => p.name.toLowerCase() === n.toLowerCase());
+    const out = [];
+    String(texto).split(/\r?\n/).forEach((l) => {
+      const m = l.match(/^\s*-\s*(\d+)\s*x\s*(.+?)\s*\(\$?\s*([\d.,]+)\)\s*$/i);
+      if (!m) return;
+      const q = +m[1], n = m[2], total = mny(m[3]);
+      let pr = porNombre(n), nota = '';
+      if (!pr) {
+        const c = n.match(/^(.+?)\s+para\s+(.+)$/i), base = c && porNombre(c[1]);
+        if (base && base.categoria === 'combo') { pr = base; nota = 'Para ' + c[2]; }
+      }
+      if (!pr) {
+        // adicional con sabor: "- 2 x Gaseosa Postobón (Uva) ($6.000)"
+        const s = n.match(/^(.+?)\s*\(([^()]+)\)$/), base = s && porNombre(s[1]);
+        if (base) { pr = base; nota = 'Sabor: ' + s[2].trim(); }
+      }
+      const it = pr ? { id: pr.id, name: pr.name, price: pr.price, qty: q }
+        : { id: 'x-' + n.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: n, price: Math.round(total / q), qty: q };
+      if (nota) it.nota = nota;
+      out.push(it);
+    });
+    return out;
   }
 
   /* ---- Catálogo v2: ingredientes reales y nombre nuevo (se aplica una sola vez) ---- */
@@ -114,6 +144,29 @@ const SmashExt = (function () {
     list.forEach((p) => { if (ING[p.id]) p.desc = ING[p.id]; if (p.id === 'american') p.name = 'American Toci'; });
     wr(SmashDB.KEYS.PRODUCTS, list);
     wr('smash_catalog_v', 2);
+  })();
+
+  /* ---- Sabores / tipos de un adicional (ej. gaseosas): el cliente elige uno por unidad ---- */
+  // "Uva, Manzana,uva" → ['Uva', 'Manzana'] (sin vacíos ni repetidos)
+  function leerSabores(v) {
+    const vistos = {}, out = [];
+    (Array.isArray(v) ? v : String(v || '').split(/[,\n]/)).forEach((s) => {
+      s = String(s).trim().replace(/\s+/g, ' ').slice(0, 40);
+      if (s && !vistos[s.toLowerCase()] && out.length < 30) { vistos[s.toLowerCase()] = 1; out.push(s); }
+    });
+    return out;
+  }
+  // Catálogo v3: las dos gaseosas como adicional. Quedan ocultas y sin precio hasta que el dueño ponga el precio.
+  (function migrateGaseosas() {
+    if ((rd('smash_catalog_v', 0) || 0) >= 3) return;
+    const list = rd(SmashDB.KEYS.PRODUCTS, null);
+    if (!list) return;
+    [{ id: 'gaseosaPostobon', name: 'Gaseosa Postobón', sabores: ['Uva', 'Manzana', 'Colombiana', 'Naranja', 'Pepsi'] },
+      { id: 'cocaColaZero', name: 'Coca-Cola Zero', sabores: [] }].forEach((g) => {
+      if (!list.some((p) => p.id === g.id)) list.push({ id: g.id, name: g.name, desc: '', price: 0, cost: 0, img: '', categoria: 'adicional', activo: false, sabores: g.sabores });
+    });
+    wr(SmashDB.KEYS.PRODUCTS, list);
+    wr('smash_catalog_v', 3);
   })();
 
   /* ---- Cupo diario de hamburguesas ---- */
@@ -136,6 +189,31 @@ const SmashExt = (function () {
     return { total: c.total, vendidas: vendidasHoy() };
   }
 
+  /* ---- Horario de atención (lo cambian los dueños) ----
+     Hora de Colombia. Si cierra antes de abrir (ej. 18:00 a 02:00) se entiende que cierra al día siguiente.
+     Fuera del horario los pedidos de la página quedan como reserva. */
+  const HK = 'smash_horario', HDEF = { abre: '17:30', cierra: '22:00' };
+  const esHora = (s) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(s));
+  function getHorario() { const h = rd(HK, null); return h && esHora(h.abre) && esHora(h.cierra) ? { abre: h.abre, cierra: h.cierra } : Object.assign({}, HDEF); }
+  function setHorario(abre, cierra) {
+    if (!esHora(abre) || !esHora(cierra)) return { ok: false, error: 'Escribe la hora de apertura y la de cierre.' };
+    if (abre === cierra) return { ok: false, error: 'La hora de apertura y la de cierre no pueden ser iguales.' };
+    wr(HK, { abre, cierra }); return { ok: true };
+  }
+  function horaTexto(hhmm) {
+    const p = String(hhmm).split(':'), h = +p[0], m = p[1];
+    return (h % 12 || 12) + ':' + m + (h < 12 ? ' am' : ' pm');
+  }
+  function estadoHorario(h, fecha) {
+    h = h && esHora(h.abre) && esHora(h.cierra) ? h : HDEF;
+    const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: false }).format(fecha || new Date()).split(':');
+    const ahora = (+p[0] % 24) * 60 + +p[1], min = (s) => +s.slice(0, 2) * 60 + +s.slice(3);
+    const a = min(h.abre), c = min(h.cierra);
+    const abierto = a < c ? ahora >= a && ahora < c : ahora >= a || ahora < c;
+    // fuera de horario: abre hoy si aún no llega la hora de apertura; si no, mañana
+    return { abierto, abreHoy: !abierto && ahora < a, abre: horaTexto(h.abre), cierra: horaTexto(h.cierra) };
+  }
+
   /* ---- Menú publicable para clientes (menu.json) ---- */
   function buildMenu() {
     const c = cupoHoy();
@@ -143,9 +221,10 @@ const SmashExt = (function () {
       version: 1,
       generado: new Date().toISOString(),
       dia: hoy(),
-      productos: SmashDB.getProducts({ soloActivos: true }).map((p) => ({ id: p.id, name: p.name, desc: p.desc || '', price: p.price, img: p.img || '', categoria: p.categoria })),
+      productos: SmashDB.getProducts({ soloActivos: true }).map((p) => ({ id: p.id, name: p.name, desc: p.desc || '', price: p.price, img: p.img || '', categoria: p.categoria, sabores: p.sabores || [] })),
       zonas: getZones(),
       cupo: c,
+      horario: getHorario(),
     };
   }
   async function loadMenu() {
@@ -416,7 +495,7 @@ const SmashExt = (function () {
     setStatus, updateOrder, getRepartidores, rememberRepartidor, soundOn, setSound, unlockAudio, audioReady, chime,
     refreshLedger, getLedger, deleteOrder, getDeletedOrders, DIAS, getPersonal, addPersonal, deletePersonal, antiguedad,
     hashPassword, loginOwner, currentOwner, logoutOwner, changeOwnerPassword, OWNER_DEF,
-    getUsuarios, crearUsuario, eliminarUsuario,
+    getUsuarios, crearUsuario, eliminarUsuario, leerItems, leerSabores, getHorario, setHorario, horaTexto, estadoHorario,
   };
 })();
 

@@ -1,19 +1,32 @@
-Pon aquí tus imágenes con estos nombres (las que data.js ya referencia):
-  logo-smash.png
-  producto-smash.jpg
-  producto-american-smash.jpg
-  producto-smash-toci.jpg
-  producto-combo.jpg
-Si una imagen falta, la página sigue funcionando y simplemente no la muestra.
+FOTOS Y VIDEO DE LA PÁGINA DE CLIENTES
+Pon los archivos en ESTA carpeta (images) con estos nombres exactos.
+Si un archivo falta, la página funciona igual y muestra un diseño de reemplazo.
+Las fotos pueden ser .jpg, .jpeg, .png o .webp (la página prueba las cuatro solas).
 
-Logo del ticket de comanda (impresión y PDF): logo-ticket.jpeg
-  Debe ser JPEG (.jpeg), en blanco y negro o a color; para la térmica funciona mejor
-  con fondo blanco y trazos negros. Si no existe, el ticket sale sin logo.
+1) PORTADA (la franja oscura de arriba)
+   portada.jpg  → foto horizontal de tus hamburguesas.
+                  Ideal: 1920 x 1080 px, menos de 400 KB. La página la oscurece para que el
+                  texto se lea, así que sirve casi cualquier foto bien iluminada.
+   portada.mp4  → (opcional) video corto en bucle que reemplaza la foto.
+                  5 a 10 segundos, SIN sonido (no se reproduce), horizontal 1280 x 720,
+                  formato MP4 (H.264) y menos de 4 MB para que cargue rápido en celular.
+                  Ejemplos: carne aplastándose en la plancha, queso derritiéndose.
+                  Si pones video, deja también portada.jpg: se ve mientras carga el video.
 
-Logo de la página de clientes: logo-cliente.png
-  Debe ser PNG con FONDO TRANSPARENTE (sin fondo blanco), porque se muestra sobre el rojo.
-  Si falta, se muestra la hamburguesa dibujada de siempre.
+2) FOTOS DE LAS HAMBURGUESAS (tarjetas del menú)
+   producto-smash.jpg
+   producto-american-smash.jpg
+   producto-smash-toci.jpg
+   producto-combo.jpg
+   Ideal: cuadradas o 4:3, 1000 x 1000 px, menos de 250 KB, fondo limpio y la hamburguesa
+   centrada. En celular se ven en cuadrado pequeño y en PC en 4:3, así que deja aire alrededor.
+   Los productos que crees desde el panel de dueños guardan su foto allí mismo: no hace
+   falta subir archivos aparte.
 
-Fotos de productos: pueden ser .jpg, .jpeg, .png o .webp. Si data.js dice .jpg y tu archivo
-es .jpeg, la página lo encuentra sola. Los productos nuevos que crees en cocina guardan su
-foto dentro del menú: no necesitas subir archivos aparte.
+3) LOGOS
+   logo-cliente.png  → logo de la barra superior de la página de clientes.
+                       PNG con FONDO TRANSPARENTE y trazos claros (se ve sobre fondo oscuro).
+   logo-smash.png    → logo del panel interno.
+   logo-ticket.jpeg  → logo de la comanda impresa/PDF. JPEG, mejor con fondo blanco y trazos negros.
+
+Consejo: para comprimir fotos sin perder calidad puedes usar squoosh.app (gratis, en el navegador).

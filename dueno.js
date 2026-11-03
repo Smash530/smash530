@@ -253,6 +253,23 @@
     if (r.fuente === 'receta') return `<p class="hint" style="margin:0 0 5px">Costo por receta: <b>${fmt(r.costo)}</b> · margen ${r.margen == null ? '-' : r.margen.toFixed(1) + '%'}${r.incompleto ? ' · ⚠ receta incompleta' : ''}. El costo manual no se usa.</p>`;
     return `<p class="hint" style="margin:0 0 5px">${r.fuente === 'manual' ? 'Usa el costo manual (sin receta) · margen ' + (r.margen == null ? '-' : r.margen.toFixed(1) + '%') : 'Sin costo: arma su receta o escribe un costo manual.'}</p>`;
   }
+  // Sabores / tipos de un adicional: el cliente elige uno por cada unidad (ej. Gaseosa Postobón: Uva, Manzana…)
+  const sabChip = (s) => `<span class="sab-chip" data-v="${esc(s)}">${esc(s)}<button type="button" data-sabdel aria-label="Quitar ${esc(s)}">×</button></span>`;
+  function sabBox(p) {
+    return `<div class="pn-sab"${p.categoria === 'adicional' ? '' : ' hidden'}>
+      <div class="lb">Sabores / tipos para elegir</div>
+      <div class="sab-list">${(p.sabores || []).map(sabChip).join('')}</div>
+      <div class="sab-add"><input type="text" class="pn-sabnew" maxlength="40" placeholder="Ej: Uva"><button type="button" data-sabadd>+ Agregar</button></div>
+      <p class="hint">Si tiene sabores, el cliente elige uno por cada unidad. Sin sabores se pide normal. Recuerda dar Guardar.</p>
+    </div>`;
+  }
+  function sabAgregar(card) {
+    const inp = card.querySelector('.pn-sabnew'), list = card.querySelector('.sab-list');
+    const ya = Array.from(list.querySelectorAll('.sab-chip')).map((c) => c.dataset.v);
+    const nuevos = SmashExt.leerSabores(ya.concat(inp.value.split(','))).slice(ya.length);
+    list.insertAdjacentHTML('beforeend', nuevos.map(sabChip).join(''));
+    inp.value = ''; inp.focus();
+  }
   function renderProductos() {
     const products = SmashDB.getProducts();
     $('productosLista').innerHTML = products.map((p) => `
@@ -268,9 +285,10 @@
           ${costoInfo(p)}
           <select class="pn-categoria">
             <option value="hamburguesa" ${p.categoria === 'hamburguesa' ? 'selected' : ''}>Hamburguesa</option>
-            <option value="combo" ${p.categoria === 'combo' ? 'selected' : ''}>Combo</option>
+            <option value="combo" ${p.categoria === 'combo' ? 'selected' : ''}>Combo (opción dentro de cada hamburguesa)</option>
             <option value="adicional" ${p.categoria === 'adicional' ? 'selected' : ''}>Adicional</option>
           </select>
+          ${sabBox(p)}
           <label class="chk"><input type="checkbox" class="pn-activo" ${p.activo !== false ? 'checked' : ''}> Visible para clientes</label>
           <input type="file" class="pn-foto prod-file" accept="image/*">
           <div class="prod-actions">
@@ -283,6 +301,8 @@
   $('productosLista').addEventListener('click', async (e) => {
     const b = e.target.closest('button'); if (!b) return;
     const card = b.closest('.producto-card'); if (!card) return;
+    if (b.hasAttribute('data-sabdel')) { b.closest('.sab-chip').remove(); return; }
+    if (b.hasAttribute('data-sabadd')) { sabAgregar(card); return; }
     if (b.dataset.guardar) {
       const fields = {
         name: card.querySelector('.pn-nombre').value.trim(),
@@ -291,8 +311,11 @@
         cost: parseFloat(card.querySelector('.pn-costo').value) || 0,
         categoria: card.querySelector('.pn-categoria').value,
         activo: card.querySelector('.pn-activo').checked,
+        // lo que quedó escrito sin dar "+ Agregar" también se guarda
+        sabores: SmashExt.leerSabores(Array.from(card.querySelectorAll('.sab-chip')).map((c) => c.dataset.v).concat(card.querySelector('.pn-sabnew').value.split(','))),
       };
       if (!fields.name) { alert('El nombre no puede estar vacío.'); return; }
+      if (fields.activo && !(fields.price > 0)) { alert('Escribe el precio de venta antes de hacerlo visible para clientes.'); return; }
       const f = card.querySelector('.pn-foto').files[0];
       if (f) fields.img = await fileToDataURL(f);
       SmashDB.updateProduct(b.dataset.guardar, fields);
@@ -309,6 +332,13 @@
       }
     }
   });
+  $('productosLista').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.classList.contains('pn-sabnew')) { e.preventDefault(); sabAgregar(e.target.closest('.producto-card')); }
+  });
+  $('productosLista').addEventListener('change', (e) => {
+    if (e.target.classList.contains('pn-categoria')) e.target.closest('.producto-card').querySelector('.pn-sab').hidden = e.target.value !== 'adicional';
+  });
+  $('npCategoria').addEventListener('change', () => { $('npSabWrap').hidden = $('npCategoria').value !== 'adicional'; });
   $('nuevoProductoForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = $('npFoto').files[0];
@@ -316,8 +346,10 @@
       name: $('npNombre').value.trim(), desc: $('npDesc').value.trim(),
       price: parseFloat($('npPrecio').value) || 0, cost: parseFloat($('npCosto').value) || 0,
       categoria: $('npCategoria').value, img: f ? await fileToDataURL(f) : '',
+      sabores: $('npCategoria').value === 'adicional' ? SmashExt.leerSabores($('npSabores').value) : [],
     });
     e.target.reset();
+    $('npSabWrap').hidden = $('npCategoria').value !== 'adicional';
     renderProductos();
   });
 
@@ -344,6 +376,24 @@
     const b = e.target.closest('[data-pdel]'); if (!b) return;
     if (confirm('¿Eliminar a esta persona del personal?')) { SmashExt.deletePersonal(b.dataset.pdel); renderPersonal(); }
   });
+
+  /* ============== HORARIO DE ATENCIÓN ============== */
+  function renderHorario() {
+    const h = SmashExt.getHorario(), e = SmashExt.estadoHorario(h);
+    if (!$('horForm').contains(document.activeElement)) { $('horAbre').value = h.abre; $('horCierra').value = h.cierra; }
+    $('horEstado').innerHTML = `
+      <div class="summary-box"><div class="label">Horario visible</div><div class="value">${esc(e.abre)} a ${esc(e.cierra)}</div></div>
+      <div class="summary-box"><div class="label">Ahora</div><div class="value ${e.abierto ? '' : 'neg'}">${e.abierto ? 'Abierto' : 'Cerrado'}</div><div class="sub">${e.abierto ? 'Los pedidos entran normal' : 'Los pedidos entran como reserva'}</div></div>`;
+  }
+  $('horForm').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const r = SmashExt.setHorario($('horAbre').value, $('horCierra').value);
+    $('horMsg').className = r.ok ? 'ok-msg' : 'error';
+    $('horMsg').textContent = r.ok ? '✓ Horario guardado. Recuerda publicar el menú si usas hosting.' : r.error;
+    $('horAbre').blur(); $('horCierra').blur(); renderHorario();
+  });
+  document.querySelectorAll('.nav-btn').forEach((b) => b.addEventListener('click', renderHorario));
+  renderHorario();
 
   /* ============== CONFIGURACIÓN (domicilio, publicar menú, contraseña) ============== */
   // Zonas de cobertura: nombre, tarifa, valor variable y activa. Se editan en borrador y se guardan juntas.
@@ -404,17 +454,7 @@
   $('importBtn').addEventListener('click', () => {
     const t = $('importText').value, out = $('importMsg');
     out.className = 'error';
-    const items = [];
-    t.split(/\r?\n/).forEach((l) => {
-      const m = l.match(/^\s*-\s*(\d+)\s*x\s*(.+?)\s*\(\$?\s*([\d.,]+)\)\s*$/i);
-      if (m) items.push({ q: +m[1], n: m[2], p: mny(m[3]) });
-    });
-    const products = SmashDB.getProducts();
-    const its = items.map((i) => {
-      const pr = products.find((p) => p.name.toLowerCase() === i.n.toLowerCase());
-      return pr ? { id: pr.id, name: pr.name, price: pr.price, qty: i.q }
-        : { id: 'x-' + i.n.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: i.n, price: Math.round(i.p / i.q), qty: i.q };
-    });
+    const its = SmashExt.leerItems(t);
     const cliente = fld(t, 'Cliente'), dir = fld(t, 'Direcci[oó]n'), msgTotal = mny(fld(t, 'TOTAL A PAGAR'));
     const faltan = [];
     if (!cliente) faltan.push('cliente');
@@ -424,7 +464,7 @@
     if (faltan.length) { out.textContent = 'No pude leer: ' + faltan.join(', ') + '. Pega el mensaje completo, tal como llegó.'; return; }
     const res = SmashExt.addOrder({
       cliente, telefono: fld(t, 'Tel[eé]fono'), direccion: dir, items: its, notas: fld(t, 'Notas'),
-      zona: fld(t, 'Zona'), domicilio: mny(fld(t, 'Domicilio')), pago: fld(t, 'Medio de pago'), ref: fld(t, 'Pedido N.'), origen: 'whatsapp',
+      zona: fld(t, 'Zona'), domicilio: mny(fld(t, 'Domicilio')), pago: fld(t, 'Medio de pago'), ref: fld(t, 'Pedido N.'), origen: 'whatsapp', reserva: /\*?RESERVA:/i.test(t),
     });
     if (res.dup) { out.textContent = 'Ese pedido ya estaba agregado (#' + num(res.order) + ').'; return; }
     $('importText').value = '';

@@ -56,7 +56,7 @@ const SmashAudit = (function () {
   }
 
   /* ---------------- Productos y precios ---------------- */
-  const PCAMPOS = ['name', 'price', 'cost', 'categoria', 'activo', 'desc', 'img'];
+  const PCAMPOS = ['name', 'price', 'cost', 'categoria', 'activo', 'desc', 'img', 'sabores'];
   wrap(SmashDB, 'addProduct', null, (p) => {
     if (!SmashDB.getProductById(p.id)) { alert('⚠ No se pudo guardar el producto (almacenamiento lleno). Descarga un respaldo y libera espacio.'); return; }
     log('Producto creado', p.name, null, { precio: p.price, costo: p.cost, categoria: p.categoria });
@@ -114,6 +114,7 @@ const SmashAudit = (function () {
   wrap(SmashExt, 'deletePersonal', (id) => ({ p: clon(SmashExt.getPersonal().find((x) => x.id === id)) }), (r, ctx) => {
     if (ctx.p) log('Personal eliminado', ctx.p.nombre, { cargo: ctx.p.cargo, telefono: ctx.p.telefono, pago: ctx.p.pago, dias: (ctx.p.dias || []).join(', '), registro: ctx.p.registro }, null);
   });
+  wrap(SmashExt, 'setHorario', () => ({ h: SmashExt.getHorario() }), (r, c, a) => { if (r && r.ok) log('Horario cambiado', 'Horario de atención', c.h.abre + ' a ' + c.h.cierra, a[0] + ' a ' + a[1]); });
   const tipoU = (t) => (t === 'dueno' ? 'dueño' : 'caja');
   wrap(SmashExt, 'crearUsuario', null, (r, c, a) => { if (r && r.ok) log('Usuario creado', tipoU(a[0]) + ': ' + String(a[1]).trim().toLowerCase(), null, { nombre: a[2] }); });
   wrap(SmashExt, 'eliminarUsuario', null, (r, c, a) => { if (r && r.ok) log('Usuario eliminado', tipoU(a[0]) + ': ' + a[1], null, null); });

@@ -166,7 +166,7 @@ const SmashDB = (function () {
     );
   }
 
-  function addProduct({ name, desc, price, cost, img, categoria }) {
+  function addProduct({ name, desc, price, cost, img, categoria, sabores }) {
     const products = read(KEYS.PRODUCTS, []);
     let id = slugify(name);
     let n = 1;
@@ -183,6 +183,7 @@ const SmashDB = (function () {
       categoria: categoria || 'adicional',
       activo: true,
     };
+    if (sabores && sabores.length) product.sabores = sabores;
     products.push(product);
     write(KEYS.PRODUCTS, products);
     return product;

@@ -233,6 +233,16 @@ body{
 .producto-card .btn-guardar{background:var(--green); color:#fff; border-color:var(--green);}
 .producto-card .btn-eliminar{background:transparent; color:var(--danger); border-color:var(--danger);}
 .producto-card .prod-file{font-size:0.72rem;}
+/* Sabores / tipos de un adicional (ej. gaseosas) */
+.pn-sab{border:1px dashed var(--border); border-radius:8px; padding:8px; margin:2px 0 7px; background:var(--bg);}
+.pn-sab .lb{font-size:0.76rem; font-weight:700; margin-bottom:5px;}
+.sab-list{display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px;}
+.sab-chip{display:inline-flex; align-items:center; gap:4px; padding:3px 4px 3px 9px; border-radius:999px; background:var(--card); border:1px solid var(--border); font-size:0.78rem;}
+.sab-chip button{border:0; background:transparent; color:var(--danger); font-size:0.95rem; line-height:1; cursor:pointer; padding:0 4px; min-width:22px; min-height:22px;}
+.sab-add{display:flex; gap:6px;}
+.producto-card .sab-add input{margin:0; flex:1; background:var(--card);}
+.sab-add button{padding:6px 10px; border-radius:6px; border:1px solid var(--green); background:var(--green); color:#fff; font-size:0.75rem; cursor:pointer; white-space:nowrap;}
+.pn-sab .hint{margin:5px 0 0; font-size:0.72rem;}
 
 .product-form{max-width:420px;}
 .two-col{display:grid; grid-template-columns:1fr 1fr; gap:10px;}

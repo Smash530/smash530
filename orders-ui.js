@@ -47,6 +47,7 @@ const SmashUI = (function () {
     return `
       <div class="order-card st-${esc(status)}">
         <div class="row"><strong class="onum">#${esc(num(o))}</strong><span class="st-badge st-${esc(status)}">${esc(C.NOMBRE[status] || status)}</span>${timerHtml(o)}</div>
+        ${o.reserva ? (status === 'nuevo' ? `<div class="resv-tag">📅 RESERVA: llegó fuera de horario. Confírmala para despacharla al abrir.</div>` : '<div class="resv-tag mini">📅 Reserva</div>') : ''}
         <div class="meta">Comanda ${esc(C.codigo(o))}${o.ref ? ' · ' + esc(o.ref) : ''}${o.origen === 'cocina' ? ' · tomado en caja' : ''}${o.editadoEn ? ' · editado' : ''}</div>
         <div class="oname">${esc(o.cliente)} ${o.telefono ? `<a class="otel" href="tel:${esc(String(o.telefono).replace(/[^\d+]/g, ''))}">📞 ${esc(o.telefono)}</a>` : '<span class="meta">sin teléfono</span>'}</div>
         <div class="oaddr">📍 ${esc(o.direccion || 'sin dirección')}${o.zona ? ` <span class="meta">(${esc(o.zona)})</span>` : ''}</div>

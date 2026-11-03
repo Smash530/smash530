@@ -168,3 +168,10 @@ details.mod-box[open]>summary{margin-bottom:8px}
 
 /* ---- Respaldo ---- */
 .bk-file{display:inline-flex;align-items:center;min-height:46px;cursor:pointer;font-weight:600}
+
+/* Crear pedido: combo dentro de cada hamburguesa */
+.cr-combo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;margin-top:6px;padding:6px 8px;border:1px dashed var(--border);border-radius:10px;font-size:.9rem}
+/* Reservas (pedidos que llegaron fuera de horario) */
+.resv-tag{margin:6px 0;padding:8px 10px;border-radius:10px;background:#fff4d6;color:#6b4a00;border:1px solid #f0c75e;font-weight:700;font-size:.9rem}
+.resv-tag.mini{display:inline-block;padding:2px 8px;font-size:.8rem}
+@media (prefers-color-scheme:dark){.resv-tag{background:#3a2e10;color:#ffd977;border-color:#7a5f1c}}

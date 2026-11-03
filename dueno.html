@@ -58,6 +58,7 @@
         <button class="nav-btn" data-section="personal" type="button">👥 Personal</button>
         <button class="nav-btn" data-section="clientes" type="button">⭐ Clientes</button>
         <button class="nav-btn" data-section="auditoria" type="button">🛡️ Auditoría</button>
+        <button class="nav-btn" data-section="horario" type="button">🕐 Horario</button>
         <button class="nav-btn" data-section="config" type="button">⚙️ Configuración</button>
       </nav>
     </aside>
@@ -219,9 +220,13 @@
         <label>Categoría</label>
         <select id="npCategoria">
           <option value="hamburguesa">Hamburguesa</option>
-          <option value="combo">Combo</option>
+          <option value="combo">Combo (opción dentro de cada hamburguesa)</option>
           <option value="adicional">Adicional</option>
         </select>
+        <div id="npSabWrap" hidden>
+          <label>Sabores / tipos para elegir (opcional, separados por coma)</label>
+          <input type="text" id="npSabores" maxlength="600" placeholder="Ej: Uva, Manzana, Colombiana, Naranja">
+        </div>
         <div class="two-col">
           <div><label>Precio de venta</label><input type="number" id="npPrecio" required></div>
           <div><label>Costo</label><input type="number" id="npCosto" required></div>
@@ -380,6 +385,19 @@
     <section class="panel-section" id="section-auditoria" hidden>
       <h2 class="section-title" style="margin-top:0">Registro de auditoría</h2>
       <div class="aud-root"></div>
+    </section>
+
+    <section class="panel-section" id="section-horario" hidden>
+      <h2 class="section-title" style="margin-top:0">Horario de atención</h2>
+      <p class="hint">Es el horario que ven los clientes. Fuera de este horario la página sigue recibiendo pedidos, pero como <b>reserva</b>: se despachan al abrir la cocina y caja los ve en Pedidos pendientes marcados como reserva hasta confirmarlos. Hora de Colombia, todos los días.</p>
+      <div class="summary-grid" id="horEstado"></div>
+      <form id="horForm" class="auth-form product-form">
+        <label>Hora de apertura</label><input type="time" id="horAbre" required>
+        <label>Hora de cierre</label><input type="time" id="horCierra" required>
+        <button type="submit" class="btn-primary">Guardar horario</button>
+        <p class="error" id="horMsg"></p>
+      </form>
+      <p class="hint">Si el sitio está en un hosting, después de guardar publica el menú (Configuración → Publicar menú) y sube el <b>menu.json</b> nuevo para que los clientes vean el horario.</p>
     </section>
 
     <section class="panel-section" id="section-config" hidden>
