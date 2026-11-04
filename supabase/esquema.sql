@@ -52,8 +52,10 @@ create table if not exists public.promociones (
   desde date not null default current_date,
   hasta date not null default (current_date + 30),
   activa boolean not null default true,
+  dias smallint[] not null default '{}',  -- 0 = domingo … 6 = sábado; vacío = todos los días
   creado timestamptz not null default now(),
-  check (hasta >= desde)
+  check (hasta >= desde),
+  constraint promociones_dias_validos check (dias <@ array[0, 1, 2, 3, 4, 5, 6]::smallint[])
 );
 
 /* ---------------- Rol de quien está conectado ---------------- */
@@ -149,7 +151,13 @@ revoke insert, update, delete on public.puntos_mov from anon, authenticated;
 
 drop policy if exists "ver promociones" on public.promociones;
 create policy "ver promociones" on public.promociones for select to authenticated
-  using ((activa and current_date between desde and hasta) or public.mi_rol() in ('caja', 'dueno'));
+  using (
+    (activa
+      and (now() at time zone 'America/Bogota')::date between desde and hasta
+      and (cardinality(dias) = 0
+           or extract(dow from (now() at time zone 'America/Bogota'))::smallint = any (dias)))
+    or public.mi_rol() in ('caja', 'dueno')
+  );
 
 drop policy if exists "dueños crean promociones" on public.promociones;
 create policy "dueños crean promociones" on public.promociones for insert to authenticated
