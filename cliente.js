@@ -162,7 +162,8 @@
     } else return;
     upd();
   });
-  ["fn", "fp", "fp2", "fa", "fo"].forEach(function (i) { $(i).addEventListener("input", upd); });
+  ["fn", "fp", "fp2", "fa", "fo"].forEach(function (i) { var e = $(i); if (e) e.addEventListener("input", upd); });
+  if ($("fh")) $("fh").addEventListener("change", upd);
   function mark(a, v) { document.querySelectorAll(".chip[data-" + a + "]").forEach(function (c) { c.classList.toggle("on", c.getAttribute("data-" + a) === v); }); }
   function val(i) { return $(i).value.trim(); }
 
@@ -223,7 +224,7 @@
     LM = "*NUEVO PEDIDO - SMASH*\n" + (EH.abierto ? "" : "*RESERVA:* se despacha al abrir cocina, " + reservaTxt() + "\n") + "*Pedido N°:* @@\n" +
       (yo ? "*Cuenta SMASH:* " + (yo.usuario || "") + " (" + yo.correo + ")\n" : "") +
       "\n*Cliente:* " + val("fn") + "\n*Teléfono:* " + val("fp") + (val("fp2") ? "\n*Tel. referencia:* " + val("fp2") : "") + "\n*Zona:* " + (zone ? Z[zone].nombre : "") +
-      "\n*Dirección:* " + val("fa") + "\n*Medio de pago:* " + pm + "\n\n*Pedido:*\n" + txt.join("\n") + "\n\n*Subtotal:* " + fmt(t) +
+      "\n*Dirección:* " + val("fa") + "\n*Medio de pago:* " + pm + (horaSel() ? "\n*Hora de entrega:* " + horaSel() : "") + "\n\n*Pedido:*\n" + txt.join("\n") + "\n\n*Subtotal:* " + fmt(t) +
       (desc ? "\n*Descuento cliente leal:* -" + fmt(desc) + " (" + PR.usadas.map(function (u) { return u.titulo; }).join("; ") + ")" : "") +
       "\n*Domicilio:* " + (vz ? "Por confirmar (agencia)" : fmt(d)) + "\n*TOTAL A PAGAR:* " + fmt(T) + (vz ? " + domicilio" : "") +
       (yo && puntos ? "\n*Puntos a sumar:* " + puntos : "") + (val("fo") ? "\n\n*Notas:* " + val("fo") : "");
@@ -240,7 +241,7 @@
     var z = function (x) { return ("0" + x).slice(-2); }, a = "ABCDEFGHJKLMNPQRSTUVWXYZ";
     var code = "#" + z(d.getDate()) + z(d.getMonth() + 1) + "-" + z(d.getHours()) + z(d.getMinutes()) + a[Math.floor(Math.random() * a.length)] + Math.floor(Math.random() * 10);
     $("go").href = "https://wa.me/" + WA + "?text=" + encodeURIComponent(LM.replace("@@", code));
-    var pedido = { cliente: val("fn"), telefono: val("fp"), telefono2: val("fp2"), direccion: val("fa"), zona: Z[zone].nombre, domicilio: Z[zone].variable ? 0 : Z[zone].fee, domicilioPendiente: !!Z[zone].variable, pago: pm, notas: val("fo"), items: lines(), ref: code, origen: "web", reserva: !EH.abierto,
+    var pedido = { cliente: val("fn"), telefono: val("fp"), telefono2: val("fp2"), direccion: val("fa"), zona: Z[zone].nombre, domicilio: Z[zone].variable ? 0 : Z[zone].fee, domicilioPendiente: !!Z[zone].variable, pago: pm, horaEntrega: horaSel(), notas: val("fo"), items: lines(), ref: code, origen: "web", reserva: !EH.abierto,
       descuento: PR.descuento, descuentos: PR.usadas, cuenta: yo ? { usuario: yo.usuario || "", correo: yo.correo } : null };
     try { SmashExt.addOrder(pedido); } catch (x) { /* si falla el guardado local, igual se envía por WhatsApp */ }
     // Pedido directo a caja (en tiempo real). WhatsApp queda como confirmación del cliente.
@@ -259,6 +260,36 @@
   $("gracias").addEventListener("click", function (e) { if (e.target === this) this.hidden = true; });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") $("gracias").hidden = true; });
 
+  /* Hora de entrega (opcional): intervalos de 15 min dentro del horario, desde 30 min después de ahora */
+  var H_MARGEN = 30, H_PASO = 15;
+  function minCO() {
+    var p = new Intl.DateTimeFormat("en-GB", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date()).split(":");
+    return (+p[0] % 24) * 60 + +p[1];
+  }
+  function hhmm(m) { m = ((m % 1440) + 1440) % 1440; return ("0" + Math.floor(m / 60)).slice(-2) + ":" + ("0" + (m % 60)).slice(-2); }
+  function horasEntrega() {
+    var h = H && H.abre && H.cierra ? H : SmashExt.getHorario();
+    var mm = function (s) { return +s.slice(0, 2) * 60 + +s.slice(3); };
+    var a = mm(h.abre), c = mm(h.cierra), ahora = minCO(), dia, desde;
+    if (c <= a) c += 1440;                       // horario que pasa de medianoche
+    if (EH.abierto) { dia = "Hoy"; desde = (ahora < a ? ahora + 1440 : ahora) + H_MARGEN; }
+    else { dia = EH.abreHoy ? "Hoy" : "Mañana"; desde = a + H_MARGEN; }
+    desde = Math.ceil(desde / H_PASO) * H_PASO;
+    var out = [];
+    for (var m = desde; m <= c; m += H_PASO) out.push({ v: dia + " " + hhmm(m), t: dia + " " + SmashExt.horaTexto(hhmm(m)) });
+    return out;
+  }
+  function pintarHoras() {
+    var s = $("fh"); if (!s) return;
+    var antes = s.value, l = horasEntrega(), firma = (EH.abierto ? 1 : 0) + JSON.stringify(l);
+    if (s.dataset.firma === firma) return;   // sin cambios: no se cierra la lista si el cliente la tiene abierta
+    s.dataset.firma = firma;
+    s.innerHTML = '<option value="">' + (EH.abierto ? "Lo antes posible" : "Apenas abramos") + "</option>" +
+      l.map(function (o) { return '<option value="' + esc(o.v) + '">' + esc(o.t) + "</option>"; }).join("");
+    s.value = l.some(function (o) { return o.v === antes; }) ? antes : "";
+    if (antes && s.value !== antes) upd();      // la hora elegida ya pasó
+  }
+  function horaSel() { var s = $("fh"); return s && s.value ? s.options[s.selectedIndex].text : ""; }
   function est() {
     try {
       var antes = EH.abierto;
@@ -267,8 +298,9 @@
       $("stt").textContent = EH.abierto ? "Abierto ahora · hasta las " + EH.cierra : (EH.abreHoy ? "Abrimos hoy a las " + EH.abre : "Cerrado · abrimos mañana " + EH.abre);
       $("hft").textContent = EH.abre + " a " + EH.cierra;
       $("resv").hidden = EH.abierto;
-      $("resv").innerHTML = EH.abierto ? "" : "🕐 <b>Ahora estamos cerrados.</b> Puedes pedir igual: tu pedido quedará como <b>reserva</b> y lo despachamos al abrir cocina, <b>" + esc(reservaTxt()) + "</b>.";
+      $("resv").innerHTML = EH.abierto ? "" : "🕐 <b>Ahora estamos cerrados.</b> Tu pedido quedará como <b>reserva</b> y lo despachamos al abrir cocina, <b>" + esc(reservaTxt()) + "</b>.";
       $("go").textContent = EH.abierto ? "Enviar pedido" : "Reservar pedido";
+      pintarHoras();
       if (antes !== EH.abierto) upd();
     } catch (e) {}
   }

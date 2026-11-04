@@ -23,6 +23,7 @@ const SmashTicket = (function () {
       <div class="tk-s">${esc(ahora())}</div>
       <div class="tk-c tk-big">Comanda #${esc(num(o))}</div>
       ${o.reserva ? '<div class="tk-c"><b>*** RESERVA ***</b></div>' : ''}
+      ${o.horaEntrega ? '<div class="tk-c"><b>ENTREGAR: ' + esc(o.horaEntrega) + '</b></div>' : ''}
       <div class="tk-sp"></div>
       <div><b>${esc(o.cliente)}</b></div>
       <div>Tel: ${esc(o.telefono || '-')}</div>
@@ -108,6 +109,7 @@ const SmashTicket = (function () {
     gap(5);
     text('Comanda #' + num(o), 17, true, 'c');
     if (o.reserva) text('*** RESERVA ***', 11, true, 'c');
+    if (o.horaEntrega) text('ENTREGAR: ' + o.horaEntrega, 11, true, 'c');
     gap(8);
     text(o.cliente || '', 11, true);
     text('Tel: ' + (o.telefono || '-'), 10, false);

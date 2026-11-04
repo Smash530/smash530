@@ -100,6 +100,7 @@ const SmashExt = (function () {
       creado: new Date().toISOString(),
     };
     if (d.telefono2) order.telefono2 = String(d.telefono2).slice(0, 20);
+    if (d.horaEntrega) order.horaEntrega = String(d.horaEntrega).slice(0, 40);
     if (descuento) { order.descuento = descuento; order.descuentos = (d.descuentos || []).map((x) => ({ motivo: 'Promo cliente leal: ' + String(x.titulo || x.motivo || '').slice(0, 80), valor: Math.round(Number(x.valor) || 0) })); }
     if (d.cuenta && d.cuenta.correo) order.cuenta = { usuario: String(d.cuenta.usuario || '').slice(0, 30), correo: String(d.cuenta.correo).toLowerCase().slice(0, 120) };
     orders.push(order);

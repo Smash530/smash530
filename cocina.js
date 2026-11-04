@@ -180,7 +180,7 @@
     if (faltan.length) { out.textContent = 'No pude leer: ' + faltan.join(', ') + '. Pega el mensaje completo, tal como llegó.'; return; }
     const res = SmashExt.addOrder({
       cliente, telefono: fld(t, 'Tel[eé]fono'), direccion: dir, items: its, notas: fld(t, 'Notas'),
-      zona: fld(t, 'Zona'), domicilio: mny(fld(t, 'Domicilio')), domicilioPendiente: /otros/i.test(fld(t, 'Zona')) && !mny(fld(t, 'Domicilio')), pago: fld(t, 'Medio de pago'), ref: fld(t, 'Pedido N.'), origen: 'whatsapp', reserva: /\*?RESERVA:/i.test(t),
+      zona: fld(t, 'Zona'), domicilio: mny(fld(t, 'Domicilio')), domicilioPendiente: /otros/i.test(fld(t, 'Zona')) && !mny(fld(t, 'Domicilio')), pago: fld(t, 'Medio de pago'), horaEntrega: fld(t, 'Hora de entrega'), ref: fld(t, 'Pedido N.'), origen: 'whatsapp', reserva: /\*?RESERVA:/i.test(t),
       ...SmashExt.leerLeal(t),
     });
     if (res.dup) { out.textContent = 'Ese pedido ya estaba agregado (#' + num(res.order) + ').'; return; }
@@ -238,6 +238,14 @@
     const html = Object.keys(z).map((k) => `<option value="${k}">${esc(z[k].nombre)}${z[k].variable ? ' — valor variable' : ' — ' + fmt(z[k].fee)}</option>`).join('');
     if (sel.dataset.h !== html) { sel.innerHTML = html; sel.dataset.h = html; if (cur) sel.value = cur; }
   }
+  // Fotos de los productos: las del menú publicado (las mismas que ve el cliente) y, si no hay, las del panel
+  const imgsMenu = {};
+  SmashExt.loadMenu().then((m) => {
+    if (!m) return;
+    m.productos.forEach((p) => { if (p && p.id && p.img) imgsMenu[p.id] = p.img; });
+    if (!$('dashboardSection').hidden) renderCrear();
+  });
+  const fotoProd = (p) => imgsMenu[p.id] || p.img || '';
   function renderCrear() {
     crZonas();
     const prods = SmashDB.getProducts({ soloActivos: true });
@@ -253,7 +261,7 @@
       const sab = q && ss.length ? `<div class="cr-combo">🥤 Sabor: <b>${crElegidas(p.id)} de ${q}</b></div>` + ss.map((s, i) => { const n = cr.sab[p.id + '|' + s] || 0; return `<div class="cr-combo">${esc(s)}
           <div class="qty-mini"><button type="button" data-cr="sminus" data-id="${esc(p.id)}" data-s="${i}" aria-label="Menos ${esc(s)}">−</button><b>${n}</b><button type="button" data-cr="splus" data-id="${esc(p.id)}" data-s="${i}" aria-label="Más ${esc(s)}">+</button></div></div>`; }).join('') : '';
       return `<div class="cr-card${q ? ' sel' : ''}">
-        <img src="${esc(p.img || '')}" alt="" loading="lazy" onerror="smashImgFallback(this)">
+        ${fotoProd(p) ? `<img src="${esc(fotoProd(p))}" alt="${esc(p.name)}" loading="lazy" onerror="smashImgFallback(this)">` : '<div class="cr-ph" aria-hidden="true">🍔</div>'}
         <div class="cr-info"><b>${esc(p.name)}</b><small>${esc(p.desc || '')}</small><span class="cr-price">${fmt(p.price)}</span>
           <div class="qty-mini"><button type="button" data-cr="minus" data-id="${esc(p.id)}" aria-label="Menos">−</button><b>${q}</b><button type="button" data-cr="plus" data-id="${esc(p.id)}" aria-label="Más">+</button></div>
           ${combo}${sab}

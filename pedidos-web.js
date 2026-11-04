@@ -32,7 +32,7 @@ const SmashPedidosWeb = (function () {
       ref: txt(f.ref, 20), origen: 'web',
       cliente: txt(d.cliente, 80) || 'Cliente web', telefono: txt(d.telefono, 20), telefono2: txt(d.telefono2, 20),
       direccion: txt(d.direccion, 200), zona: txt(d.zona, 60), pago: txt(d.pago, 30), notas: txt(d.notas, 500),
-      domicilio: num(d.domicilio), domicilioPendiente: !!d.domicilioPendiente, reserva: !!d.reserva, items,
+      domicilio: num(d.domicilio), domicilioPendiente: !!d.domicilioPendiente, reserva: !!d.reserva, horaEntrega: txt(d.horaEntrega, 40), items,
     };
     // Descuento de cliente leal: solo si el pedido viene de una cuenta (se verifica al sumar puntos)
     if (f.cuenta && d.cuenta && d.cuenta.correo) {

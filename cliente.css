@@ -161,6 +161,9 @@ button,.chip,.go,.btn,.qty button{touch-action:manipulation;-webkit-tap-highligh
 .form{display:grid;gap:14px}
 .form label,.lb{font-weight:700;font-size:.88rem;display:grid;gap:6px}
 .fld{display:grid;gap:6px}
+.form select{font:inherit;font-size:16px;min-height:48px;padding:12px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--text);width:100%;font-weight:500}
+.form select:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 3px color-mix(in srgb,var(--red) 18%,transparent)}
+.form .fhint{font-weight:500;color:var(--muted);font-size:.8rem}
 .form input{font:inherit;font-size:16px;min-height:48px;padding:12px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--text);width:100%;font-weight:500}
 .form input::placeholder{color:color-mix(in srgb,var(--muted) 75%,transparent)}
 .form input:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 3px color-mix(in srgb,var(--red) 18%,transparent)}

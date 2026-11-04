@@ -231,3 +231,11 @@ details.mod-box[open]>summary{margin-bottom:8px}
   .web-estado.prog{background:#3a2e10;color:#ffd977;border-color:#7a5f1c}
   .web-estado.off{background:#3a1616;color:#ffb3b3;border-color:#6b2a2a}
 }
+
+/* Hora de entrega programada por el cliente */
+.hora-tag{margin:4px 0;padding:5px 10px;border-radius:8px;background:#e8f0fe;color:#1a3d8a;border:1px solid #c5d6f7;font-size:.88rem;display:inline-block}
+@media (prefers-color-scheme: dark){.hora-tag{background:#16233d;color:#a9c4ff;border-color:#2c4475}}
+
+/* Crear pedido (cocina): espacio de la foto cuando el producto no tiene imagen */
+.cr-ph{width:84px;height:84px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:2rem;background:var(--bg,#f4f4f4)}
+@media (max-width:520px){.cr-ph{width:70px;height:70px}}
