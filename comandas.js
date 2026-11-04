@@ -113,7 +113,7 @@ const SmashComandas = (function () {
     o.canceladoEn = o.cancelacion.en;
     changes[K.ORDERS] = orders;
     S.tx(changes);
-    try { localStorage.setItem(RESP, JSON.stringify(responsable)); } catch (e) { /* opcional */ }
+    try { SmashLS.setItem(RESP, JSON.stringify(responsable)); } catch (e) { /* opcional */ }
     return o;
   }
   const ultimoResponsable = () => S.read(RESP, '');

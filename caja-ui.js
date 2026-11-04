@@ -111,7 +111,7 @@ const SmashCajaUI = (function () {
   /* ================= CAJA (panel operativo) ================= */
   const root = document.querySelector('#section-caja .caja-root');
   // Huella de los datos de caja: si no cambió, no se redibuja (no se pierde lo que se está escribiendo)
-  const firma = () => [SC.K.TURNOS, SC.K.PAGOS, SC.K.MOVS, SC.K.CUENTAS, SmashDB.KEYS.ORDERS].map((k) => (localStorage.getItem(k) || '').length).join('|');
+  const firma = () => [SC.K.TURNOS, SC.K.PAGOS, SC.K.MOVS, SC.K.CUENTAS, SmashDB.KEYS.ORDERS].map((k) => (SmashLS.getItem(k) || '').length).join('|');
   let ultimaFirma = '';
   function renderCaja(forzar) {
     if (!root || !shown('section-caja')) return;

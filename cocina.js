@@ -181,6 +181,7 @@
     const res = SmashExt.addOrder({
       cliente, telefono: fld(t, 'Tel[eé]fono'), direccion: dir, items: its, notas: fld(t, 'Notas'),
       zona: fld(t, 'Zona'), domicilio: mny(fld(t, 'Domicilio')), domicilioPendiente: /otros/i.test(fld(t, 'Zona')) && !mny(fld(t, 'Domicilio')), pago: fld(t, 'Medio de pago'), ref: fld(t, 'Pedido N.'), origen: 'whatsapp', reserva: /\*?RESERVA:/i.test(t),
+      ...SmashExt.leerLeal(t),
     });
     if (res.dup) { out.textContent = 'Ese pedido ya estaba agregado (#' + num(res.order) + ').'; return; }
     $('importText').value = '';

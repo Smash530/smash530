@@ -51,10 +51,27 @@
     return prods.filter(function (p) { return sabores(p).length && (qty[p.id] || 0) > elegidas(p.id); }).map(function (p) { return p.name; });
   }
 
+  /* Cliente leal: sesión, promociones y puntos (nube.js). Sin sesión no se ve ni se aplica ninguna promoción. */
+  var yo = null, promos = [], PR = { descuento: 0, usadas: [] };
+  var hayNube = typeof SmashNube !== "undefined" && SmashNube.ok;
+  function prodDe(id) { return prods.filter(function (x) { return x.id === id; })[0] || null; }
+  // Mejor promoción de un producto, por unidad (para mostrar el precio especial en la tarjeta)
+  function promoDe(p) {
+    if (!yo || !promos.length) return null;
+    var r = SmashNube.aplicarPromos([{ id: p.id, price: p.price, qty: 1 }], promos.filter(function (x) { return x.producto === p.id; }));
+    return r.porProducto[p.id] ? { precio: p.price - r.porProducto[p.id].v, promo: r.porProducto[p.id].p } : null;
+  }
+  function precioHtml(p) {
+    var pr = promoDe(p);
+    if (!pr) return fmt(p.price);
+    var et = pr.promo.tipo === "porcentaje" ? "−" + pr.promo.valor + "%" : "Promo";
+    return '<s class="pold">' + fmt(p.price) + "</s> " + fmt(pr.precio) + ' <span class="ptag">⭐ ' + esc(et) + "</span>";
+  }
+
   function item(p) {
     var star = p.id === "toci", big = p.categoria === "hamburguesa";
     var btns = '<div class="qty"><button type="button" class="qb" data-id="' + esc(p.id) + '" data-d="-1" aria-label="Quitar ' + esc(p.name) + '">−</button>' +
-      '<output id="q_' + esc(p.id) + '" aria-live="polite">0</output>' +
+      '<output id="q_' + esc(p.id) + '" aria-live="polite">' + (qty[p.id] || 0) + "</output>" +
       '<button type="button" class="qb plus" data-id="' + esc(p.id) + '" data-d="1" aria-label="Agregar ' + esc(p.name) + '">+</button></div>';
     if (big) {
       return '<article class="pcard' + (star ? " star" : "") + '">' +
@@ -63,11 +80,11 @@
         (star ? '<span class="tag">La insignia</span>' : "") + "</div>" +
         '<div class="pbody"><h3 class="nm">' + esc(p.name) + "</h3>" +
         (p.desc ? '<p class="ing">' + esc(p.desc) + "</p>" : "") +
-        '<div class="pfoot"><span class="pr">' + fmt(p.price) + "</span>" + btns + "</div></div>" +
+        '<div class="pfoot"><span class="pr">' + precioHtml(p) + "</span>" + btns + "</div></div>" +
         '<div class="pcombo" id="cb_' + esc(p.id) + '">' + comboBox(p) + "</div></article>";
     }
     return '<div class="item"><div class="bd"><div class="nm">' + esc(p.name) + '</div>' + (p.desc ? '<p class="ds">' + esc(p.desc) + "</p>" : "") +
-      '<div class="pr">' + fmt(p.price) + "</div></div>" + btns +
+      '<div class="pr">' + precioHtml(p) + "</div></div>" + btns +
       (sabores(p).length ? '<div class="psab" id="sb_' + esc(p.id) + '">' + sabBox(p) + "</div>" : "") + "</div>";
   }
 
@@ -80,6 +97,7 @@
       return '<button type="button" class="chip" data-z="' + esc(k) + '">' + esc(Z[k].nombre) + "<small>" + (Z[k].variable ? "valor por confirmar" : fmt(Z[k].fee)) + "</small></button>";
     }).join("");
     $("pays").innerHTML = PAGOS.map(function (p) { return '<button type="button" class="chip" data-p="' + p + '">' + p + "</button>"; }).join("");
+    mark("z", zone); mark("p", pm);
     if (cupo) {
       var rest = Math.max(0, cupo.total - cupo.vendidas), el = $("cupo");
       el.hidden = false;
@@ -144,7 +162,7 @@
     } else return;
     upd();
   });
-  ["fn", "fp", "fa", "fo"].forEach(function (i) { $(i).addEventListener("input", upd); });
+  ["fn", "fp", "fp2", "fa", "fo"].forEach(function (i) { $(i).addEventListener("input", upd); });
   function mark(a, v) { document.querySelectorAll(".chip[data-" + a + "]").forEach(function (c) { c.classList.toggle("on", c.getAttribute("data-" + a) === v); }); }
   function val(i) { return $(i).value.trim(); }
 
@@ -187,16 +205,28 @@
       t += it.price * it.qty; if (!it.para) n += it.qty;
       txt.push("- " + it.qty + " x " + it.name + (it.para ? " para " + it.para : "") + (it.sabor ? " (" + it.sabor + ")" : "") + " (" + fmt(it.price * it.qty) + ")");
     });
-    var vz = !!(zone && Z[zone].variable), d = zone && !vz ? Z[zone].fee : 0, T = t + d;
+    // promociones y puntos: solo con sesión de cliente leal
+    PR = yo ? SmashNube.aplicarPromos(L, promos) : { descuento: 0, usadas: [] };
+    var desc = PR.descuento, puntos = hayNube ? SmashNube.puntosPedido(L, prodDe) : 0;
+    var vz = !!(zone && Z[zone].variable), d = zone && !vz ? Z[zone].fee : 0, T = t - desc + d;
     $("tot").textContent = fmt(T);
     $("lst").innerHTML = L.length ? L.map(function (it) {
       return '<div class="li' + (it.para ? " sub" : "") + '"><span>' + it.qty + "× " + esc(it.para ? "Combo para " + it.para : it.name + (it.sabor ? " · " + it.sabor : "")) + "</span><b>" + fmt(it.price * it.qty) + "</b></div>";
-    }).join("") : '<p class="li-empty">Aún no has agregado productos.</p>';
+    }).join("") + PR.usadas.map(function (u) { return '<div class="li promo"><span>⭐ ' + esc(u.titulo) + "</span><b>−" + fmt(u.valor) + "</b></div>"; }).join("")
+      : '<p class="li-empty">Aún no has agregado productos.</p>';
     $("cnt").textContent = n ? n + (n == 1 ? " producto" : " productos") + " · " + fmt(t) : "Tu pedido está vacío";
+    $("desc").hidden = !desc;
+    $("desc").textContent = desc ? "⭐ Descuento cliente: −" + fmt(desc) : "";
     $("dl").textContent = !zone ? "Elige tu zona para ver el domicilio" : vz ? "Domicilio por confirmar (se suma al total)" : "Incluye domicilio " + fmt(d);
-    LM = "*NUEVO PEDIDO - SMASH*\n" + (EH.abierto ? "" : "*RESERVA:* se despacha al abrir cocina, " + reservaTxt() + "\n") + "*Pedido N°:* @@\n\n*Cliente:* " + val("fn") + "\n*Teléfono:* " + val("fp") + "\n*Zona:* " + (zone ? Z[zone].nombre : "") +
+    $("pts").hidden = !puntos;
+    $("pts").textContent = !puntos ? "" : yo ? "⭐ Con este pedido ganas " + puntos + " puntos" : "Regístrate y gana " + puntos + " puntos con este pedido";
+    LM = "*NUEVO PEDIDO - SMASH*\n" + (EH.abierto ? "" : "*RESERVA:* se despacha al abrir cocina, " + reservaTxt() + "\n") + "*Pedido N°:* @@\n" +
+      (yo ? "*Cuenta SMASH:* " + (yo.usuario || "") + " (" + yo.correo + ")\n" : "") +
+      "\n*Cliente:* " + val("fn") + "\n*Teléfono:* " + val("fp") + (val("fp2") ? "\n*Tel. referencia:* " + val("fp2") : "") + "\n*Zona:* " + (zone ? Z[zone].nombre : "") +
       "\n*Dirección:* " + val("fa") + "\n*Medio de pago:* " + pm + "\n\n*Pedido:*\n" + txt.join("\n") + "\n\n*Subtotal:* " + fmt(t) +
-      "\n*Domicilio:* " + (vz ? "Por confirmar (agencia)" : fmt(d)) + "\n*TOTAL A PAGAR:* " + fmt(T) + (vz ? " + domicilio" : "") + (val("fo") ? "\n\n*Notas:* " + val("fo") : "");
+      (desc ? "\n*Descuento cliente leal:* -" + fmt(desc) + " (" + PR.usadas.map(function (u) { return u.titulo; }).join("; ") + ")" : "") +
+      "\n*Domicilio:* " + (vz ? "Por confirmar (agencia)" : fmt(d)) + "\n*TOTAL A PAGAR:* " + fmt(T) + (vz ? " + domicilio" : "") +
+      (yo && puntos ? "\n*Puntos a sumar:* " + puntos : "") + (val("fo") ? "\n\n*Notas:* " + val("fo") : "");
     $("go").href = "https://wa.me/" + WA + "?text=" + encodeURIComponent(LM);
     if (!miss().length) $("err").textContent = "";
   }
@@ -211,7 +241,8 @@
     var code = "#" + z(d.getDate()) + z(d.getMonth() + 1) + "-" + z(d.getHours()) + z(d.getMinutes()) + a[Math.floor(Math.random() * a.length)] + Math.floor(Math.random() * 10);
     $("go").href = "https://wa.me/" + WA + "?text=" + encodeURIComponent(LM.replace("@@", code));
     try {
-      SmashExt.addOrder({ cliente: val("fn"), telefono: val("fp"), direccion: val("fa"), zona: Z[zone].nombre, domicilio: Z[zone].variable ? 0 : Z[zone].fee, domicilioPendiente: !!Z[zone].variable, pago: pm, notas: val("fo"), items: lines(), ref: code, origen: "web", reserva: !EH.abierto });
+      SmashExt.addOrder({ cliente: val("fn"), telefono: val("fp"), telefono2: val("fp2"), direccion: val("fa"), zona: Z[zone].nombre, domicilio: Z[zone].variable ? 0 : Z[zone].fee, domicilioPendiente: !!Z[zone].variable, pago: pm, notas: val("fo"), items: lines(), ref: code, origen: "web", reserva: !EH.abierto,
+        descuento: PR.descuento, descuentos: PR.usadas, cuenta: yo ? { usuario: yo.usuario || "", correo: yo.correo } : null });
     } catch (x) { /* si falla el guardado local, igual se envía por WhatsApp */ }
     $("graciasSub").textContent = EH.abierto ? "Termina de enviar el mensaje en WhatsApp para confirmar tu pedido."
       : "Tu pedido quedó como reserva: lo despachamos al abrir cocina, " + reservaTxt() + ". Termina de enviar el mensaje en WhatsApp.";
@@ -233,6 +264,123 @@
       $("go").textContent = EH.abierto ? "Enviar pedido" : "Reservar pedido";
       if (antes !== EH.abierto) upd();
     } catch (e) {}
+  }
+
+  /* ---------------- Cuenta de cliente leal ---------------- */
+  var acc = $("acc");
+  function abrirAcc(tab) {
+    acc.hidden = false;
+    var dentro = !!yo;
+    $("accTabs").hidden = dentro; $("vCuenta").hidden = !dentro;
+    $("accT").textContent = dentro ? "Mi cuenta SMASH ⭐" : "Clientes SMASH ⭐";
+    $("accSub").hidden = dentro;
+    if (!dentro) verTab(tab === "registro" ? "registro" : "entrar"); else pintarMiCuenta();
+    acc.querySelectorAll(".amsg").forEach(function (m) { m.textContent = ""; m.className = "amsg" + (m.classList.contains("wide") ? " wide" : ""); });
+  }
+  function cerrarAcc() { acc.hidden = true; }
+  function verTab(t) {
+    acc.querySelectorAll("[data-tab]").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-tab") === t); });
+    $("fEntrar").hidden = t !== "entrar"; $("fRegistro").hidden = t !== "registro";
+    var f = t === "entrar" ? $("fEntrar") : $("fRegistro"), i = f.querySelector("input");
+    if (i) setTimeout(function () { i.focus(); }, 50);
+  }
+  function msg(form, ok, t) { var m = form.querySelector(".amsg"); m.textContent = t; m.classList.toggle("ok", !!ok); }
+  function datos(form) { var o = {}; Array.prototype.forEach.call(form.elements, function (e) { if (e.name) o[e.name] = e.value; }); return o; }
+  function ocupado(form, si, txt) { var b = form.querySelector(".abtn"); if (!b.dataset.t) b.dataset.t = b.textContent; b.disabled = si; b.textContent = si ? txt : b.dataset.t; }
+
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest("[data-acc]") : null;
+    if (b) { e.preventDefault(); abrirAcc(b.getAttribute("data-acc")); }
+  });
+  acc.querySelectorAll("[data-tab]").forEach(function (b) { b.addEventListener("click", function () { verTab(b.getAttribute("data-tab")); }); });
+  $("accX").addEventListener("click", cerrarAcc);
+  acc.addEventListener("click", function (e) { if (e.target === acc) cerrarAcc(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") cerrarAcc(); });
+
+  $("fEntrar").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = this, d = datos(f);
+    if (!d.correo || !d.clave) { msg(f, false, "Escribe tu correo y tu contraseña."); return; }
+    ocupado(f, true, "Entrando…");
+    SmashNube.entrar(d.correo, d.clave).then(function (r) {
+      ocupado(f, false);
+      if (!r.ok) { msg(f, false, r.error); return; }
+      f.reset(); entro(r.perfil, true);
+    });
+  });
+  $("fRegistro").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = this;
+    ocupado(f, true, "Creando tu cuenta…");
+    SmashNube.registrar(datos(f)).then(function (r) {
+      ocupado(f, false);
+      if (!r.ok) { msg(f, false, r.error); return; }
+      if (r.confirmar) { msg(f, true, "✓ Cuenta creada. Te enviamos un correo para confirmarla; luego inicia sesión."); return; }
+      f.reset(); entro(r.perfil, true);
+    });
+  });
+  $("olvide").addEventListener("click", function () {
+    var f = $("fEntrar"), c = f.elements.correo.value.trim();
+    if (!c) { msg(f, false, "Escribe tu correo arriba y vuelve a pulsar \"Olvidé mi contraseña\"."); return; }
+    SmashNube.recuperarClave(c).then(function (r) { msg(f, r.ok, r.ok ? "✓ Te enviamos un correo con el enlace para crear una contraseña nueva." : r.error); });
+  });
+  $("fDatos").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = this;
+    ocupado(f, true, "Guardando…");
+    SmashNube.guardarPerfil(datos(f)).then(function (r) {
+      ocupado(f, false);
+      msg(f, r.ok, r.ok ? "✓ Datos guardados." : r.error);
+      if (r.ok) { yo = r.perfil; pintarCuenta(); }
+    });
+  });
+  $("salir").addEventListener("click", function () { SmashNube.salir().then(function () { yo = null; promos = []; cerrarAcc(); pintarCuenta(); render(); upd(); }); });
+  $("usaDir").addEventListener("click", function () { if (yo) { $("fa").value = yo.direccion; upd(); } });
+
+  function pintarMiCuenta() {
+    if (!yo) return;
+    $("cNombre").textContent = yo.nombre || yo.usuario;
+    $("cCorreo").textContent = (yo.usuario ? "@" + yo.usuario + " · " : "") + yo.correo;
+    $("cPuntos").textContent = yo.puntos || 0;
+    $("cPromos").innerHTML = promos.length ? promos.map(function (p) {
+      return '<div class="apromo"><b>⭐ ' + esc(p.titulo) + "</b>" + (p.descripcion ? "<span>" + esc(p.descripcion) + "</span>" : "") + "<small>Hasta el " + esc(p.hasta) + "</small></div>";
+    }).join("") : '<p class="anote">Este mes aún no hay promociones activas. Sigue sumando puntos.</p>';
+    var f = $("fDatos");
+    f.elements.nombre.value = yo.nombre || ""; f.elements.telefono.value = yo.telefono || "";
+    f.elements.telefono2.value = yo.telefono2 || ""; f.elements.direccion.value = yo.direccion || "";
+  }
+  function pintarCuenta() {
+    $("tbAcc").hidden = !!yo || !hayNube;
+    $("tbYo").hidden = !yo;
+    if (yo) $("tbYo").textContent = "⭐ " + String(yo.nombre || yo.usuario || "").split(" ")[0] + " · " + (yo.puntos || 0) + " pts";
+    var lb = $("leal");
+    lb.hidden = !hayNube;
+    lb.innerHTML = yo
+      ? (promos.length ? "⭐ <b>Tus promociones del mes:</b> " + promos.map(function (p) { return esc(p.titulo); }).join(" · ") + ' <button type="button" class="lnk" data-acc="cuenta">Ver detalles</button>'
+        : "⭐ Hola <b>" + esc(String(yo.nombre || "").split(" ")[0]) + "</b>, tienes <b>" + (yo.puntos || 0) + " puntos</b>. Este mes aún no hay promociones; sigue sumando.")
+      : '⭐ <b>¿Quieres descuentos y promociones del mes?</b> Regístrate gratis y gana puntos en cada pedido. <span class="lbtns"><button type="button" class="lnk" data-acc="registro">Registrarme</button><button type="button" class="lnk" data-acc="entrar">Ya tengo cuenta</button></span>';
+    $("usaDir").hidden = !(yo && yo.direccion);
+    $("usaDir").textContent = yo ? "📍 Usar mi dirección guardada: " + yo.direccion : "";
+  }
+  // Al iniciar sesión: datos que casi nunca cambian (nombre y teléfono) se llenan solos
+  function entro(p, cerrar) {
+    yo = p;
+    if (!yo) { pintarCuenta(); return; }
+    if (!val("fn")) $("fn").value = yo.nombre || "";
+    if (!val("fp")) $("fp").value = yo.telefono || "";
+    if (!val("fp2") && yo.telefono2) $("fp2").value = yo.telefono2;
+    SmashNube.promociones().then(function (l) {
+      promos = l.filter(SmashNube.vigente);
+      pintarCuenta(); render(); upd();
+      if (cerrar) cerrarAcc();
+    });
+  }
+  if (hayNube) {
+    SmashNube.alCambiar(function (p) { if (!p && yo) { yo = null; promos = []; pintarCuenta(); render(); upd(); } });
+    SmashNube.enRecuperacion(function () {
+      var c = prompt("Escribe tu contraseña nueva (mínimo 8 caracteres):");
+      if (c) SmashNube.nuevaClave(c).then(function (r) { alert(r.ok ? "✓ Contraseña cambiada." : r.error); });
+    });
   }
 
   // Foto de portada opcional (images/portada.jpg|jpeg|png|webp): se pide cuando smashImgFallback ya existe
@@ -258,5 +406,7 @@
       if (c) cupo = c;
     }
     render(); est(); setInterval(est, 60000); upd();
+    pintarCuenta();
+    if (hayNube) SmashNube.perfil().then(function (p) { if (p) entro(p, false); }, function () {});
   });
 })();

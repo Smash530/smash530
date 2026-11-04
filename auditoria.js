@@ -221,15 +221,15 @@ const SmashAudit = (function () {
       let res;
       if (propio) {
         // Usuario creado por los dueños: entra solo con su propia clave
-        if (SmashExt.hashPassword(String(pw), propio.salt) === propio.hash) { localStorage.setItem(SmashDB.KEYS.SESSION_STAFF, propio.usuario); res = { ok: true, user: propio }; }
+        if (SmashExt.hashPassword(String(pw), propio.salt) === propio.hash) { SmashLS.setItem(SmashDB.KEYS.SESSION_STAFF, propio.usuario); res = { ok: true, user: propio }; }
         else res = { ok: false, error: 'Usuario o contraseña de caja incorrectos.' };
       } else if (cred) {
         const u = staff.find((x) => !x.propio && x.usuario.toLowerCase() === quien);
-        if (u && SmashExt.hashPassword(String(pw), cred.salt) === cred.hash) { localStorage.setItem(SmashDB.KEYS.SESSION_STAFF, u.usuario); res = { ok: true, user: u }; }
+        if (u && SmashExt.hashPassword(String(pw), cred.salt) === cred.hash) { SmashLS.setItem(SmashDB.KEYS.SESSION_STAFF, u.usuario); res = { ok: true, user: u }; }
         else res = { ok: false, error: 'Usuario o contraseña de caja incorrectos.' };
       } else res = origLogin.call(this, usuarioIn, pw);
       const n = res.ok ? 0 : lock.n + 1;
-      try { localStorage.setItem(K.STAFF_LOCK, JSON.stringify({ n: n >= 5 ? 0 : n, until: n >= 5 ? Date.now() + 30000 : 0 })); } catch (e) { /* opcional */ }
+      try { SmashLS.setItem(K.STAFF_LOCK, JSON.stringify({ n: n >= 5 ? 0 : n, until: n >= 5 ? Date.now() + 30000 : 0 })); } catch (e) { /* opcional */ }
       log(res.ok ? 'Inicio de sesión de caja' : 'Inicio de sesión fallido (caja)', String(usuarioIn || '').slice(0, 40), null, null);
       return res;
     };

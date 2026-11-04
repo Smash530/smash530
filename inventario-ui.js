@@ -403,10 +403,10 @@
   function renderBackup() {
     if (!shown('section-config')) return;
     const last = S.lastBackup(), u = S.usage(), dias = last ? (Date.now() - new Date(last).getTime()) / 86400000 : null;
-    const pct = Math.round((u.bytes / u.limite) * 100);
+    const pct = Math.round((u.bytes / u.limite) * 100), mb = (b) => (b / 1048576).toFixed(b < 10485760 ? 2 : 0);
     $('bkResumen').innerHTML = `
       <div class="summary-box"><div class="label">Último respaldo</div><div class="value ${dias == null || dias > 1 ? 'neg' : ''}" style="font-size:.95rem">${last ? esc(fecha(last)) : 'Nunca'}</div></div>
-      <div class="summary-box"><div class="label">Espacio usado</div><div class="value ${pct >= 80 ? 'neg' : ''}">${pct}%</div><div class="sub">${(u.bytes / 1048576).toFixed(2)} MB de ~5 MB</div></div>
+      <div class="summary-box"><div class="label">Espacio usado</div><div class="value ${pct >= 80 ? 'neg' : ''}">${pct}%</div><div class="sub">${(u.bytes / 1048576).toFixed(2)} MB de ${mb(u.limite)} MB${u.tipo === 'localStorage' ? ' (este navegador no permite más)' : ''}</div></div>
       <div class="summary-box"><div class="label">Pedidos guardados</div><div class="value">${SmashDB.getOrders().length}</div></div>
       <div class="summary-box"><div class="label">Movimientos de inventario</div><div class="value">${I.getMovimientos().length}</div></div>`;
   }

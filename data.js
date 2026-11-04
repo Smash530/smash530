@@ -1,7 +1,7 @@
 /* ============================================================
    SMASH · data.js
    Capa compartida de datos entre cliente.html y cocina.html.
-   Usa localStorage como "base de datos" del navegador.
+   Usa SmashLS (boot.js: IndexedDB del navegador) como "base de datos".
    IMPORTANTE: prototipo funcional en el navegador, no un backend
    real. Contraseñas en texto plano: válido para probar el flujo
    completo, pero antes de usarlo con clientes reales conviene
@@ -23,7 +23,7 @@ const SmashDB = (function () {
 
   function read(key, fallback) {
     try {
-      const raw = localStorage.getItem(key);
+      const raw = SmashLS.getItem(key);
       return raw ? JSON.parse(raw) : fallback;
     } catch (e) {
       return fallback;
@@ -32,7 +32,7 @@ const SmashDB = (function () {
 
   function write(key, value) {
     try {
-      localStorage.setItem(key, JSON.stringify(value));
+      SmashLS.setItem(key, JSON.stringify(value));
     } catch (e) {
       console.error('SmashDB: no se pudo guardar', key, e);
     }
@@ -106,16 +106,16 @@ const SmashDB = (function () {
       (u) => u.usuario.toLowerCase() === usuario.toLowerCase() && u.password === password
     );
     if (!found) return { ok: false, error: 'Usuario o contraseña incorrectos.' };
-    localStorage.setItem(KEYS.SESSION_CLIENTE, usuario);
+    SmashLS.setItem(KEYS.SESSION_CLIENTE, usuario);
     return { ok: true, user: found };
   }
 
   function logoutCliente() {
-    localStorage.removeItem(KEYS.SESSION_CLIENTE);
+    SmashLS.removeItem(KEYS.SESSION_CLIENTE);
   }
 
   function currentCliente() {
-    const usuario = localStorage.getItem(KEYS.SESSION_CLIENTE);
+    const usuario = SmashLS.getItem(KEYS.SESSION_CLIENTE);
     if (!usuario) return null;
     const users = read(KEYS.USERS, []);
     return users.find((u) => u.usuario === usuario) || null;
@@ -129,16 +129,16 @@ const SmashDB = (function () {
       (u) => u.usuario.toLowerCase() === usuario.toLowerCase() && u.password === password
     );
     if (!found) return { ok: false, error: 'Usuario o contraseña de cocina incorrectos.' };
-    localStorage.setItem(KEYS.SESSION_STAFF, usuario);
+    SmashLS.setItem(KEYS.SESSION_STAFF, usuario);
     return { ok: true, user: found };
   }
 
   function logoutStaff() {
-    localStorage.removeItem(KEYS.SESSION_STAFF);
+    SmashLS.removeItem(KEYS.SESSION_STAFF);
   }
 
   function currentStaff() {
-    const usuario = localStorage.getItem(KEYS.SESSION_STAFF);
+    const usuario = SmashLS.getItem(KEYS.SESSION_STAFF);
     if (!usuario) return null;
     const staff = read(KEYS.STAFF, []);
     return staff.find((u) => u.usuario === usuario) || null;
