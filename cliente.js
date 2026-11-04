@@ -343,8 +343,8 @@
     $("cCorreo").textContent = (yo.usuario ? "@" + yo.usuario + " · " : "") + yo.correo;
     $("cPuntos").textContent = yo.puntos || 0;
     $("cPromos").innerHTML = promos.length ? promos.map(function (p) {
-      return '<div class="apromo"><b>⭐ ' + esc(p.titulo) + "</b>" + (p.descripcion ? "<span>" + esc(p.descripcion) + "</span>" : "") + "<small>Hasta el " + esc(p.hasta) + "</small></div>";
-    }).join("") : '<p class="anote">Este mes aún no hay promociones activas. Sigue sumando puntos.</p>';
+      return '<div class="apromo"><b>⭐ ' + esc(p.titulo) + "</b>" + (p.descripcion ? "<span>" + esc(p.descripcion) + "</span>" : "") + "<small>📅 " + esc(SmashNube.textoDias(p)) + " · hasta el " + esc(p.hasta) + "</small></div>";
+    }).join("") : '<p class="anote">Hoy no hay promociones activas. Sigue sumando puntos.</p>';
     var f = $("fDatos");
     f.elements.nombre.value = yo.nombre || ""; f.elements.telefono.value = yo.telefono || "";
     f.elements.telefono2.value = yo.telefono2 || ""; f.elements.direccion.value = yo.direccion || "";
@@ -356,9 +356,9 @@
     var lb = $("leal");
     lb.hidden = !hayNube;
     lb.innerHTML = yo
-      ? (promos.length ? "⭐ <b>Tus promociones del mes:</b> " + promos.map(function (p) { return esc(p.titulo); }).join(" · ") + ' <button type="button" class="lnk" data-acc="cuenta">Ver detalles</button>'
-        : "⭐ Hola <b>" + esc(String(yo.nombre || "").split(" ")[0]) + "</b>, tienes <b>" + (yo.puntos || 0) + " puntos</b>. Este mes aún no hay promociones; sigue sumando.")
-      : '⭐ <b>¿Quieres descuentos y promociones del mes?</b> Regístrate gratis y gana puntos en cada pedido. <span class="lbtns"><button type="button" class="lnk" data-acc="registro">Registrarme</button><button type="button" class="lnk" data-acc="entrar">Ya tengo cuenta</button></span>';
+      ? (promos.length ? "⭐ <b>Tus promociones de hoy:</b> " + promos.map(function (p) { return esc(p.titulo); }).join(" · ") + ' <button type="button" class="lnk" data-acc="cuenta">Ver detalles</button>'
+        : "⭐ Hola <b>" + esc(String(yo.nombre || "").split(" ")[0]) + "</b>, tienes <b>" + (yo.puntos || 0) + " puntos</b>. Hoy no hay promociones; sigue sumando.")
+      : '⭐ <b>¿Quieres descuentos y promociones cada día?</b> Regístrate gratis y gana puntos en cada pedido. <span class="lbtns"><button type="button" class="lnk" data-acc="registro">Registrarme</button><button type="button" class="lnk" data-acc="entrar">Ya tengo cuenta</button></span>';
     $("usaDir").hidden = !(yo && yo.direccion);
     $("usaDir").textContent = yo ? "📍 Usar mi dirección guardada: " + yo.direccion : "";
   }
@@ -370,11 +370,14 @@
     if (!val("fp")) $("fp").value = yo.telefono || "";
     if (!val("fp2") && yo.telefono2) $("fp2").value = yo.telefono2;
     SmashNube.promociones().then(function (l) {
-      promos = l.filter(SmashNube.vigente);
+      promos = l.filter(SmashNube.vigente); diaPromos = SmashNube.hoyCO();
       pintarCuenta(); render(); upd();
       if (cerrar) cerrarAcc();
     });
   }
+  // Si la página queda abierta al cambiar el día, carga las promociones del nuevo día
+  var diaPromos = "";
+  if (hayNube) setInterval(function () { if (yo && diaPromos && SmashNube.hoyCO() !== diaPromos) entro(yo, false); }, 60000);
   if (hayNube) {
     SmashNube.alCambiar(function (p) { if (!p && yo) { yo = null; promos = []; pintarCuenta(); render(); upd(); } });
     SmashNube.enRecuperacion(function () {

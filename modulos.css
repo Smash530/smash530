@@ -206,3 +206,17 @@ details.mod-box[open]>summary{margin-bottom:8px}
   .promo-card{border-color:rgba(255,255,255,.14)}
   .leal-hist td{background:rgba(255,255,255,.04)}
 }
+
+/* Promociones por día de la semana */
+.promo-dias{border:1px solid #ddd;border-radius:10px;padding:8px 10px 10px;margin:0;min-width:0}
+.promo-dias legend{font-weight:600;font-size:.88rem;padding:0 4px}
+.dias-chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}
+.promo-form label.dia-chip{flex-direction:row;position:relative;font-weight:700;cursor:pointer}
+.dia-chip input{position:absolute;opacity:0;width:1px;height:1px}
+.dia-chip span{display:inline-block;min-width:46px;text-align:center;padding:7px 10px;border-radius:999px;border:1.5px solid #ccc;background:#fff;color:#333;user-select:none}
+.dia-chip input:checked + span{background:#e4161c;border-color:#e4161c;color:#fff}
+.dia-chip input:focus-visible + span{outline:2px solid #e4161c;outline-offset:2px}
+@media (prefers-color-scheme: dark){
+  .promo-dias{border-color:#444}
+  .dia-chip span{background:#222;border-color:#555;color:#eee}
+}

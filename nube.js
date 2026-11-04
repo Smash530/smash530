@@ -34,6 +34,7 @@ const SmashNube = (function () {
     if (/failed to fetch|network/i.test(m)) return 'Sin conexión. Revisa tu internet e intenta de nuevo.';
     if (/sin permiso|solo los dueños|permission denied|row-level security/i.test(m)) return 'Tu cuenta no tiene permiso para esto.';
     if (/duplicate key.*puntos_mov_un_pedido/i.test(m)) return 'Los puntos de este pedido ya se habían sumado.';
+    if (/column.*dias|dias.*column|schema cache/i.test(m)) return 'Falta preparar la base para los días de la semana: ejecuta supabase/promos-por-dia.sql en el SQL Editor de Supabase.';
     return m || 'Algo salió mal. Intenta de nuevo.';
   }
   const limpioTel = (t) => String(t || '').replace(/\D/g, '').slice(-15);
@@ -135,6 +136,7 @@ const SmashNube = (function () {
       titulo: String(d.titulo || '').trim().slice(0, 80), descripcion: String(d.descripcion || '').trim().slice(0, 300),
       tipo: d.tipo, producto: d.producto || '', valor: Math.max(0, Number(d.valor) || 0),
       desde: d.desde, hasta: d.hasta, activa: d.activa !== false,
+      dias: leerDias(d.dias),
     };
     if (!f.titulo) return { ok: false, error: 'Ponle un nombre a la promoción.' };
     if (!['porcentaje', 'valor', 'precio', 'incentivo'].includes(f.tipo)) return { ok: false, error: 'Elige el tipo de promoción.' };
@@ -155,7 +157,21 @@ const SmashNube = (function () {
   }
 
   const hoyCO = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
-  const vigente = (p) => p.activa && p.desde <= hoyCO() && hoyCO() <= p.hasta;
+  // Día de la semana en Colombia: 0 = domingo … 6 = sábado
+  const diaCO = () => new Date(hoyCO() + 'T12:00:00Z').getUTCDay();
+  const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  // Vacío = todos los días
+  const leerDias = (v) => [...new Set((Array.isArray(v) ? v : []).map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))].sort();
+  const tocaHoy = (p) => { const d = leerDias(p.dias); return !d.length || d.includes(diaCO()); };
+  // "Todos los días" · "Los martes" · "Lunes, miércoles y viernes"
+  function textoDias(p) {
+    const d = leerDias(p.dias);
+    if (!d.length || d.length === 7) return 'Todos los días';
+    if (d.length === 1) return 'Los ' + DIAS[d[0]].toLowerCase() + (d[0] === 0 || d[0] === 6 ? 's' : '');
+    const n = d.slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((i) => DIAS[i].toLowerCase());
+    return (n.slice(0, -1).join(', ') + ' y ' + n[n.length - 1]).replace(/^./, (c) => c.toUpperCase());
+  }
+  const vigente = (p) => p.activa && p.desde <= hoyCO() && hoyCO() <= p.hasta && tocaHoy(p);
 
   /* Descuento de las promociones sobre un pedido.
      - Con producto: se aplica a cada unidad de ese producto (si hay varias, la mejor).
@@ -224,7 +240,7 @@ const SmashNube = (function () {
 
   return {
     ok, perfil, alCambiar, enRecuperacion, registrar, entrar, salir, recuperarClave, nuevaClave, guardarPerfil, usuarioLibre,
-    promociones, guardarPromo, activarPromo, borrarPromo, aplicarPromos, vigente, hoyCO,
+    promociones, guardarPromo, activarPromo, borrarPromo, aplicarPromos, vigente, hoyCO, diaCO, tocaHoy, textoDias, DIAS,
     puntosPedido, REGLAS, clientes, movimientos, sumarPuntos, cambiarRol, buscarPorCorreo,
   };
 })();

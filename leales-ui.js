@@ -110,6 +110,7 @@ const SmashLealesUI = (function () {
     if (!p.activa) return ['Pausada', 'off'];
     if (p.hasta < h) return ['Vencida', 'off'];
     if (p.desde > h) return ['Programada', 'prog'];
+    if (!N.tocaHoy(p)) return ['Hoy no aplica', 'prog'];
     return ['Vigente', 'on'];
   }
   function detalle(p) {
@@ -121,7 +122,8 @@ const SmashLealesUI = (function () {
     if (!N || !N.ok) { proot.innerHTML = '<p class="error">No se pudo cargar la conexión con la nube.</p>'; return; }
     if (!yo) { proot.innerHTML = loginHtml(); return; }
     if (yo.rol !== 'dueno') { proot.innerHTML = cabecera() + '<p class="error">Solo las cuentas con rol Dueño pueden crear o cambiar promociones.</p>'; return; }
-    const e = editando || { tipo: 'porcentaje', producto: '', valor: '', desde: N.hoyCO(), hasta: finDeMes(), activa: true, titulo: '', descripcion: '' };
+    const e = editando || { tipo: 'porcentaje', producto: '', valor: '', desde: N.hoyCO(), hasta: finDeMes(), activa: true, titulo: '', descripcion: '', dias: [] };
+    const dsel = (e.dias || []).map(Number);
     const prods = SmashDB.getProducts();
     proot.innerHTML = cabecera() + `
       <p class="hint">Las promociones solo las ven y las usan los clientes que iniciaron sesión con su cuenta. Se activan al instante: no hace falta publicar el menu.json.
@@ -139,6 +141,10 @@ const SmashLealesUI = (function () {
           <label>Desde<input name="desde" type="date" required value="${esc(e.desde)}"></label>
           <label>Hasta<input name="hasta" type="date" required value="${esc(e.hasta)}"></label>
         </div>
+        <fieldset class="promo-dias"><legend>Días de la semana <small class="hint">(sin marcar = todos los días)</small></legend>
+          <div class="dias-chips">${[1, 2, 3, 4, 5, 6, 0].map((i) => `<label class="dia-chip"><input type="checkbox" name="dia" value="${i}"${dsel.includes(i) ? ' checked' : ''}><span>${N.DIAS[i].slice(0, 3)}</span></label>`).join('')}</div>
+          <small class="hint">Se repite cada semana dentro de las fechas. Ej: marca solo Mar para una promo de todos los martes.</small>
+        </fieldset>
         <label class="chk"><input type="checkbox" name="activa"${e.activa !== false ? ' checked' : ''}> Activa</label>
         <p class="error" id="promoMsg"></p>
         <div class="prod-actions"><button type="submit" class="btn-primary">${editando ? 'Guardar cambios' : 'Crear promoción'}</button>${editando ? '<button type="button" class="btn-sm" data-l="pcancel">Cancelar</button>' : ''}</div>
@@ -148,7 +154,7 @@ const SmashLealesUI = (function () {
         <div class="row"><b>${esc(p.titulo)}</b><span class="promo-st ${st[1]}">${st[0]}</span></div>
         ${p.descripcion ? `<div class="hint">${esc(p.descripcion)}</div>` : ''}
         <div>${esc(detalle(p))}</div>
-        <div class="hint">Del ${esc(p.desde)} al ${esc(p.hasta)}</div>
+        <div class="hint">📅 ${esc(N.textoDias(p))} · del ${esc(p.desde)} al ${esc(p.hasta)}</div>
         <div class="leal-acts"><button type="button" class="btn-sm" data-l="pedit" data-id="${p.id}">Editar</button>
           <button type="button" class="btn-sm" data-l="ptoggle" data-id="${p.id}">${p.activa ? 'Pausar' : 'Activar'}</button>
           <button type="button" class="btn-sm" data-l="pdel" data-id="${p.id}">Borrar</button></div>
@@ -173,7 +179,7 @@ const SmashLealesUI = (function () {
       if (e.target.id === 'promoForm') {
         const f = e.target, m = document.getElementById('promoMsg');
         m.className = 'error'; m.textContent = 'Guardando…';
-        const r2 = await N.guardarPromo({ id: editando && editando.id, titulo: f.titulo.value, descripcion: f.descripcion.value, tipo: f.tipo.value, producto: f.producto.value, valor: f.tipo.value === 'incentivo' ? 0 : f.valor.value, desde: f.desde.value, hasta: f.hasta.value, activa: f.activa.checked });
+        const r2 = await N.guardarPromo({ id: editando && editando.id, titulo: f.titulo.value, descripcion: f.descripcion.value, tipo: f.tipo.value, producto: f.producto.value, valor: f.tipo.value === 'incentivo' ? 0 : f.valor.value, desde: f.desde.value, hasta: f.hasta.value, activa: f.activa.checked, dias: [...f.querySelectorAll('input[name=dia]:checked')].map((x) => +x.value) });
         if (!r2.ok) { m.textContent = r2.error; return; }
         editando = null; promos = await N.promociones(true); renderPromos();
       }
