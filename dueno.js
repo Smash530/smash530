@@ -465,6 +465,7 @@
     const res = SmashExt.addOrder({
       cliente, telefono: fld(t, 'Tel[eé]fono'), direccion: dir, items: its, notas: fld(t, 'Notas'),
       zona: fld(t, 'Zona'), domicilio: mny(fld(t, 'Domicilio')), pago: fld(t, 'Medio de pago'), ref: fld(t, 'Pedido N.'), origen: 'whatsapp', reserva: /\*?RESERVA:/i.test(t),
+      ...SmashExt.leerLeal(t),
     });
     if (res.dup) { out.textContent = 'Ese pedido ya estaba agregado (#' + num(res.order) + ').'; return; }
     $('importText').value = '';
@@ -563,9 +564,9 @@
 
   /* ============== SIMULADOR DE COSTO ============== */
   const SIMK = 'smash_sim';
-  const simLoad = () => { try { return JSON.parse(localStorage.getItem(SIMK)) || { nombre: '', margen: 52, ings: [] }; } catch (e) { return { nombre: '', margen: 52, ings: [] }; } };
+  const simLoad = () => { try { return JSON.parse(SmashLS.getItem(SIMK)) || { nombre: '', margen: 52, ings: [] }; } catch (e) { return { nombre: '', margen: 52, ings: [] }; } };
   let sim = simLoad();
-  const simSave = () => { try { localStorage.setItem(SIMK, JSON.stringify(sim)); } catch (e) { /* sin almacenamiento */ } };
+  const simSave = () => { try { SmashLS.setItem(SIMK, JSON.stringify(sim)); } catch (e) { /* sin almacenamiento */ } };
   function renderSim() {
     if ($('section-simulador').hidden) return;
     if (document.activeElement !== $('simNombre')) $('simNombre').value = sim.nombre;

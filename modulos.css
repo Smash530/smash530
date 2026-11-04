@@ -175,3 +175,34 @@ details.mod-box[open]>summary{margin-bottom:8px}
 .resv-tag{margin:6px 0;padding:8px 10px;border-radius:10px;background:#fff4d6;color:#6b4a00;border:1px solid #f0c75e;font-weight:700;font-size:.9rem}
 .resv-tag.mini{display:inline-block;padding:2px 8px;font-size:.8rem}
 @media (prefers-color-scheme:dark){.resv-tag{background:#3a2e10;color:#ffd977;border-color:#7a5f1c}}
+
+/* ---------- Clientes leales y promociones (nube) ---------- */
+.leal-tag{margin:4px 0;padding:6px 10px;border-radius:10px;background:#fff0f0;color:#8f0e13;border:1px solid #f3b4b6;font-size:.86rem;font-weight:700;overflow-wrap:anywhere}
+.btn-pts{background:#d7191f;color:#fff;border-color:#d7191f}
+.leal-who{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px}
+.rol-tag{display:inline-block;padding:1px 8px;border-radius:999px;background:#fff0f0;color:#8f0e13;font-size:.75rem;font-weight:800}
+.leal-login form{display:grid;gap:8px;max-width:420px}
+.leal-acts{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.leal-acts select{padding:5px 6px;border-radius:6px}
+.leal-hist td{background:rgba(0,0,0,.03)}
+.leal-mov{padding:3px 0;font-size:.88rem}
+.leal-mov .pos{color:#1e8a4c}
+.leal-mov .neg{color:#c0392b}
+.leal-tabla td{overflow-wrap:anywhere}
+.promo-form{display:grid;gap:8px;max-width:620px}
+.promo-form label{display:flex;flex-direction:column;gap:3px;font-weight:600;font-size:.88rem}
+.promo-form label.chk{flex-direction:row;align-items:center}
+.promo-form input,.promo-form select{padding:8px;border-radius:8px}
+.promo-lista{display:grid;gap:10px}
+@media (min-width:760px){.promo-lista{grid-template-columns:1fr 1fr}}
+.promo-card{border:1px solid rgba(0,0,0,.12);border-radius:12px;padding:12px;display:grid;gap:4px}
+.promo-card .row{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.promo-st{font-size:.75rem;font-weight:800;padding:2px 8px;border-radius:999px}
+.promo-st.on{background:#e3f6ea;color:#1e8a4c}
+.promo-st.prog{background:#fff4d6;color:#6b4a00}
+.promo-st.off{background:#eee;color:#666}
+@media (prefers-color-scheme:dark){
+  .leal-tag,.rol-tag{background:#3a1416;color:#ffb3b5;border-color:#6b2226}
+  .promo-card{border-color:rgba(255,255,255,.14)}
+  .leal-hist td{background:rgba(255,255,255,.04)}
+}

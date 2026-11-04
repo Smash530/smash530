@@ -50,6 +50,8 @@ const SmashUI = (function () {
         ${o.reserva ? (status === 'nuevo' ? `<div class="resv-tag">📅 RESERVA: llegó fuera de horario. Confírmala para despacharla al abrir.</div>` : '<div class="resv-tag mini">📅 Reserva</div>') : ''}
         <div class="meta">Comanda ${esc(C.codigo(o))}${o.ref ? ' · ' + esc(o.ref) : ''}${o.origen === 'cocina' ? ' · tomado en caja' : ''}${o.editadoEn ? ' · editado' : ''}</div>
         <div class="oname">${esc(o.cliente)} ${o.telefono ? `<a class="otel" href="tel:${esc(String(o.telefono).replace(/[^\d+]/g, ''))}">📞 ${esc(o.telefono)}</a>` : '<span class="meta">sin teléfono</span>'}</div>
+        ${o.telefono2 ? `<div class="meta">📞 Ref. domicilio: <a class="otel" href="tel:${esc(String(o.telefono2).replace(/[^\d+]/g, ''))}">${esc(o.telefono2)}</a></div>` : ''}
+        ${o.cuenta ? `<div class="leal-tag">⭐ Cliente leal: @${esc(o.cuenta.usuario || '-')} · ${esc(o.cuenta.correo)}${o.puntosSumados ? ` · <b>+${esc(o.puntosSumados)} pts sumados</b>` : ''}</div>` : ''}
         <div class="oaddr">📍 ${esc(o.direccion || 'sin dirección')}${o.zona ? ` <span class="meta">(${esc(o.zona)})</span>` : ''}</div>
         <div class="items">${items}</div>
         ${o.notas ? `<div class="meta">📝 ${esc(o.notas)}</div>` : ''}
@@ -61,6 +63,7 @@ const SmashUI = (function () {
         <div class="order-actions">
           ${NEXT[status] ? `<button class="btn-advance" data-act="advance" data-id="${id}" data-status="${esc(status)}">${NEXT_LABEL[status]}</button>` : ''}
           ${ep && (ep.k === 'pendiente' || ep.k === 'pagado') ? `<button class="btn-pay${ep.k === 'pagado' ? ' done' : ''}" data-act="pay" data-id="${id}">💰 ${ep.k === 'pagado' ? 'Ver pago' : 'Cobrar'}</button>` : ''}
+          ${o.cuenta && !o.puntosSumados && status !== 'cancelado' && typeof SmashLealesUI !== 'undefined' ? `<button class="btn-pts" data-act="puntos" data-id="${id}">⭐ Sumar puntos</button>` : ''}
           <button class="btn-print" data-act="print" data-id="${id}">🖨️ Imprimir comanda</button>
           <button class="btn-pdf" data-act="pdf" data-id="${id}">⬇️ PDF</button>
           ${repBtn}
@@ -242,6 +245,7 @@ const SmashUI = (function () {
       switch (b.dataset.act) {
         case 'print': SmashExt.updateOrder(id, { impresa: true, impresaEn: o.impresaEn || new Date().toISOString() }); cfg.print(id); cfg.refresh(); break;
         case 'pdf': cfg.pdf(id); break;
+        case 'puntos': SmashLealesUI.sumarDePedido(o, () => cfg.refresh()); break;
         case 'advance': {
           if (o.status !== b.dataset.status) { cfg.refresh(); break; } // la tarjeta estaba desactualizada (otra pestaña)
           const st = NEXT[o.status];

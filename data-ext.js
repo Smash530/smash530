@@ -4,7 +4,7 @@
    - tarifas de domicilio por zona
    - pedidos con zona, medio de pago, referencia y # de pedido del día
    - evita duplicar un pedido (por referencia)
-   Usa las mismas llaves de localStorage que data.js.
+   Usa las mismas llaves de SmashLS que data.js.
    ============================================================ */
 const SmashExt = (function () {
   const ZK = 'smash_zones';
@@ -15,8 +15,8 @@ const SmashExt = (function () {
     sur:     { nombre: 'Sur', fee: 7000 },
     otros:   { nombre: 'Otros (fuera de la ciudad y pueblos)', fee: 0, variable: true },
   };
-  const rd = (k, f) => { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : f; } catch (e) { return f; } };
-  const wr = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+  const rd = (k, f) => { try { const r = SmashLS.getItem(k); return r ? JSON.parse(r) : f; } catch (e) { return f; } };
+  const wr = (k, v) => SmashLS.setItem(k, JSON.stringify(v));
 
   /* Zonas configurables por los dueños (smash_zonas_cfg). La primera vez se arma con las zonas
      de siempre y las tarifas que ya estaban guardadas en smash_zones. "Otros" es de valor variable. */
@@ -70,6 +70,8 @@ const SmashExt = (function () {
     wr(K.ORDER_SEQ, seq);
     const subtotal = d.items.reduce((s, it) => s + it.price * it.qty, 0);
     const domicilio = Number(d.domicilio) || 0;
+    // descuento de cliente leal (promociones de la nube); nunca más que el subtotal
+    const descuento = Math.min(subtotal, Math.max(0, Math.round(Number(d.descuento) || 0)));
     const order = {
       id: seq,
       numeroDia: nextDayNumber(orders),
@@ -93,10 +95,13 @@ const SmashExt = (function () {
       impresa: false,
       subtotal,
       domicilio,
-      total: subtotal + domicilio,
+      total: subtotal - descuento + domicilio,
       status: 'nuevo',
       creado: new Date().toISOString(),
     };
+    if (d.telefono2) order.telefono2 = String(d.telefono2).slice(0, 20);
+    if (descuento) { order.descuento = descuento; order.descuentos = (d.descuentos || []).map((x) => ({ motivo: 'Promo cliente leal: ' + String(x.titulo || x.motivo || '').slice(0, 80), valor: Math.round(Number(x.valor) || 0) })); }
+    if (d.cuenta && d.cuenta.correo) order.cuenta = { usuario: String(d.cuenta.usuario || '').slice(0, 30), correo: String(d.cuenta.correo).toLowerCase().slice(0, 120) };
     orders.push(order);
     wr(K.ORDERS, orders);
     return { ok: true, order };
@@ -128,6 +133,21 @@ const SmashExt = (function () {
       if (nota) it.nota = nota;
       out.push(it);
     });
+    return out;
+  }
+
+  /* ---- Datos de cliente leal en un mensaje de WhatsApp ----
+     "*Cuenta SMASH:* juan (juan@correo.com)", "*Tel. referencia:* 300…",
+     "*Descuento cliente leal:* -$4.380 (Promo A; Promo B)". Caja verifica la cuenta y el descuento antes de sumar puntos. */
+  function leerLeal(t) {
+    const linea = (l) => { const m = String(t).match(new RegExp('\\*?' + l + ':\\*?[ \\t]*(.*)', 'i')); return m ? m[1].replace(/\*/g, '').trim() : ''; };
+    const out = {}, c = linea('Cuenta SMASH').match(/^(\S*)\s*\(([^()\s]+@[^()\s]+)\)/), tel2 = linea('Tel\\. referencia'), ds = linea('Descuento cliente leal');
+    if (c) out.cuenta = { usuario: c[1], correo: c[2] };
+    if (tel2) out.telefono2 = tel2;
+    if (ds) {
+      const v = parseInt(ds.replace(/\(.*$/, '').replace(/\D/g, ''), 10) || 0, p = ds.match(/\((.*)\)/);
+      if (v) { out.descuento = v; out.descuentos = [{ titulo: p ? p[1] : 'Promoción', valor: v }]; }
+    }
     return out;
   }
 
@@ -495,7 +515,7 @@ const SmashExt = (function () {
     setStatus, updateOrder, getRepartidores, rememberRepartidor, soundOn, setSound, unlockAudio, audioReady, chime,
     refreshLedger, getLedger, deleteOrder, getDeletedOrders, DIAS, getPersonal, addPersonal, deletePersonal, antiguedad,
     hashPassword, loginOwner, currentOwner, logoutOwner, changeOwnerPassword, OWNER_DEF,
-    getUsuarios, crearUsuario, eliminarUsuario, leerItems, leerSabores, getHorario, setHorario, horaTexto, estadoHorario,
+    getUsuarios, crearUsuario, eliminarUsuario, leerItems, leerLeal, leerSabores, getHorario, setHorario, horaTexto, estadoHorario,
   };
 })();
 
