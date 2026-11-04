@@ -244,9 +244,13 @@
       descuento: PR.descuento, descuentos: PR.usadas, cuenta: yo ? { usuario: yo.usuario || "", correo: yo.correo } : null };
     try { SmashExt.addOrder(pedido); } catch (x) { /* si falla el guardado local, igual se envía por WhatsApp */ }
     // Pedido directo a caja (en tiempo real). WhatsApp queda como confirmación del cliente.
-    if (typeof SmashNube !== "undefined") {
-      try { SmashNube.enviarPedido(code, pedido).then(function (r) { if (!r.ok) console.warn("Pedido web no enviado:", r.error); }, function (x) { console.warn("Pedido web no enviado:", x); }); } catch (x) {}
-    }
+    var gn = $("graciasNube");
+    if (!gn) { gn = document.createElement("p"); gn.id = "graciasNube"; gn.className = "gsub"; $("graciasSub").insertAdjacentElement("afterend", gn); }
+    gn.textContent = "⏳ Enviando tu pedido a la cocina…";
+    var nubeMal = function (x) { console.warn("Pedido web no enviado:", x); gn.textContent = "⚠ No pudimos pasarlo directo a la cocina. Envía el mensaje de WhatsApp para que lo recibamos."; };
+    if (typeof SmashNube !== "undefined" && SmashNube.enviarPedido) {
+      try { SmashNube.enviarPedido(code, pedido).then(function (r) { if (r.ok) gn.textContent = "✓ Tu pedido " + code + " ya llegó a la cocina."; else nubeMal(r.error); }, nubeMal); } catch (x) { nubeMal(x); }
+    } else nubeMal("sin conexión");
     $("graciasSub").textContent = EH.abierto ? "Termina de enviar el mensaje en WhatsApp para confirmar tu pedido."
       : "Tu pedido quedó como reserva: lo despachamos al abrir cocina, " + reservaTxt() + ". Termina de enviar el mensaje en WhatsApp.";
     $("gracias").hidden = false;

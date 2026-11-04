@@ -3,6 +3,7 @@
    Recibe en tiempo real los pedidos que los clientes hacen en la
    página web (tabla pedidos_web de Supabase) y los guarda solos en
    "Pedidos pendientes", listos para imprimir la comanda.
+   - Funciona en el panel de cocina y en el de dueños.
    - Necesita una cuenta con rol Caja o Dueño conectada en
      "⭐ Clientes leales" (queda guardada en este equipo).
    - Un mismo pedido nunca entra dos veces: se reconoce por su N°.
@@ -12,7 +13,7 @@
 const SmashPedidosWeb = (function () {
   const N = typeof SmashNube !== 'undefined' ? SmashNube : null;
   const el = () => document.getElementById('webEstado');
-  let detener = null, recibidos = 0;
+  let detener = null, recibidos = 0, ultimo = '';
 
   const txt = (v, n) => String(v == null ? '' : v).slice(0, n);
   const num = (v) => { const n = Math.round(Number(v)); return Number.isFinite(n) && n >= 0 ? n : 0; };
@@ -46,35 +47,63 @@ const SmashPedidosWeb = (function () {
     const o = limpiar(f);
     if (!o) return;
     const r = SmashExt.addOrder(o);
-    if (r.ok) { recibidos++; pintar('en-vivo'); }
+    if (r.ok) { recibidos++; ultimo = o.ref; pintar(); }
     if (r.ok || r.dup) N.marcarRecibido(f.ref).catch(() => {});
   }
 
+  // Estado visible: conexión + última revisión + error real (para saber dónde se queda un pedido)
+  const S = { con: 'conectando', total: null, hora: null, error: '' };
   const TXT = {
     'en-vivo': ['on', '🟢 Pedidos web en tiempo real: llegan solos a esta lista.'],
-    respaldo: ['on', '🟡 Pedidos web: conexión lenta, se revisan cada 20 segundos.'],
+    respaldo: ['on', '🟡 Pedidos web: conexión en vivo lenta, se revisan cada 15 segundos.'],
     conectando: ['prog', '⏳ Conectando con los pedidos web…'],
-    'sin-sesion': ['off', '⚠ Para recibir los pedidos de la página automáticamente, conecta la cuenta de caja en "⭐ Clientes leales".'],
+    'sin-sesion': ['off', '⚠ Para recibir los pedidos de la página automáticamente, conecta la cuenta de caja o dueño en "⭐ Clientes leales".'],
     'sin-tabla': ['off', '⚠ Falta preparar la base: ejecuta supabase/pedidos-en-linea.sql en Supabase (una vez).'],
     'sin-nube': ['off', '⚠ Sin conexión con la nube: los pedidos web no llegan solos. Revisa el internet y recarga.'],
-    error: ['off', '⚠ No se pudieron revisar los pedidos web. Se reintenta solo.'],
+    'otra-pestana': ['prog', 'ℹ Los pedidos web los está recibiendo otra pestaña abierta de este navegador; aparecen aquí también.'],
   };
-  function pintar(e) {
+  const hhmm = (d) => d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/[  ]/g, ' ');
+  function alEstado(e, info) {
+    if (e === 'revisado') { S.total = info.total; S.hora = info.hora; S.error = ''; }
+    else if (e === 'error' || e === 'sin-tabla') { S.error = (info && info.error) || 'error desconocido'; if (e === 'sin-tabla') S.con = e; }
+    else S.con = e;
+    pintar();
+  }
+  function pintar() {
     const b = el(); if (!b) return;
-    const t = TXT[e] || TXT.error;
+    const t = S.error && S.con !== 'sin-tabla' ? ['off', '⚠ No se pudieron revisar los pedidos web (' + S.error + '). Se reintenta solo.'] : TXT[S.con] || TXT.conectando;
     b.hidden = false; b.className = 'web-estado ' + t[0];
-    b.textContent = t[1] + (e === 'en-vivo' && recibidos ? ' Recibidos en esta sesión: ' + recibidos + '.' : '');
+    let extra = '';
+    if (S.hora && (S.con === 'en-vivo' || S.con === 'respaldo' || S.con === 'conectando'))
+      extra = ' Última revisión ' + hhmm(S.hora) + ' · ' + S.total + ' pedido(s) web en las últimas 36 h' + (recibidos ? ' · nuevos aquí: ' + recibidos + (ultimo ? ' (último ' + ultimo + ')' : '') : '') + '.';
+    b.textContent = t[1] + extra;
   }
 
   function iniciar() {
-    if (detener) detener();
-    if (!N) { pintar('sin-nube'); return; }
-    detener = N.recibirPedidos(alPedido, pintar);
+    if (detener) { detener(); detener = null; }
+    if (!N) { S.con = 'sin-nube'; pintar(); return; }
+    detener = N.recibirPedidos(alPedido, alEstado);
   }
 
-  // Al conectar o cerrar la cuenta de caja (no reinicia si es la misma cuenta)
-  let cuentaActual;
-  if (N && N.alCambiar) N.alCambiar((p) => { const id = p ? p.id + ':' + p.rol : ''; if (id !== cuentaActual) { cuentaActual = id; iniciar(); } });
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar); else iniciar();
-  return { iniciar };
+  // Una sola pestaña por navegador recibe (evita pedidos repetidos si cocina y dueños están abiertos a la vez)
+  let lider = false;
+  function arrancar() {
+    lider = true;
+    let cuentaActual;
+    if (N && N.alCambiar) N.alCambiar((p) => { const id = p ? p.id + ':' + p.rol : ''; if (id !== cuentaActual) { cuentaActual = id; iniciar(); } });
+    iniciar();
+  }
+  function empezar() {
+    if (navigator.locks && navigator.locks.request) {
+      navigator.locks.request('smash-pedidos-web', { ifAvailable: true }, (lock) => {
+        if (lock) { arrancar(); return new Promise(() => {}); }   // se queda con el turno mientras la pestaña esté abierta
+        S.con = 'otra-pestana'; pintar();
+        // cuando la otra pestaña se cierre, esta toma el turno
+        navigator.locks.request('smash-pedidos-web', () => { arrancar(); return new Promise(() => {}); });
+        return null;
+      });
+    } else arrancar();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', empezar); else empezar();
+  return { iniciar: () => { if (lider) iniciar(); }, estado: () => ({ ...S, recibidos, lider }) };
 })();

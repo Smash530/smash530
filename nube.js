@@ -259,27 +259,31 @@ const SmashNube = (function () {
   // Para caja y dueños: entrega cada pedido nuevo a alPedido(fila). Devuelve una función para detener.
   function recibirPedidos(alPedido, alEstado) {
     if (!ok) { if (alEstado) alEstado('sin-nube'); return () => {}; }
+    // al volver a la pestaña o al recuperar internet se revisa de inmediato
+    const alVolver = () => { if (document.visibilityState !== 'hidden') revisar(); };
     let canal = null, reloj = null, activo = true;
-    const estado = (e) => { if (alEstado) try { alEstado(e); } catch (x) {} };
+    const estado = (e, info) => { if (alEstado) try { alEstado(e, info); } catch (x) {} };
     const entregar = (f) => { if (f && f.ref && f.datos) try { alPedido(f); } catch (e) { console.warn(e); } };
     async function revisar() {
       const desde = new Date(Date.now() - 36 * 3600 * 1000).toISOString();
       const { data, error } = await sb.from('pedidos_web').select('*').gte('creado', desde).order('creado', { ascending: true });
-      if (error) { estado(/does not exist|schema cache/i.test(error.message) ? 'sin-tabla' : 'error'); return; }
+      if (error) { estado(/does not exist|schema cache/i.test(error.message) ? 'sin-tabla' : 'error', { error: error.message }); return; }
       (data || []).forEach(entregar);
+      estado('revisado', { total: (data || []).length, hora: new Date() });
     }
     async function arrancar() {
       const p = await perfil(true);
       if (!activo) return;
       if (!p || (p.rol !== 'caja' && p.rol !== 'dueno')) { estado('sin-sesion'); return; }
       await revisar();
-      canal = sb.channel('pedidos-web')
+      canal = sb.channel('pedidos-web-' + Date.now())
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos_web' }, (m) => entregar(m.new))
         .subscribe((s) => estado(s === 'SUBSCRIBED' ? 'en-vivo' : s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' ? 'respaldo' : 'conectando'));
-      reloj = setInterval(revisar, 20000);   // respaldo por si se cae la conexión en vivo
+      reloj = setInterval(revisar, 15000);   // respaldo por si se cae la conexión en vivo
+      document.addEventListener('visibilitychange', alVolver); window.addEventListener('online', alVolver);
     }
     arrancar();
-    return () => { activo = false; if (reloj) clearInterval(reloj); if (canal) sb.removeChannel(canal); };
+    return () => { activo = false; if (reloj) clearInterval(reloj); if (canal) sb.removeChannel(canal); document.removeEventListener('visibilitychange', alVolver); window.removeEventListener('online', alVolver); };
   }
   async function marcarRecibido(ref) {
     if (!ok) return;
