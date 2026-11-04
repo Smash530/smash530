@@ -238,9 +238,57 @@ const SmashNube = (function () {
     return error ? null : data;
   }
 
+
+  /* ---------------- Pedidos web en tiempo real ----------------
+     La página de clientes deja cada pedido en la tabla pedidos_web
+     (supabase/pedidos-en-linea.sql). Caja y dueños los reciben al
+     instante y se guardan solos en el panel, listos para la comanda. */
+  // keepalive: el envío termina aunque el celular salte a WhatsApp
+  async function enviarPedido(ref, datos) {
+    let token = CLAVE_PUBLICA;
+    try { if (ok) { const { data: s } = await sb.auth.getSession(); if (s && s.session) token = s.session.access_token; } } catch (e) {}
+    const r = await fetch(URL_NUBE + '/rest/v1/pedidos_web', {
+      method: 'POST', keepalive: true,
+      headers: { apikey: CLAVE_PUBLICA, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ ref, datos }),
+    });
+    if (r.ok || r.status === 409) return { ok: true };   // 409: ya estaba (se envió dos veces)
+    let m = ''; try { m = (await r.json()).message; } catch (e) {}
+    return { ok: false, error: m || 'HTTP ' + r.status };
+  }
+  // Para caja y dueños: entrega cada pedido nuevo a alPedido(fila). Devuelve una función para detener.
+  function recibirPedidos(alPedido, alEstado) {
+    if (!ok) { if (alEstado) alEstado('sin-nube'); return () => {}; }
+    let canal = null, reloj = null, activo = true;
+    const estado = (e) => { if (alEstado) try { alEstado(e); } catch (x) {} };
+    const entregar = (f) => { if (f && f.ref && f.datos) try { alPedido(f); } catch (e) { console.warn(e); } };
+    async function revisar() {
+      const desde = new Date(Date.now() - 36 * 3600 * 1000).toISOString();
+      const { data, error } = await sb.from('pedidos_web').select('*').gte('creado', desde).order('creado', { ascending: true });
+      if (error) { estado(/does not exist|schema cache/i.test(error.message) ? 'sin-tabla' : 'error'); return; }
+      (data || []).forEach(entregar);
+    }
+    async function arrancar() {
+      const p = await perfil(true);
+      if (!activo) return;
+      if (!p || (p.rol !== 'caja' && p.rol !== 'dueno')) { estado('sin-sesion'); return; }
+      await revisar();
+      canal = sb.channel('pedidos-web')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos_web' }, (m) => entregar(m.new))
+        .subscribe((s) => estado(s === 'SUBSCRIBED' ? 'en-vivo' : s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' ? 'respaldo' : 'conectando'));
+      reloj = setInterval(revisar, 20000);   // respaldo por si se cae la conexión en vivo
+    }
+    arrancar();
+    return () => { activo = false; if (reloj) clearInterval(reloj); if (canal) sb.removeChannel(canal); };
+  }
+  async function marcarRecibido(ref) {
+    if (!ok) return;
+    await sb.from('pedidos_web').update({ recibido: new Date().toISOString() }).eq('ref', ref).is('recibido', null);
+  }
   return {
     ok, perfil, alCambiar, enRecuperacion, registrar, entrar, salir, recuperarClave, nuevaClave, guardarPerfil, usuarioLibre,
     promociones, guardarPromo, activarPromo, borrarPromo, aplicarPromos, vigente, hoyCO, diaCO, tocaHoy, textoDias, DIAS,
     puntosPedido, REGLAS, clientes, movimientos, sumarPuntos, cambiarRol, buscarPorCorreo,
+    enviarPedido, recibirPedidos, marcarRecibido,
   };
 })();

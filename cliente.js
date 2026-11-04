@@ -240,10 +240,13 @@
     var z = function (x) { return ("0" + x).slice(-2); }, a = "ABCDEFGHJKLMNPQRSTUVWXYZ";
     var code = "#" + z(d.getDate()) + z(d.getMonth() + 1) + "-" + z(d.getHours()) + z(d.getMinutes()) + a[Math.floor(Math.random() * a.length)] + Math.floor(Math.random() * 10);
     $("go").href = "https://wa.me/" + WA + "?text=" + encodeURIComponent(LM.replace("@@", code));
-    try {
-      SmashExt.addOrder({ cliente: val("fn"), telefono: val("fp"), telefono2: val("fp2"), direccion: val("fa"), zona: Z[zone].nombre, domicilio: Z[zone].variable ? 0 : Z[zone].fee, domicilioPendiente: !!Z[zone].variable, pago: pm, notas: val("fo"), items: lines(), ref: code, origen: "web", reserva: !EH.abierto,
-        descuento: PR.descuento, descuentos: PR.usadas, cuenta: yo ? { usuario: yo.usuario || "", correo: yo.correo } : null });
-    } catch (x) { /* si falla el guardado local, igual se envía por WhatsApp */ }
+    var pedido = { cliente: val("fn"), telefono: val("fp"), telefono2: val("fp2"), direccion: val("fa"), zona: Z[zone].nombre, domicilio: Z[zone].variable ? 0 : Z[zone].fee, domicilioPendiente: !!Z[zone].variable, pago: pm, notas: val("fo"), items: lines(), ref: code, origen: "web", reserva: !EH.abierto,
+      descuento: PR.descuento, descuentos: PR.usadas, cuenta: yo ? { usuario: yo.usuario || "", correo: yo.correo } : null };
+    try { SmashExt.addOrder(pedido); } catch (x) { /* si falla el guardado local, igual se envía por WhatsApp */ }
+    // Pedido directo a caja (en tiempo real). WhatsApp queda como confirmación del cliente.
+    if (typeof SmashNube !== "undefined") {
+      try { SmashNube.enviarPedido(code, pedido).then(function (r) { if (!r.ok) console.warn("Pedido web no enviado:", r.error); }, function (x) { console.warn("Pedido web no enviado:", x); }); } catch (x) {}
+    }
     $("graciasSub").textContent = EH.abierto ? "Termina de enviar el mensaje en WhatsApp para confirmar tu pedido."
       : "Tu pedido quedó como reserva: lo despachamos al abrir cocina, " + reservaTxt() + ". Termina de enviar el mensaje en WhatsApp.";
     $("gracias").hidden = false;
