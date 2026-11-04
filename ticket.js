@@ -129,8 +129,45 @@ const SmashTicket = (function () {
     gap(8);
     text(FRASE, 8, false, 'c');
     gap(16);
-    const H = y;
+    return ensamblar(ops, y, img, logoBytes);
+  }
 
+  // Herramientas de dibujo para un ticket de 80 mm (logo + SMASH + fecha arriba, como la comanda)
+  function lienzo(logoBytes) {
+    const ops = [];
+    const t = { y: 14, ops, img: null };
+    t.text = (txt, size, bold, align) => {
+      wrap(txt, size, bold, CW).forEach((ln) => {
+        t.y += size * 1.2;
+        const w = measure(ln, size, bold);
+        const x = align === 'c' ? (W - w) / 2 : M;
+        ops.push({ k: 't', txt: ln, size, bold, x, y: t.y - size * 0.2 });
+      });
+    };
+    // fila izquierda/derecha; si la izquierda es larga, se parte en varias líneas
+    t.row = (l, r, size, bold) => {
+      const rw = measure(clean(r), size, bold), ls = wrap(l, size, bold, CW - rw - 6);
+      ls.forEach((ln, i) => {
+        t.y += size * 1.2;
+        ops.push({ k: 't', txt: ln, size, bold, x: M, y: t.y - size * 0.2 });
+        if (i === ls.length - 1) ops.push({ k: 't', txt: clean(r), size, bold, x: W - M - rw, y: t.y - size * 0.2 });
+      });
+    };
+    t.gap = (g) => { t.y += g; };
+    t.rule = () => { t.gap(3); ops.push({ k: 'rule', y: t.y }); t.gap(3); };
+    if (logoBytes) { const inf = jpegInfo(logoBytes); if (inf && (inf.c === 1 || inf.c === 3)) t.img = inf; }
+    if (t.img) {
+      const mw = 110, mh = 60, s = Math.min(mw / t.img.w, mh / t.img.h), w = t.img.w * s, h = t.img.h * s;
+      ops.push({ k: 'img', x: (W - w) / 2, y: t.y, w, h }); t.y += h + 4;
+    }
+    t.text('SMASH', 22, true, 'c');
+    t.gap(3);
+    t.text(ahora(), 8, false, 'c');
+    t.gap(5);
+    return t;
+  }
+
+  function ensamblar(ops, H, img, logoBytes) {
     // contenido
     const P = (n) => n.toFixed(2);
     const body = [];
@@ -177,6 +214,121 @@ const SmashTicket = (function () {
     return out;
   }
 
+  /* ============================================================
+     Recibo de cierre del día (balance de ventas)
+     - balance(orders, fecha): suma producto por producto, domicilios
+       y margen bruto (ventas de producto − costo de producto).
+     - cierreHtml(b) para imprimir, downloadCierrePdf(b) en PDF.
+     ============================================================ */
+  const MOTIVO = 'Paso a paso se construye el camino';
+  const fechaTxt = (f) => { const p = String(f || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : f; };
+  function balance(orders, fecha) {
+    const C = typeof SmashCostos !== 'undefined' ? SmashCostos : null, sellos = C ? C.getSellos() : null;
+    const prods = {}, sinCosto = {};
+    let vendido = 0, desc = 0, dom = 0, domN = 0, domPend = 0, costo = 0;
+    (orders || []).forEach((o) => {
+      (o.items || []).forEach((it) => {
+        const k = String(it.name || it.id);
+        const p = prods[k] || (prods[k] = { nombre: k, qty: 0, total: 0 });
+        p.qty += Number(it.qty) || 0; p.total += (Number(it.qty) || 0) * (Number(it.price) || 0);
+        if (C && !(C.costoProducto(it.id).costo > 0) && !(sellos && sellos[o.id + '|' + o.creado] && sellos[o.id + '|' + o.creado].c[it.id] > 0)) sinCosto[k] = true;
+      });
+      vendido += (o.items || []).reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
+      desc += Number(o.descuento) || 0;
+      if (o.domicilio > 0) { dom += o.domicilio; domN++; } else if (o.domicilioPendiente) domPend++;
+      if (C) costo += C.costoPedido(o, sellos);
+    });
+    const ventas = vendido - desc, margen = ventas - costo;
+    return {
+      fecha, pedidos: (orders || []).length, productos: Object.values(prods).sort((a, b) => b.total - a.total),
+      vendido, descuentos: desc, ventas, domicilios: dom, domPedidos: domN, domPendientes: domPend,
+      total: ventas + dom, costo: C ? costo : null, margen: C ? margen : null, margenPct: C && ventas > 0 ? (margen / ventas) * 100 : null,
+      sinCosto: Object.keys(sinCosto),
+    };
+  }
+  const pct = (n) => (Math.round(n * 10) / 10).toString().replace('.', ',') + '%';
+
+  function cierreHtml(b) {
+    const r = (l, v, cls) => `<div class="tk-r${cls ? ' ' + cls : ''}"><span>${esc(l)}</span><span>${esc(v)}</span></div>`;
+    return `
+      <div class="tk-logo"><img src="${LOGO}" alt="" onerror="this.remove()"></div>
+      <div class="tk-c tk-h">SMASH</div>
+      <div class="tk-s">${esc(ahora())}</div>
+      <div class="tk-c tk-big">Cierre del día</div>
+      <div class="tk-c">${esc(fechaTxt(b.fecha))}</div>
+      <div class="tk-sp"></div><hr>
+      <div class="tk-c">VENDIDO POR PRODUCTO</div>
+      ${b.productos.map((p) => r(p.nombre + ' x ' + p.qty, fmt(p.total))).join('') || '<div class="tk-s">Sin ventas ese día.</div>'}
+      <hr>
+      ${r('Total en productos', fmt(b.vendido))}
+      ${b.descuentos ? r('Descuentos clientes', '-' + fmt(b.descuentos)) : ''}
+      ${r('Ventas de producto', fmt(b.ventas), 'tk-b')}
+      <hr>
+      <div class="tk-c">DOMICILIOS</div>
+      ${r('Domicilios (' + b.domPedidos + ')', fmt(b.domicilios))}
+      ${b.domPendientes ? `<div class="tk-s">${b.domPendientes} domicilio(s) por confirmar, no sumados</div>` : ''}
+      <hr>
+      ${r('TOTAL VENDIDO', fmt(b.total), 'tk-tot')}
+      <div class="tk-s">Productos + domicilios · ${b.pedidos} pedido(s)${b.pedidos ? ' · promedio ' + fmt(b.total / b.pedidos) : ''}</div>
+      <hr>
+      <div class="tk-c">MARGEN BRUTO</div>
+      ${b.costo == null ? '<div class="tk-s">Costo de producto no disponible en este panel.</div>' : `
+        ${r('Ventas de producto', fmt(b.ventas))}
+        ${r('Costo de producto', '-' + fmt(b.costo))}
+        ${r('Margen bruto', fmt(b.margen) + (b.margenPct != null ? ' (' + pct(b.margenPct) + ')' : ''), 'tk-b')}
+        ${b.sinCosto.length ? `<div class="tk-s">Sin costo registrado: ${esc(b.sinCosto.join(', '))}</div>` : ''}`}
+      <div class="tk-sp"></div><hr><div class="tk-sp"></div>
+      <div class="tk-moti">${esc(MOTIVO)}</div>
+      <div class="tk-c">.</div>`;
+  }
+
+  function cierrePdf(b, logoBytes) {
+    const t = lienzo(logoBytes);
+    t.text('Cierre del día', 17, true, 'c');
+    t.text(fechaTxt(b.fecha), 10, true, 'c');
+    t.gap(4); t.rule();
+    t.text('VENDIDO POR PRODUCTO', 10, true, 'c'); t.gap(2);
+    if (b.productos.length) b.productos.forEach((p) => t.row(p.nombre + ' x ' + p.qty, fmt(p.total), 10, false));
+    else t.text('Sin ventas ese día.', 9, false, 'c');
+    t.rule();
+    t.row('Total en productos', fmt(b.vendido), 10, false);
+    if (b.descuentos) t.row('Descuentos clientes', '-' + fmt(b.descuentos), 10, false);
+    t.row('Ventas de producto', fmt(b.ventas), 10.5, true);
+    t.rule();
+    t.text('DOMICILIOS', 10, true, 'c'); t.gap(2);
+    t.row('Domicilios (' + b.domPedidos + ')', fmt(b.domicilios), 10, false);
+    if (b.domPendientes) t.text(b.domPendientes + ' domicilio(s) por confirmar, no sumados', 8, false, 'c');
+    t.rule();
+    t.row('TOTAL VENDIDO', fmt(b.total), 13, true);
+    t.text('Productos + domicilios - ' + b.pedidos + ' pedido(s)' + (b.pedidos ? ' - promedio ' + fmt(b.total / b.pedidos) : ''), 8, false, 'c');
+    t.rule();
+    t.text('MARGEN BRUTO', 10, true, 'c'); t.gap(2);
+    if (b.costo == null) t.text('Costo de producto no disponible en este panel.', 8, false, 'c');
+    else {
+      t.row('Ventas de producto', fmt(b.ventas), 10, false);
+      t.row('Costo de producto', '-' + fmt(b.costo), 10, false);
+      t.row('Margen bruto', fmt(b.margen) + (b.margenPct != null ? ' (' + pct(b.margenPct) + ')' : ''), 10.5, true);
+      if (b.sinCosto.length) t.text('Sin costo registrado: ' + b.sinCosto.join(', '), 8, false, 'c');
+    }
+    t.gap(4); t.rule(); t.gap(6);
+    t.text(MOTIVO, 13, true, 'c');
+    t.gap(16);
+    return ensamblar(t.ops, t.y, t.img, logoBytes);
+  }
+
+  async function leerLogo() {
+    try { const r = await fetch(LOGO); if (r.ok) return new Uint8Array(await r.arrayBuffer()); } catch (e) { /* sin logo */ }
+    return null;
+  }
+  function bajar(bytes, nombre) {
+    const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = nombre;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+  async function downloadCierrePdf(b) { bajar(cierrePdf(b, await leerLogo()), 'cierre-' + b.fecha + '.pdf'); }
+
   async function downloadPdf(o) {
     let logo = null;
     try {
@@ -191,6 +343,6 @@ const SmashTicket = (function () {
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
 
-  return { html, buildPdf, downloadPdf };
+  return { html, buildPdf, downloadPdf, balance, cierreHtml, cierrePdf, downloadCierrePdf };
 })();
 if (typeof module !== 'undefined') module.exports = SmashTicket;

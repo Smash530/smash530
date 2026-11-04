@@ -239,3 +239,13 @@ details.mod-box[open]>summary{margin-bottom:8px}
 /* Crear pedido (cocina): espacio de la foto cuando el producto no tiene imagen */
 .cr-ph{width:84px;height:84px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:2rem;background:var(--bg,#f4f4f4)}
 @media (max-width:520px){.cr-ph{width:70px;height:70px}}
+
+/* Recibo de cierre del día (impresora térmica) */
+.cierre-acts{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0 4px}
+.cierre-acts .btn-primary{margin-top:0}
+@media print{
+  #printArea .tk-b{font-weight:900}
+  #printArea .tk-r span:first-child{padding-right:2mm;word-break:break-word}
+  #printArea .tk-r span:last-child{white-space:nowrap}
+  #printArea .tk-moti{text-align:center;font-weight:900;font-size:14pt;line-height:1.25;margin:1mm 0}
+}

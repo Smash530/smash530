@@ -193,6 +193,17 @@
     ultimoConteo = SmashDB.getOrders().length; renderPedidos(); renderConteo(); renderContabilidad();
   });
 
+  /* ============== RECIBO DE CIERRE DEL DÍA (térmica 80 mm) ============== */
+  function balanceDia() { const f = $('contFecha').value || todayISO(); return SmashTicket.balance(ordersOn(f), f); }
+  $('cierreImprimir').addEventListener('click', () => {
+    const area = $('printArea');
+    area.innerHTML = SmashTicket.cierreHtml(balanceDia());
+    const waits = Array.from(area.querySelectorAll('img')).map((im) =>
+      im.complete ? Promise.resolve() : new Promise((r) => { im.addEventListener('load', r); im.addEventListener('error', r); }));
+    Promise.race([Promise.all(waits), new Promise((r) => setTimeout(r, 1500))]).then(() => window.print());
+  });
+  $('cierrePdf').addEventListener('click', () => SmashTicket.downloadCierrePdf(balanceDia()));
+
   /* ============== IMPRESIÓN DE COMANDA (80 mm, un pedido a la vez) ============== */
   function printComanda(id) {
     const o = SmashDB.getOrderById(id);
