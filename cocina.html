@@ -50,7 +50,8 @@
       <button class="nav-btn" data-section="historial">📜 Historial de comandas</button>
       <button class="nav-btn" data-section="conteo">🍔 Conteo del día</button>
       <button class="nav-btn" data-section="contabilidad">💰 Facturación del día</button>
-      <button class="nav-btn" data-section="clientes">⭐ Clientes</button>
+      <button class="nav-btn" data-section="clientes">📇 Clientes (por pedidos)</button>
+      <button class="nav-btn" data-section="leales">⭐ Clientes leales</button>
       <button class="nav-btn" data-section="config">⚙️ Configuración</button>
     </nav>
     <div class="sound-box"><button id="soundBtn" class="btn-secondary" type="button">🔔 Sonido: activar</button><span id="soundHint" class="hint"></span></div>
@@ -155,6 +156,11 @@
       <div class="cli-root"></div>
     </section>
 
+    <section class="panel-section" id="section-leales" hidden>
+      <h2 class="section-title" style="margin-top:0">⭐ Clientes leales (cuentas)</h2>
+      <div class="leal-root"></div>
+    </section>
+
     <!-- ---- Configuración ---- -->
         <section class="panel-section" id="section-config" hidden>
       <h2 class="section-title" style="margin-top:0">Configuración</h2>
@@ -178,20 +184,7 @@
 <!-- Plantilla de comanda: invisible en pantalla, solo se muestra al imprimir -->
 <div id="printArea" class="print-area"></div>
 
-<script src="data.js"></script>
-<script src="data-ext.js"></script>
-<script src="store.js"></script>
-<script src="inventario.js"></script>
-<script src="costos.js"></script>
-<script src="comandas.js"></script>
-<script src="caja.js"></script>
-<script src="clientes.js"></script>
-<script src="ticket.js"></script>
-<script src="orders-ui.js"></script>
-<script src="cocina.js"></script>
-<script src="comandas-ui.js"></script>
-<script src="caja-ui.js"></script>
-<script src="clientes-ui.js"></script>
-<script src="auditoria.js"></script>
+<script src="boot.js"></script>
+<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'store.js', 'inventario.js', 'costos.js', 'comandas.js', 'caja.js', 'clientes.js', 'ticket.js', 'orders-ui.js', 'leales-ui.js', 'cocina.js', 'comandas-ui.js', 'caja-ui.js', 'clientes-ui.js', 'auditoria.js']);</script>
 </body>
 </html>

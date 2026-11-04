@@ -56,7 +56,9 @@
         <button class="nav-btn" data-section="recetas" type="button">📋 Recetas</button>
         <button class="nav-btn" data-section="costos" type="button">💲 Costos por producto</button>
         <button class="nav-btn" data-section="personal" type="button">👥 Personal</button>
-        <button class="nav-btn" data-section="clientes" type="button">⭐ Clientes</button>
+        <button class="nav-btn" data-section="clientes" type="button">📇 Clientes (por pedidos)</button>
+        <button class="nav-btn" data-section="leales" type="button">⭐ Clientes leales</button>
+        <button class="nav-btn" data-section="promos" type="button">🎁 Promociones</button>
         <button class="nav-btn" data-section="auditoria" type="button">🛡️ Auditoría</button>
         <button class="nav-btn" data-section="horario" type="button">🕐 Horario</button>
         <button class="nav-btn" data-section="config" type="button">⚙️ Configuración</button>
@@ -382,6 +384,16 @@
       <div class="cli-root"></div>
     </section>
 
+    <section class="panel-section" id="section-leales" hidden>
+      <h2 class="section-title" style="margin-top:0">⭐ Clientes leales (cuentas)</h2>
+      <div class="leal-root"></div>
+    </section>
+
+    <section class="panel-section" id="section-promos" hidden>
+      <h2 class="section-title" style="margin-top:0">🎁 Promociones para clientes leales</h2>
+      <div class="promo-root"></div>
+    </section>
+
     <section class="panel-section" id="section-auditoria" hidden>
       <h2 class="section-title" style="margin-top:0">Registro de auditoría</h2>
       <div class="aud-root"></div>
@@ -457,25 +469,7 @@
 <footer>SMASH · Panel de dueños · Los datos se actualizan automáticamente.</footer>
 <div id="printArea" class="print-area"></div>
 
-<script src="data.js"></script>
-<script src="data-ext.js"></script>
-<script src="store.js"></script>
-<script src="inventario.js"></script>
-<script src="costos.js"></script>
-<script src="comandas.js"></script>
-<script src="caja.js"></script>
-<script src="clientes.js"></script>
-<script src="finanzas.js"></script>
-<script src="ticket.js"></script>
-<script src="orders-ui.js"></script>
-<script src="dueno.js"></script>
-<script src="inventario-ui.js"></script>
-<script src="costos-ui.js"></script>
-<script src="comandas-ui.js"></script>
-<script src="caja-ui.js"></script>
-<script src="clientes-ui.js"></script>
-<script src="finanzas-ui.js"></script>
-<script src="auditoria.js"></script>
-<script src="auditoria-ui.js"></script>
+<script src="boot.js"></script>
+<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'store.js', 'inventario.js', 'costos.js', 'comandas.js', 'caja.js', 'clientes.js', 'finanzas.js', 'ticket.js', 'orders-ui.js', 'leales-ui.js', 'dueno.js', 'inventario-ui.js', 'costos-ui.js', 'comandas-ui.js', 'caja-ui.js', 'clientes-ui.js', 'finanzas-ui.js', 'auditoria.js', 'auditoria-ui.js']);</script>
 </body>
 </html>

@@ -29,6 +29,11 @@
     <nav class="tb-nav" aria-label="Secciones">
       <a href="#menu">Menú</a>
       <a href="#como">Cómo pedir</a>
+      <span class="tb-acc" id="tbAcc">
+        <button type="button" class="tb-btn" data-acc="entrar">Iniciar sesión</button>
+        <button type="button" class="tb-btn tb-reg" data-acc="registro">Registrarse</button>
+      </span>
+      <button type="button" class="tb-btn tb-yo" id="tbYo" data-acc="cuenta" hidden></button>
       <a class="tb-cta" href="#pedido">Tu pedido</a>
     </nav>
   </div>
@@ -36,7 +41,7 @@
 
 <section class="hero" id="inicio">
   <div class="hero-media" aria-hidden="true">
-    <img class="hero-img" data-src="images/portada.jpg" alt="" onload="this.dataset.ok=1" onerror="smashImgFallback(this)">
+    <img class="hero-img" data-src="images/portada.png" alt="" onload="this.dataset.ok=1" onerror="smashImgFallback(this)">
     <video class="hero-video" autoplay muted loop playsinline preload="metadata">
       <source src="images/portada.mp4" type="video/mp4" onerror="this.parentNode.remove()">
     </video>
@@ -63,6 +68,7 @@
         <p class="sub">Elige cuántas quieres. Puedes ponerlas en combo con papas y gaseosa.</p>
       </div>
       <div class="resv" id="resv" hidden></div>
+      <div class="leal" id="leal" hidden></div>
       <div id="burgers"></div>
     </section>
 
@@ -85,13 +91,15 @@
       <div class="form">
         <label>Nombre<input id="fn" autocomplete="name" placeholder="Tu nombre"></label>
         <label>Teléfono<input id="fp" type="tel" inputmode="tel" autocomplete="tel" placeholder="3XX XXX XXXX"></label>
+        <label>Otro teléfono de referencia <small>(opcional)</small><input id="fp2" type="tel" inputmode="tel" placeholder="Quien recibe el domicilio"></label>
         <div class="fld"><div class="lb">¿Para qué zona es?</div><div class="chips" id="zones"></div></div>
         <label class="wide">Dirección<input id="fa" autocomplete="street-address" placeholder="Calle o carrera, barrio, referencia"></label>
+        <button type="button" class="usa-dir" id="usaDir" hidden></button>
         <div class="fld"><div class="lb">Medio de pago</div><div class="chips" id="pays"></div></div>
         <label class="wide">Notas (opcional)<input id="fo" placeholder="Ej: sin cebolla, pago con $50.000"></label>
       </div>
       <div class="cart">
-        <div class="cart-info"><small id="cnt">Tu pedido está vacío</small><b id="tot">$0</b><small id="dl"></small><small id="err" role="alert"></small></div>
+        <div class="cart-info"><small id="cnt">Tu pedido está vacío</small><b id="tot">$0</b><small id="desc" class="desc" hidden></small><small id="dl"></small><small id="pts" class="pts" hidden></small><small id="err" role="alert"></small></div>
         <a class="go" id="go" href="#" target="_blank" rel="noopener">Enviar pedido</a>
       </div>
       <p class="secure">El pedido se envía por WhatsApp. Allí te confirmamos y coordinamos la entrega.</p>
@@ -129,6 +137,58 @@
   <p class="foot-note">Producimos por tandas limitadas: si algo se agota, te avisamos.</p>
 </footer>
 
+<!-- Cuenta de cliente leal: oculta hasta pulsar "Iniciar sesión" o "Registrarse" -->
+<div class="acc" id="acc" hidden role="dialog" aria-modal="true" aria-labelledby="accT">
+  <div class="abox">
+    <button type="button" class="acc-x" id="accX" aria-label="Cerrar">×</button>
+    <h2 id="accT">Clientes SMASH ⭐</h2>
+    <p class="sub" id="accSub">Gana puntos en cada pedido y recibe promociones solo para clientes registrados.</p>
+
+    <div class="atabs" id="accTabs">
+      <button type="button" data-tab="entrar" class="on">Iniciar sesión</button>
+      <button type="button" data-tab="registro">Registrarse</button>
+    </div>
+
+    <form id="fEntrar" class="aform" novalidate>
+      <label>Correo<input name="correo" type="email" autocomplete="email" required></label>
+      <label>Contraseña<input name="clave" type="password" autocomplete="current-password" required></label>
+      <p class="amsg" role="alert"></p>
+      <button type="submit" class="abtn">Entrar</button>
+      <button type="button" class="alink" id="olvide">Olvidé mi contraseña</button>
+    </form>
+
+    <form id="fRegistro" class="aform" novalidate hidden>
+      <label>Usuario<input name="usuario" autocomplete="username" maxlength="30" placeholder="ej: juan.perez" required></label>
+      <label>Nombre completo<input name="nombre" autocomplete="name" maxlength="80" required></label>
+      <label>Teléfono<input name="telefono" type="tel" inputmode="tel" autocomplete="tel" placeholder="3XX XXX XXXX" required></label>
+      <label>Correo electrónico<input name="correo" type="email" autocomplete="email" required></label>
+      <label class="wide">Dirección de entrega<input name="direccion" autocomplete="street-address" maxlength="200" placeholder="Calle o carrera, barrio, referencia" required></label>
+      <label>Contraseña <small>(mínimo 8)</small><input name="clave" type="password" autocomplete="new-password" minlength="8" required></label>
+      <label>Repite la contraseña<input name="clave2" type="password" autocomplete="new-password" minlength="8" required></label>
+      <p class="amsg wide" role="alert"></p>
+      <button type="submit" class="abtn wide">Crear mi cuenta</button>
+      <p class="anote wide">Usamos tus datos solo para tus pedidos y promociones. Tu contraseña se guarda cifrada.</p>
+    </form>
+
+    <div id="vCuenta" hidden>
+      <div class="ahead"><div><b id="cNombre"></b><small id="cCorreo"></small></div><div class="apts"><b id="cPuntos">0</b><small>puntos</small></div></div>
+      <h3>Tus promociones del mes</h3>
+      <div id="cPromos" class="apromos"></div>
+      <h3>Tus datos</h3>
+      <form id="fDatos" class="aform" novalidate>
+        <label>Nombre<input name="nombre" maxlength="80"></label>
+        <label>Teléfono<input name="telefono" type="tel" inputmode="tel"></label>
+        <label>Teléfono de referencia <small>(opcional)</small><input name="telefono2" type="tel" inputmode="tel"></label>
+        <label class="wide">Dirección guardada<input name="direccion" maxlength="200"></label>
+        <p class="amsg wide" role="alert"></p>
+        <button type="submit" class="abtn wide">Guardar mis datos</button>
+      </form>
+      <p class="anote">Puntos: hamburguesa 10 · hamburguesa en combo 15 · papas 2 · gaseosa 2 · salsa 1. Se suman cuando confirmamos tu pedido.</p>
+      <button type="button" class="alink" id="salir">Cerrar sesión</button>
+    </div>
+  </div>
+</div>
+
 <div class="gracias" id="gracias" hidden role="dialog" aria-modal="true" aria-labelledby="graciasT">
   <div class="gbox">
     <p id="graciasT">Gracias por tu Compra, esperamos disfrutes la Burger y vuelvas pronto a Smash 😊</p>
@@ -138,6 +198,6 @@
 </div>
 
 <script src="boot.js"></script>
-<script>SmashBoot.cargar(['data.js', 'data-ext.js', 'cliente.js']);</script>
+<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'cliente.js']);</script>
 </body>
 </html>
