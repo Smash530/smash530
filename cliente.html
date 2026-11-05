@@ -5,67 +5,96 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SMASH · Hamburguesas smash en Armenia</title>
 <meta name="description" content="Hamburguesas smash con borde crujiente. Pide a domicilio en Armenia, Quindío, y recibe tu pedido por WhatsApp.">
-<meta name="theme-color" content="#151010">
+<meta name="theme-color" content="#0c0a09">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Permanent+Marker&family=Sedgwick+Ave+Display&display=swap">
-<link rel="stylesheet" href="cliente.css">
-<link rel="stylesheet" href="cliente-resp.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&family=Permanent+Marker&display=swap">
+<link rel="stylesheet" href="cliente-pro.css">
 </head>
 <body>
 <a class="skip" href="#menu">Saltar al menú</a>
 
-<header class="topbar">
+<!-- ============ BARRA SUPERIOR ============ -->
+<header class="topbar" id="topbar">
   <div class="tb-in">
     <a class="brand" href="#inicio" aria-label="SMASH, inicio">
       <img class="brand-logo" id="logoImg" src="images/logo-cliente.png" alt="" onerror="this.hidden=true;document.getElementById('fbLogo').hidden=false">
       <svg class="brand-logo" id="fbLogo" hidden viewBox="0 0 240 190" aria-hidden="true">
-        <path d="M30 70c0-38 40-58 90-58s90 20 90 58z" fill="#f2a63b"/>
+        <path d="M30 70c0-38 40-58 90-58s90 20 90 58z" fill="#ffb627"/>
         <rect x="26" y="96" width="188" height="26" rx="13" fill="#5b2a1a"/>
-        <path d="M30 148h180c0 20-20 30-90 30s-90-10-90-30z" fill="#f2a63b"/>
+        <path d="M30 148h180c0 20-20 30-90 30s-90-10-90-30z" fill="#ffb627"/>
       </svg>
       <span>SMASH</span>
     </a>
     <nav class="tb-nav" aria-label="Secciones">
-      <a href="#menu">Menú</a>
-      <a href="#como">Cómo pedir</a>
+      <a class="tb-link" href="#menu">Menú</a>
+      <a class="tb-link" href="#como">Cómo pedir</a>
       <span class="tb-acc" id="tbAcc">
-        <button type="button" class="tb-btn" data-acc="entrar">Iniciar sesión</button>
-        <button type="button" class="tb-btn tb-reg" data-acc="registro">Registrarse</button>
+        <button type="button" class="tb-btn" data-acc="entrar">Entrar</button>
+        <button type="button" class="tb-btn tb-reg" data-acc="registro">Únete ⭐</button>
       </span>
       <button type="button" class="tb-btn tb-yo" id="tbYo" data-acc="cuenta" hidden></button>
-      <a class="tb-cta" href="#pedido">Tu pedido</a>
+      <a class="tb-cart" href="#pedido" id="tbCart" aria-label="Ver tu pedido">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12L6 6zm0 0L5 3H2m6 18a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="tb-cart-t">Tu pedido</span>
+        <b class="badge" id="cartBadge" hidden>0</b>
+      </a>
     </nav>
   </div>
 </header>
 
+<!-- ============ PORTADA ============ -->
 <section class="hero" id="inicio">
   <div class="hero-media" aria-hidden="true">
     <img class="hero-img" data-src="images/portada.png" alt="" onload="this.dataset.ok=1" onerror="smashImgFallback(this)">
     <video class="hero-video" autoplay muted loop playsinline preload="metadata">
       <source src="images/portada.mp4" type="video/mp4" onerror="this.parentNode.remove()">
     </video>
+    <div class="hero-shade"></div>
+    <div class="hero-grain"></div>
   </div>
   <div class="hero-in">
     <div class="status" id="st"><span class="dot"></span><span id="stt">Atención de 5:30 pm a 10:00 pm</span></div>
-    <h1 class="graf" aria-label="SMASH · hamburguesas smash">
-      <span class="graf-w" data-t="SMASH" aria-hidden="true"><span class="graf-f">SMASH</span><i class="drip d1"></i><i class="drip d2"></i><i class="drip d3"></i></span>
-      <span class="graf-tag" aria-hidden="true">smash burgers</span>
-    </h1>
+    <p class="hero-kicker">Armenia · Quindío</p>
+    <h1 class="hero-title"><span class="ht-1">Smash</span><span class="ht-2">en la plancha.</span><span class="ht-3">Crujiente <em>al borde.</em></span></h1>
+    <p class="hero-sub">Dos carnes smash de 100 g, queso cheddar derretido y pan brioche. Hechas al momento, por tandas.</p>
     <div class="hero-cta">
-      <a class="btn btn-red" href="#menu">Ver el menú</a>
-      <a class="btn btn-line" href="https://www.instagram.com/530.smash/" target="_blank" rel="noopener">@530.smash</a>
+      <a class="btn btn-red btn-lg" href="#menu">Pedir ahora <span aria-hidden="true">→</span></a>
+      <a class="btn btn-glass" href="https://www.instagram.com/530.smash/" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/></svg>
+        @530.smash
+      </a>
     </div>
     <div class="cupo" id="cupo" hidden></div>
   </div>
+  <a class="hero-scroll" href="#menu" aria-label="Ir al menú"><span></span></a>
 </section>
 
+<!-- Franja en movimiento -->
+<div class="marquee" aria-hidden="true">
+  <div class="mq-track">
+    <span>2 carnes smash</span><i>✦</i><span>Pan brioche</span><i>✦</i><span>Queso cheddar</span><i>✦</i><span>Salsa de la casa</span><i>✦</i><span>Hecha al momento</span><i>✦</i><span>Domicilio en Armenia</span><i>✦</i>
+    <span>2 carnes smash</span><i>✦</i><span>Pan brioche</span><i>✦</i><span>Queso cheddar</span><i>✦</i><span>Salsa de la casa</span><i>✦</i><span>Hecha al momento</span><i>✦</i><span>Domicilio en Armenia</span><i>✦</i>
+  </div>
+</div>
+
+<!-- ============ MENÚ + PEDIDO ============ -->
 <main class="wrap layout">
   <div class="menu-col">
+    <!-- Cliente que vuelve: saludo y repetir pedido (lo llena cliente-pro.js) -->
+    <div class="volver" id="volver" hidden></div>
+
+    <nav class="catnav" id="catnav" aria-label="Categorías">
+      <a href="#menu" class="on">🍔 Hamburguesas</a>
+      <a href="#adicionales">🍟 Adicionales</a>
+      <a href="#pedido" class="catnav-cart">🛒 Tu pedido</a>
+    </nav>
+
     <section id="menu" class="block">
       <div class="block-h">
+        <span class="eyebrow">El menú</span>
         <h2>Nuestras hamburguesas</h2>
-        <p class="sub">Elige cuántas quieres. Puedes ponerlas en combo con papas y gaseosa.</p>
+        <p class="sub">Elige cuántas quieres. Cada una puede ir en combo con papas y gaseosa.</p>
       </div>
       <div class="resv" id="resv" hidden></div>
       <div class="leal" id="leal" hidden></div>
@@ -74,8 +103,9 @@
 
     <section id="adicionales" class="block">
       <div class="block-h">
+        <span class="eyebrow">Súbele el nivel</span>
         <h2>Adicionales</h2>
-        <p class="sub">Súbele el nivel a tu pedido.</p>
+        <p class="sub">Más carne, más tocineta, más salsa. Tú decides.</p>
       </div>
       <div id="extras" class="extras"></div>
     </section>
@@ -83,41 +113,78 @@
 
   <aside class="order-col" id="pedido" aria-label="Tu pedido">
     <div class="panel">
+      <div class="sheet-grip" aria-hidden="true"></div>
       <div class="panel-h">
-        <h2>Tu pedido</h2>
-        <p class="sub">Te lo llevamos a la puerta.</p>
+        <div>
+          <h2>Tu pedido</h2>
+          <p class="sub">Te lo llevamos a la puerta.</p>
+        </div>
+        <button type="button" class="sheet-x" id="sheetX" aria-label="Cerrar tu pedido">×</button>
       </div>
       <div class="lst" id="lst"></div>
+
       <div class="form">
+        <div class="form-h"><span>1</span>Tus datos</div>
         <label>Nombre<input id="fn" autocomplete="name" placeholder="Tu nombre"></label>
         <label>Teléfono<input id="fp" type="tel" inputmode="tel" autocomplete="tel" placeholder="3XX XXX XXXX"></label>
-        <label>Otro teléfono de referencia <small>(opcional)</small><input id="fp2" type="tel" inputmode="tel" placeholder="Quien recibe el domicilio"></label>
-        <div class="fld"><div class="lb">¿Para qué zona es?</div><div class="chips" id="zones"></div></div>
+        <label class="wide">Otro teléfono de referencia <small>(opcional)</small><input id="fp2" type="tel" inputmode="tel" placeholder="Quien recibe el domicilio"></label>
+
+        <div class="form-h"><span>2</span>Entrega</div>
+        <div class="fld wide"><div class="lb">¿Para qué zona es?</div><div class="chips" id="zones"></div></div>
         <label class="wide">Dirección<input id="fa" autocomplete="street-address" placeholder="Calle o carrera, barrio, referencia"></label>
-        <button type="button" class="usa-dir" id="usaDir" hidden></button>
-        <div class="fld"><div class="lb">Medio de pago</div><div class="chips" id="pays"></div></div>
-        <label class="wide">Hora de entrega <small>(opcional)</small><select id="fh"><option value="">Lo antes posible</option></select><small class="fhint">Si quieres, programa la hora a la que llega tu pedido.</small></label>
-        <label class="wide">Notas (opcional)<input id="fo" placeholder="Ej: sin cebolla, pago con $50.000"></label>
+        <button type="button" class="usa-dir wide" id="usaDir" hidden></button>
+        <label class="wide">Hora de entrega <small>(opcional)</small><select id="fh"><option value="">Lo antes posible</option></select></label>
+
+        <div class="form-h"><span>3</span>Pago</div>
+        <div class="fld wide"><div class="lb">Medio de pago</div><div class="chips" id="pays"></div></div>
+        <label class="wide">Notas <small>(opcional)</small><input id="fo" placeholder="Ej: sin cebolla, pago con $50.000"></label>
       </div>
+
       <div class="cart">
         <div class="cart-info"><small id="cnt">Tu pedido está vacío</small><b id="tot">$0</b><small id="desc" class="desc" hidden></small><small id="dl"></small><small id="pts" class="pts" hidden></small><small id="err" role="alert"></small></div>
         <a class="go" id="go" href="#" target="_blank" rel="noopener">Enviar pedido</a>
       </div>
-      <p class="secure">El pedido se envía por WhatsApp. Allí te confirmamos y coordinamos la entrega.</p>
+      <p class="secure"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.7 15l-1.3 5 5.2-1.3A10 10 0 1 0 12 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Se envía por WhatsApp. Allí te confirmamos y coordinamos la entrega.</p>
     </div>
   </aside>
 </main>
 
-<section class="wrap block" id="como">
-  <div class="block-h">
+<!-- ============ POR QUÉ SMASH ============ -->
+<section class="why" aria-label="Por qué SMASH">
+  <div class="wrap why-in">
+    <div class="why-card"><span class="why-ico">🔥</span><b>Smash de verdad</b><p>La carne se aplasta en la plancha caliente para lograr ese borde dorado y crujiente.</p></div>
+    <div class="why-card"><span class="why-ico">🧀</span><b>Doble todo</b><p>Dos carnes de 100 g y queso cheddar en cada hamburguesa. Nada de quedarse con hambre.</p></div>
+    <div class="why-card"><span class="why-ico">⏱️</span><b>Por tandas limitadas</b><p>Producimos al momento y por tandas. Cuando se acaba el cupo del día, se acaba.</p></div>
+  </div>
+</section>
+
+<!-- ============ CÓMO PEDIR ============ -->
+<section class="wrap block como" id="como">
+  <div class="block-h center">
+    <span class="eyebrow">Fácil y rápido</span>
     <h2>Cómo pedir</h2>
-    <p class="sub">Tres pasos y listo.</p>
   </div>
   <ol class="steps">
     <li><i>1</i><b>Elige</b><span>Marca tus hamburguesas, combos y adicionales.</span></li>
-    <li><i>2</i><b>Escríbenos</b><span>Pon tus datos y tu zona; se abre WhatsApp con el pedido organizado.</span></li>
-    <li><i>3</i><b>Recibe</b><span>Confirmamos y salimos hacia tu puerta.</span></li>
+    <li><i>2</i><b>Escríbenos</b><span>Pon tus datos y tu zona. Se abre WhatsApp con el pedido organizado.</span></li>
+    <li><i>3</i><b>Disfruta</b><span>Confirmamos y salimos hacia tu puerta.</span></li>
   </ol>
+</section>
+
+<!-- ============ CLIENTES LEALES ============ -->
+<section class="club" aria-label="Clientes SMASH">
+  <div class="wrap club-in">
+    <div>
+      <span class="eyebrow gold">Club SMASH ⭐</span>
+      <h2>Cada pedido suma.</h2>
+      <p>Regístrate gratis, gana puntos con cada hamburguesa y recibe promociones solo para clientes del club.</p>
+    </div>
+    <div class="club-pts">
+      <div><b>10</b><small>pts por hamburguesa</small></div>
+      <div><b>15</b><small>pts en combo</small></div>
+      <button type="button" class="btn btn-gold" data-acc="registro">Quiero unirme</button>
+    </div>
+  </div>
 </section>
 
 <footer class="foot">
@@ -138,7 +205,16 @@
   <p class="foot-note">Producimos por tandas limitadas: si algo se agota, te avisamos.</p>
 </footer>
 
-<!-- Cuenta de cliente leal: oculta hasta pulsar "Iniciar sesión" o "Registrarse" -->
+<!-- Barra fija del pedido (celular) -->
+<button type="button" class="cartbar" id="cartBar" hidden>
+  <span class="cb-n" id="cbN">0</span>
+  <span class="cb-t">Ver tu pedido</span>
+  <b class="cb-tot" id="cbTot">$0</b>
+</button>
+<div class="sheet-bg" id="sheetBg" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Cuenta de cliente leal -->
 <div class="acc" id="acc" hidden role="dialog" aria-modal="true" aria-labelledby="accT">
   <div class="abox">
     <button type="button" class="acc-x" id="accX" aria-label="Cerrar">×</button>
@@ -192,13 +268,14 @@
 
 <div class="gracias" id="gracias" hidden role="dialog" aria-modal="true" aria-labelledby="graciasT">
   <div class="gbox">
-    <p id="graciasT">Gracias por tu Compra, esperamos disfrutes la Burger y vuelvas pronto a Smash 😊</p>
+    <div class="g-ico" aria-hidden="true">🍔</div>
+    <p id="graciasT">¡Gracias por tu pedido! Esperamos que disfrutes la burger y vuelvas pronto a SMASH 😊</p>
     <p class="gsub" id="graciasSub"></p>
-    <button type="button" id="graciasOk">Cerrar</button>
+    <button type="button" id="graciasOk">Listo</button>
   </div>
 </div>
 
 <script src="boot.js"></script>
-<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'cliente.js']);</script>
+<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'cliente.js', 'cliente-pro.js']);</script>
 </body>
 </html>

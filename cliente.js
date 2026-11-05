@@ -104,9 +104,12 @@
     if (cupo) {
       var rest = Math.max(0, cupo.total - cupo.vendidas), el = $("cupo");
       el.hidden = false;
-      el.className = "cupo" + (rest <= 0 ? " out" : "");
-      el.innerHTML = rest <= 0 ? "Cupo de hoy agotado" : "🍔 Quedan <b>" + rest + "</b> de " + cupo.total + " hamburguesas hoy" +
-        (cupo.hora ? " <small>· actualizado " + esc(cupo.hora) + "</small>" : "");
+      var pct = cupo.total > 0 ? Math.round((rest / cupo.total) * 100) : 0, poco = rest > 0 && pct <= 25;
+      el.className = "cupo" + (rest <= 0 ? " out" : poco ? " low" : "");
+      el.innerHTML = '<div class="cupo-top"><span>' + (rest <= 0 ? "Cupo de hoy agotado" : "🍔 Quedan hoy") + "</span><b>" + rest + "<small> / " + cupo.total + "</small></b></div>" +
+        '<span class="cupo-bar"><i style="width:' + pct + '%"></i></span>' +
+        '<small class="cupo-msg">' + (rest <= 0 ? "Vuelve mañana o déjanos tu reserva." : poco ? "🔥 ¡Quedan pocas! Asegura la tuya." : "Hechas por tandas: cuando se acaban, se acaban.") +
+        (cupo.hora ? " · actualizado " + esc(cupo.hora) : "") + "</small>";
     } else $("cupo").hidden = true;
   }
 
