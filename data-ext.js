@@ -87,7 +87,55 @@ const SmashExt = (function () {
      - reservas de anoche que conservaban el número de ayer (ej. #29)
      - números fuera de serie que dejó la sincronización entre dos equipos
      No toca otros días. Devuelve cuántos pedidos se corrigieron. */
+  /* Dos pedidos distintos con el mismo número interno (id): al tocar uno se abría el otro.
+     Pasaba cuando dos equipos creaban pedidos a la vez con su propio contador.
+     - Copias idénticas del mismo pedido (mismo id y misma hora de creación): queda una.
+     - Pedidos distintos con el mismo id: el más antiguo conserva el id; los demás reciben
+       uno nuevo, y sus pagos, inventario y costos se mueven con él. */
+  function arreglarIdsRepetidos() {
+    const K = SmashDB.KEYS;
+    const orders = rd(K.ORDERS, []);
+    const visto = new Set(), unicos = [];
+    let cambio = false;
+    orders.forEach((o) => {
+      const k = o && o.id + '|' + o.creado;
+      if (visto.has(k)) { cambio = true; return; }
+      visto.add(k); unicos.push(o);
+    });
+    const grupos = {};
+    unicos.forEach((o) => { if (o && o.id != null) (grupos[o.id] = grupos[o.id] || []).push(o); });
+    let maxId = unicos.reduce((m, o) => (typeof o.id === 'number' && o.id > m ? o.id : m), 0);
+    const mover = [];
+    Object.keys(grupos).sort((a, b) => a - b).forEach((id) => {
+      const g = grupos[id];
+      if (g.length < 2) return;
+      g.sort((a, b) => new Date(a.creado) - new Date(b.creado) || String(a.ref || '').localeCompare(String(b.ref || '')));
+      g.slice(1).forEach((o) => {
+        const viejo = o.id + '|' + o.creado;
+        o.id = ++maxId;
+        mover.push([viejo, o.id + '|' + o.creado, o.id]);
+      });
+    });
+    if (!cambio && !mover.length) return 0;
+    wr(K.ORDERS, unicos);
+    if (mover.length) wr(K.ORDER_SEQ, Math.max(rd(K.ORDER_SEQ, 0) || 0, maxId));
+    // Pagos, movimientos de inventario, costos y puntos guardan "id|creado" del pedido
+    mover.forEach(([viejo, nuevo, idNuevo]) => {
+      for (let i = 0; i < SmashLS.length; i++) {
+        const key = SmashLS.key(i);
+        if (!key || !/^smash_/.test(key) || key === K.ORDERS) continue;
+        const txt = SmashLS.getItem(key);
+        if (!txt || txt.indexOf(viejo) < 0) continue;
+        let val;
+        try { val = JSON.parse(txt.split(JSON.stringify(viejo)).join(JSON.stringify(nuevo))); } catch (e) { continue; }
+        if (key === 'smash_pagos' && Array.isArray(val)) val.forEach((p) => { if (p.pedidoKey === nuevo) p.pedidoId = idNuevo; });
+        wr(key, val);
+      }
+    });
+    return mover.length + (cambio ? 1 : 0);
+  }
   function arreglarNumerosHoy() {
+    try { arreglarIdsRepetidos(); } catch (e) { /* sigue con los números */ }
     const K = SmashDB.KEYS;
     const orders = rd(K.ORDERS, []);
     const hoyD = localDay(new Date().toISOString());

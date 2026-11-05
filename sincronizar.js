@@ -76,18 +76,24 @@ const SmashSync = (function () {
   }
   // Listas con id (pedidos, insumos, gastos...): se compara cada elemento
   function mergeIds(b, l, r) {
-    const map = (a) => { const m = new Map(); a.forEach((x) => { if (esObj(x) && x.id != null) m.set(String(x.id), x); }); return m; };
+    // Se identifica por id + hora de creación: si dos equipos dieron el mismo id a pedidos distintos, no se mezclan
+    const kid = (x) => String(x.id) + (x && typeof x.creado === "string" ? "|" + x.creado : "");
+    const map = (a) => { const m = new Map(); a.forEach((x) => { if (esObj(x) && x.id != null) m.set(kid(x), x); }); return m; };
+    const ya = new Set();
     const B = map(b), L = map(l), out = [], choques = [];
     const R = map(r);
     r.forEach((rx) => {
-      const id = String(rx.id), lx = L.get(id), bx = B.get(id);
+      if (!esObj(rx) || rx.id == null) return;
+      const id = kid(rx), lx = L.get(id), bx = B.get(id);
+      if (ya.has(id)) return; ya.add(id);                                                         // copia repetida del mismo elemento
       if (lx === undefined) { if (bx === undefined || !eq(rx, bx)) out.push(rx); return; }        // borrado aquí y sin cambios allá → se borra
-      if (bx === undefined && !eq(lx, rx) && typeof lx.id === 'number') { out.push(rx); choques.push(lx); return; } // mismo número creado en dos equipos
+      if (bx === undefined && !eq(lx, rx) && typeof lx.id === 'number' && typeof lx.creado !== 'string') { out.push(rx); choques.push(lx); return; } // mismo número creado en dos equipos
       out.push(merge3(bx, lx, rx));
     });
     l.forEach((lx) => {
-      const id = String(lx.id);
-      if (R.has(id)) return;
+      if (!esObj(lx) || lx.id == null) return;
+      const id = kid(lx);
+      if (R.has(id) || ya.has(id)) return; ya.add(id);
       const bx = B.get(id);
       if (bx === undefined || !eq(lx, bx)) out.push(lx);                                            // nuevo aquí (o cambiado aquí y borrado allá)
     });
