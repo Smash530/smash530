@@ -15,7 +15,17 @@ const SmashLista = (function () {
   const EN_CURSO = ['nuevo', 'confirmado', 'preparando', 'listo', 'en_camino'];
   const FILTROS = [['', 'Todos'], ['nuevo', 'Recibidos'], ['confirmado', 'Confirmados'], ['preparando', 'En preparación'], ['listo', 'Listos'], ['en_camino', 'En camino']];
   const hoy = () => SmashExt.localDay(new Date().toISOString());
-  const S = { filtro: '', buscar: '', finDia: hoy(), finTipo: 'entregado', finBuscar: '', abierto: null, firma: '' };
+  const diaMas = (dia, n) => { const d = new Date(dia + 'T12:00:00'); d.setDate(d.getDate() + n); return SmashExt.localDay(d.toISOString()); };
+  const diaTxt = (dia) => new Date(dia + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  /* "Pedidos" muestra solo los del día. Los de días anteriores pasan al historial
+     (sus datos no se borran). Excepción: una reserva que llegó ayer fuera de horario
+     es para hoy, así que sigue apareciendo. */
+  const enCursoHoy = (o) => {
+    if (EN_CURSO.indexOf(o.status) < 0) return false;
+    const d = SmashExt.localDay(o.creado);
+    return d === hoy() || (o.reserva && d === diaMas(hoy(), -1));
+  };
+  const S ={ filtro: '', buscar: '', finDia: hoy(), finTipo: 'entregado', finBuscar: '', abierto: null, firma: '' };
 
   const coincide = (o, t) => !t || [o.cliente, o.telefono, o.direccion, o.zona, o.ref, '#' + (o.numeroDia || o.id), o.repartidor].join(' ').toLowerCase().includes(t);
 
@@ -74,7 +84,7 @@ const SmashLista = (function () {
     montarActivos();
     if (!$('olList')) return;
     renderVentasHoy();
-    const todos = SmashDB.getOrders().filter((o) => EN_CURSO.indexOf(o.status) > -1);
+    const todos = SmashDB.getOrders().filter(enCursoHoy);
     $('olChips').innerHTML = FILTROS.map(([k, n]) => {
       const c = k ? todos.filter((o) => o.status === k).length : todos.length;
       return `<button type="button" class="ol-chip${S.filtro === k ? ' on' : ''}${k ? ' st-' + k : ''}" data-f="${k}">${n}<span>${c}</span></button>`;
@@ -93,34 +103,44 @@ const SmashLista = (function () {
     root.innerHTML = `
       <div class="ol-bar">
         <div class="ol-chips" id="fnChips"></div>
-        <div class="ol-tools"><input type="date" id="fnDia" class="ol-date" aria-label="Fecha"><button type="button" class="ol-today" id="fnHoy">Hoy</button>
+        <div class="ol-tools"><button type="button" class="ol-today" id="fnAnt" aria-label="Día anterior">‹</button><input type="date" id="fnDia" class="ol-date" aria-label="Fecha"><button type="button" class="ol-today" id="fnSig" aria-label="Día siguiente">›</button><button type="button" class="ol-today" id="fnHoy">Hoy</button>
         <input type="search" id="fnBuscar" class="ol-search" placeholder="Buscar…" aria-label="Buscar pedido finalizado"></div>
       </div>
+      <p class="hint fn-dia" id="fnDiaTxt"></p>
       <div class="fn-kpis" id="fnKpis"></div>
       <div class="ol-head" aria-hidden="true"><span>#</span><span>Estado</span><span>Cliente</span><span>Pedido</span><span>Total</span><span>Hora</span><span></span></div>
       <div class="ol-list" id="fnList"></div>`;
     $('fnDia').value = S.finDia;
     $('fnDia').addEventListener('change', (e) => { S.finDia = e.target.value || hoy(); render(); });
     $('fnHoy').addEventListener('click', () => { S.finDia = hoy(); $('fnDia').value = S.finDia; render(); });
+    $('fnAnt').addEventListener('click', () => { S.finDia = diaMas(S.finDia, -1); $('fnDia').value = S.finDia; render(); });
+    $('fnSig').addEventListener('click', () => { if (S.finDia >= hoy()) return; S.finDia = diaMas(S.finDia, 1); $('fnDia').value = S.finDia; render(); });
     $('fnBuscar').addEventListener('input', (e) => { S.finBuscar = e.target.value.trim().toLowerCase(); render(); });
     $('fnChips').addEventListener('click', (e) => { const b = e.target.closest('[data-f]'); if (!b) return; S.finTipo = b.dataset.f; render(); });
   }
   function renderFinalizados() {
     montarFinalizados();
     if (!$('fnList')) return;
-    const delDia = SmashDB.getOrders().filter((o) => (o.status === 'entregado' || o.status === 'cancelado') && SmashExt.localDay(o.creado) === S.finDia);
+    // Todos los pedidos del día elegido; los que siguen en curso de días pasados salen como "Sin cerrar"
+    const delDia = SmashDB.getOrders().filter((o) => SmashExt.localDay(o.creado) === S.finDia && (o.status === 'entregado' || o.status === 'cancelado' || !enCursoHoy(o)));
     const ent = delDia.filter((o) => o.status === 'entregado'), can = delDia.filter((o) => o.status === 'cancelado');
-    $('fnChips').innerHTML = [['entregado', 'Entregados', ent.length], ['cancelado', 'Cancelados', can.length], ['', 'Todos', delDia.length]]
-      .map(([k, n, c]) => `<button type="button" class="ol-chip${S.finTipo === k ? ' on' : ''}${k ? ' st-' + k : ''}" data-f="${k}">${n}<span>${c}</span></button>`).join('');
+    const abiertos = delDia.filter((o) => EN_CURSO.indexOf(o.status) > -1);
+    const chips = [['entregado', 'Entregados', ent.length], ['cancelado', 'Cancelados', can.length]];
+    if (abiertos.length || S.finTipo === 'abierto') chips.push(['abierto', 'Sin cerrar', abiertos.length]);
+    chips.push(['', 'Todos', delDia.length]);
+    $('fnChips').innerHTML = chips
+      .map(([k, n, c]) => `<button type="button" class="ol-chip${S.finTipo === k ? ' on' : ''}${k && k !== 'abierto' ? ' st-' + k : k ? ' st-nuevo' : ''}" data-f="${k}">${n}<span>${c}</span></button>`).join('');
+    $('fnSig').disabled = S.finDia >= hoy();
+    $('fnDiaTxt').innerHTML = `<b>${esc(diaTxt(S.finDia))}</b>${S.finDia === hoy() ? ' · hoy' : ''} · ${delDia.length} pedido${delDia.length === 1 ? '' : 's'}${abiertos.length ? ` · <span style="color:var(--bad,#c62828)">${abiertos.length} ${abiertos.length === 1 ? 'quedó' : 'quedaron'} sin cerrar</span>` : ''}`;
     const tiempos = C.promedios(ent);
     $('fnKpis').innerHTML = `
       <div class="fn-kpi"><small>Entregados</small><b>${ent.length}</b></div>
       <div class="fn-kpi"><small>Vendido</small><b>${fmt(ent.reduce((s, o) => s + (o.total || 0), 0))}</b></div>
       <div class="fn-kpi"><small>Tiempo promedio</small><b>${tiempos.total ? C.dur(tiempos.total.prom) : '-'}</b></div>
       <div class="fn-kpi${can.length ? ' bad' : ''}"><small>Cancelados</small><b>${can.length}</b></div>`;
-    const lista = delDia.filter((o) => (!S.finTipo || o.status === S.finTipo) && coincide(o, S.finBuscar)).sort((a, b) => b.id - a.id);
+    const lista = delDia.filter((o) => (!S.finTipo || (S.finTipo === 'abierto' ? EN_CURSO.indexOf(o.status) > -1 : o.status === S.finTipo)) && coincide(o, S.finBuscar)).sort((a, b) => b.id - a.id);
     $('fnList').innerHTML = lista.length ? lista.map((o) => SmashUI.fila(o, { activo: o.id === S.abierto })).join('')
-      : `<div class="ol-empty"><b>Sin pedidos ${S.finTipo === 'cancelado' ? 'cancelados' : 'finalizados'} este día</b><span>Elige otra fecha arriba.</span></div>`;
+      : `<div class="ol-empty"><b>Sin pedidos ${S.finTipo === 'cancelado' ? 'cancelados' : S.finTipo === 'entregado' ? 'entregados' : S.finTipo === 'abierto' ? 'sin cerrar' : ''} este día</b><span>Usa las flechas o el calendario para ver otro día.</span></div>`;
   }
 
   /* ---------------- Panel lateral (ficha del pedido) ---------------- */
@@ -180,7 +200,7 @@ const SmashLista = (function () {
     renderActivos();
     renderFinalizados();
     pintarDrawer();
-    const n = SmashDB.getOrders().filter((o) => EN_CURSO.indexOf(o.status) > -1).length;
+    const n = SmashDB.getOrders().filter(enCursoHoy).length;
     document.querySelectorAll('[data-count="encurso"]').forEach((el) => { el.textContent = n || ''; });
   }
   /* Menú lateral en celular: se abre encima con fondo oscuro y se cierra al tocar fuera */
