@@ -57,6 +57,7 @@
         <button class="nav-btn" data-section="ventas" type="button"><span class="ni">📊</span>Registro de ventas</button>
         <button class="nav-btn" data-section="contabilidad" type="button"><span class="ni">💰</span>Contabilidad</button>
         <button class="nav-btn" data-section="gastos" type="button"><span class="ni">💸</span>Gastos</button>
+        <button class="nav-btn" data-section="socios" type="button"><span class="ni">🤝</span>Reparto de socios</button>
         <button class="nav-btn" data-section="top" type="button"><span class="ni">🏆</span>Más vendidas</button>
         <div class="nav-group">Menú y costos</div>
         <button class="nav-btn" data-section="productos" type="button"><span class="ni">🍽️</span>Productos</button>
@@ -147,6 +148,13 @@
     <section class="panel-section" id="section-gastos" hidden>
       <h2 class="section-title" style="margin-top:0">Gastos</h2>
       <div class="gas-root"></div>
+    </section>
+
+    <section class="panel-section" id="section-socios" hidden>
+      <div class="page-head">
+        <div><h2 class="page-title">Reparto de socios</h2><p class="page-sub">La utilidad final del negocio, después de todos los costos y gastos, y la parte que le corresponde a cada socio.</p></div>
+      </div>
+      <div class="soc-root"></div>
     </section>
 
     <section class="panel-section" id="section-cierres" hidden>
@@ -444,6 +452,7 @@
         <label class="btn-secondary bk-file">⬆️ Restaurar desde archivo<input type="file" id="bkArchivo" accept="application/json,.json" hidden></label>
       </div>
       <p class="error" id="bkMsg"></p>
+      <div class="bkn-root" data-dueno></div>
       <h3 class="section-title">Usuarios</h3>
       <p class="hint">Crea los accesos de caja y de dueños. Cada usuario creado aquí entra con su propia clave.</p>
       <div id="usLista"></div>
@@ -481,6 +490,6 @@
 <div id="printArea" class="print-area"></div>
 
 <script src="boot.js"></script>
-<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'store.js', 'inventario.js', 'costos.js', 'comandas.js', 'caja.js', 'clientes.js', 'finanzas.js', 'ticket.js', 'orders-ui.js', 'pedidos-lista.js', 'impresion-remota.js', 'leales-ui.js', 'pedidos-web.js', 'crear-pedido.js', 'dueno.js', 'inventario-ui.js', 'costos-ui.js', 'comandas-ui.js', 'caja-ui.js', 'clientes-ui.js', 'finanzas-ui.js', 'auditoria.js', 'auditoria-ui.js']);</script>
+<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'store.js', 'inventario.js', 'costos.js', 'comandas.js', 'caja.js', 'clientes.js', 'finanzas.js', 'ticket.js', 'orders-ui.js', 'pedidos-lista.js', 'impresion-remota.js', 'leales-ui.js', 'pedidos-web.js', 'crear-pedido.js', 'dueno.js', 'inventario-ui.js', 'costos-ui.js', 'comandas-ui.js', 'caja-ui.js', 'clientes-ui.js', 'finanzas-ui.js', 'socios.js','auditoria.js', 'auditoria-ui.js', 'respaldo-nube.js']);</script>
 </body>
 </html>

@@ -398,7 +398,38 @@ const SmashNube = (function () {
     return () => { activo = false; if (reloj) clearInterval(reloj); if (canal) sb.removeChannel(canal); document.removeEventListener('visibilitychange', alVolver); window.removeEventListener('online', alVolver); };
   }
 
+  /* ---------------- Respaldos en la nube ----------------
+     Tabla "respaldos" (supabase/respaldos-en-la-nube.sql). Caja y dueño suben;
+     solo los dueños listan y descargan. */
+  const errRespaldo = (e) => (faltaTablaImp(e && e.message) ? 'falta ejecutar supabase/respaldos-en-la-nube.sql en Supabase' : errorTxt(e));
+  async function subirRespaldo(r) {
+    if (!ok) return sinNube();
+    const s = await staffOk(); if (!s.ok) return s;
+    const { data, error } = await sb.from('respaldos').insert({
+      equipo: String(r.equipo || '').slice(0, 60), por_nombre: String(s.p.nombre || s.p.correo || '').slice(0, 80),
+      motivo: r.motivo || 'auto', resumen: r.resumen || {}, huella: String(r.huella || '').slice(0, 40), datos: r.datos,
+    }).select('id,creado').single();
+    if (error) return { ok: false, error: errRespaldo(error) };
+    return { ok: true, id: data.id, creado: data.creado };
+  }
+  async function listarRespaldos(n) {
+    if (!ok) return sinNube();
+    const p = await perfil();
+    if (!p || p.rol !== 'dueno') return { ok: false, error: 'para ver los respaldos conecta una cuenta de Dueño en "⭐ Clientes leales"' };
+    const { data, error } = await sb.from('respaldos').select('id,creado,equipo,por_nombre,motivo,resumen').order('creado', { ascending: false }).limit(n || 30);
+    if (error) return { ok: false, error: errRespaldo(error) };
+    return { ok: true, lista: data || [] };
+  }
+  async function leerRespaldo(id) {
+    if (!ok) return sinNube();
+    const { data, error } = await sb.from('respaldos').select('id,creado,equipo,datos').eq('id', id).maybeSingle();
+    if (error) return { ok: false, error: errRespaldo(error) };
+    if (!data) return { ok: false, error: 'Ese respaldo ya no existe o no tienes permiso para verlo.' };
+    return { ok: true, respaldo: data };
+  }
+
   return {
+    subirRespaldo, listarRespaldos, leerRespaldo,
     enviarImpresion, estadoImpresion, tomarImpresion, marcarImpresion, seguirImpresiones,
     guardarCupo, leerCupo, seguirCupo,
     ok, perfil, alCambiar, enRecuperacion, registrar, entrar, salir, recuperarClave, nuevaClave, guardarPerfil, usuarioLibre,
