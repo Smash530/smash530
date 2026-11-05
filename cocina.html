@@ -7,6 +7,10 @@
 <link rel="stylesheet" href="cocina.css">
 <link rel="stylesheet" href="ui.css">
 <link rel="stylesheet" href="modulos.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="panel-pro.css">
 </head>
 <body>
 
@@ -43,16 +47,20 @@
    <button id="menuToggle" class="menu-toggle" type="button">☰ Menú</button>
    <aside class="side" id="side">
     <nav class="side-nav" id="panelNav">
-      <button class="nav-btn active" data-section="pendientes">📦 Pedidos pendientes</button>
-      <button class="nav-btn" data-section="crear">➕ Crear pedido</button>
-      <button class="nav-btn" data-section="domicilios">🛵 Domicilios</button>
-      <button class="nav-btn" data-section="caja">💵 Caja</button>
-      <button class="nav-btn" data-section="historial">📜 Historial de comandas</button>
-      <button class="nav-btn" data-section="conteo">🍔 Conteo del día</button>
-      <button class="nav-btn" data-section="contabilidad">💰 Facturación del día</button>
-      <button class="nav-btn" data-section="clientes">📇 Clientes (por pedidos)</button>
-      <button class="nav-btn" data-section="leales">⭐ Clientes leales</button>
-      <button class="nav-btn" data-section="config">⚙️ Configuración</button>
+      <div class="nav-group">Operación</div>
+      <button class="nav-btn active" data-section="pendientes"><span class="ni">📦</span>Pedidos<span class="nav-count" data-count="encurso"></span></button>
+      <button class="nav-btn" data-section="finalizados"><span class="ni">✅</span>Finalizados</button>
+      <button class="nav-btn" data-section="crear"><span class="ni">➕</span>Crear pedido</button>
+      <button class="nav-btn" data-section="caja"><span class="ni">💵</span>Caja</button>
+      <div class="nav-group">El día</div>
+      <button class="nav-btn" data-section="conteo"><span class="ni">🍔</span>Conteo del día</button>
+      <button class="nav-btn" data-section="contabilidad"><span class="ni">💰</span>Facturación del día</button>
+      <button class="nav-btn" data-section="historial"><span class="ni">📜</span>Historial de comandas</button>
+      <div class="nav-group">Clientes</div>
+      <button class="nav-btn" data-section="clientes"><span class="ni">📇</span>Clientes</button>
+      <button class="nav-btn" data-section="leales"><span class="ni">⭐</span>Clientes leales</button>
+      <div class="nav-group">Sistema</div>
+      <button class="nav-btn" data-section="config"><span class="ni">⚙️</span>Configuración</button>
     </nav>
     <div class="sound-box"><button id="soundBtn" class="btn-secondary" type="button">🔔 Sonido: activar</button><span id="soundHint" class="hint"></span></div>
    </aside>
@@ -60,65 +68,38 @@
 
     <!-- ---- Pedidos pendientes (nuevo + preparando) ---- -->
     <section class="panel-section" id="section-pendientes">
-      <h2 class="section-title" style="margin-top:0">Pedidos pendientes</h2>
-      <div class="cupo-bar" id="cupoBar"></div>
-      <div class="web-estado" id="webEstado" hidden></div>
-      <div class="import-box">
-        <b>📲 Agregar pedido de WhatsApp</b>
+      <div class="page-head">
+        <div><h2 class="page-title">Pedidos</h2><p class="page-sub">Todos los pedidos en curso. Toca un pedido para ver sus datos y opciones.</p></div>
+      </div>
+      <div class="status-strip">
+        <div class="cupo-bar" id="cupoBar"></div>
+        <div class="web-estado" id="webEstado" hidden></div>
+        <div class="imp-estado web-estado" hidden></div>
+      </div>
+      <details class="import-box">
+        <summary>📲 Agregar pedido de WhatsApp</summary>
         <p class="hint">Copia el mensaje del cliente y pégalo aquí tal como llegó. Se numera solo y queda listo para imprimir.</p>
         <textarea id="importText" placeholder="*NUEVO PEDIDO - SMASH* ..."></textarea>
         <button id="importBtn" class="btn-primary" type="button">Agregar pedido</button>
         <p class="error" id="importMsg"></p>
+      </details>
+      <div id="pedidosLista"></div>
+    </section>
+
+    <!-- ---- Pedidos finalizados (entregados y cancelados) ---- -->
+    <section class="panel-section" id="section-finalizados" hidden>
+      <div class="page-head">
+        <div><h2 class="page-title">Pedidos finalizados</h2><p class="page-sub">Entregados y cancelados del día que elijas. Toca uno para ver el detalle.</p></div>
       </div>
-      <div class="board board-3">
-        <div class="column">
-          <h3>🆕 Recibidos <span class="col-n" id="n-nuevo"></span></h3>
-          <div class="orders" id="col-nuevo"></div>
-        </div>
-        <div class="column">
-          <h3>✔ Confirmados <span class="col-n" id="n-confirmado"></span></h3>
-          <div class="orders" id="col-confirmado"></div>
-        </div>
-        <div class="column">
-          <h3>🔥 En preparación <span class="col-n" id="n-preparando"></span></h3>
-          <div class="orders" id="col-preparando"></div>
-        </div>
-      </div>
+      <div id="finalizadosLista"></div>
     </section>
 
     <!-- ---- Crear pedido (como un cliente) ---- -->
     <section class="panel-section" id="section-crear" hidden>
-      <h2 class="section-title" style="margin-top:0">Crear pedido</h2>
-      <p class="hint">Elige los productos como lo haría el cliente. Los productos vienen del panel de dueños.</p>
-      <div class="cr-products" id="crProducts"></div>
-      <div class="cr-form">
-        <label>Cliente<input id="crCliente" maxlength="80"></label>
-        <label>Teléfono<input id="crTel" maxlength="20" inputmode="tel"></label>
-        <label class="wide">Dirección<input id="crDir" maxlength="200"></label>
-        <label>Zona<select id="crZona"></select></label>
-        <label id="crDomWrap" hidden>Valor domicilio agencia<input id="crDom" type="number" min="0" step="500"></label>
-        <label>Medio de pago<select id="crPago"><option>Efectivo</option><option>Transferencia</option></select></label>
-        <label class="wide">Notas generales<textarea id="crNotas" maxlength="300"></textarea></label>
+      <div class="page-head">
+        <div><h2 class="page-title">Crear pedido</h2><p class="page-sub">Elige los productos a la izquierda y llena los datos del cliente a la derecha.</p></div>
       </div>
-      <div class="cr-total" id="crTotal"></div>
-      <p class="error" id="crMsg"></p>
-      <button id="crBtn" class="btn-primary" type="button">Crear pedido</button>
-    </section>
-
-    <!-- ---- Domicilios entrantes (listos para despachar) ---- -->
-    <section class="panel-section" id="section-domicilios" hidden>
-      <h2 class="section-title" style="margin-top:0">Domicilios</h2>
-      <p class="hint">Asigna el domiciliario al despachar. La hora de salida y la de entrega quedan registradas.</p>
-      <div class="board">
-        <div class="column">
-          <h3>📦 Listos para despacho <span class="col-n" id="n-listo"></span></h3>
-          <div class="orders" id="col-listo"></div>
-        </div>
-        <div class="column">
-          <h3>🛵 En camino <span class="col-n" id="n-en_camino"></span></h3>
-          <div class="orders" id="col-en_camino"></div>
-        </div>
-      </div>
+      <div class="crear-root"></div>
     </section>
 
     <!-- ---- Caja: apertura, pagos, movimientos y cierre ---- -->
@@ -166,6 +147,8 @@
     <!-- ---- Configuración ---- -->
         <section class="panel-section" id="section-config" hidden>
       <h2 class="section-title" style="margin-top:0">Configuración</h2>
+      <h3 class="section-title">🖨️ Impresión de comandas a distancia</h3>
+      <div class="imp-root"></div>
       <h3 class="section-title">Cupo de hamburguesas de hoy</h3>
       <p class="hint">Defínelo al iniciar el día. Los clientes ven cuántas quedan y baja con cada pedido.</p>
       <div class="date-row">
@@ -173,7 +156,7 @@
         <button id="guardarCupoBtn" class="btn-secondary" type="button">Guardar cupo de hoy</button>
       </div>
       <p class="hint" id="cupoOk"></p>
-      <p class="hint">Si el sitio está publicado en un hosting, después de cambiar el cupo publica el menú y sube el archivo <b>menu.json</b> (reemplaza el anterior).</p>
+      <p class="hint">El cupo y las vendidas se publican solos en la página de clientes (necesita la cuenta de caja o dueño conectada en "⭐ Clientes leales"). Ya no hace falta subir menu.json para el cupo.</p>
       <button class="btn-primary publish-btn" type="button" style="margin-top:0">⬆️ Publicar menú (descargar menu.json)</button>
     </section>
 
@@ -187,6 +170,6 @@
 <div id="printArea" class="print-area"></div>
 
 <script src="boot.js"></script>
-<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'store.js', 'inventario.js', 'costos.js', 'comandas.js', 'caja.js', 'clientes.js', 'ticket.js', 'orders-ui.js', 'leales-ui.js', 'pedidos-web.js', 'cocina.js', 'comandas-ui.js', 'caja-ui.js', 'clientes-ui.js', 'auditoria.js']);</script>
+<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'store.js', 'inventario.js', 'costos.js', 'comandas.js', 'caja.js', 'clientes.js', 'ticket.js', 'orders-ui.js', 'pedidos-lista.js', 'impresion-remota.js', 'leales-ui.js', 'pedidos-web.js', 'crear-pedido.js', 'cocina.js', 'comandas-ui.js', 'caja-ui.js', 'clientes-ui.js', 'auditoria.js']);</script>
 </body>
 </html>

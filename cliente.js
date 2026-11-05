@@ -98,13 +98,30 @@
     }).join("");
     $("pays").innerHTML = PAGOS.map(function (p) { return '<button type="button" class="chip" data-p="' + p + '">' + p + "</button>"; }).join("");
     mark("z", zone); mark("p", pm);
+    pintarCupo();
+  }
+  function pintarCupo() {
     if (cupo) {
       var rest = Math.max(0, cupo.total - cupo.vendidas), el = $("cupo");
       el.hidden = false;
       el.className = "cupo" + (rest <= 0 ? " out" : "");
       el.innerHTML = rest <= 0 ? "Cupo de hoy agotado" : "🍔 Quedan <b>" + rest + "</b> de " + cupo.total + " hamburguesas hoy" +
         (cupo.hora ? " <small>· actualizado " + esc(cupo.hora) + "</small>" : "");
-    }
+    } else $("cupo").hidden = true;
+  }
+
+  /* Cupo en línea: cocina lo publica en la nube y aquí se ve al instante
+     (si la nube no tiene cupo de hoy, queda el de menu.json, si lo hay). */
+  var cupoMenu = null;
+  function horaCorta(iso) {
+    try { return new Date(iso).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota" }).replace(/[  ]/g, " "); } catch (e) { return ""; }
+  }
+  function seguirCupoNube() {
+    if (!hayNube || !SmashNube.seguirCupo) return;
+    SmashNube.seguirCupo(function (c) {
+      cupo = c ? { total: c.total, vendidas: c.vendidas, hora: horaCorta(c.actualizado) } : cupoMenu;
+      pintarCupo(); upd();
+    });
   }
 
   function restantes() { return cupo ? Math.max(0, cupo.total - cupo.vendidas) : Infinity; }
@@ -447,7 +464,9 @@
       var c = SmashExt.cupoHoy();
       if (c) cupo = c;
     }
+    cupoMenu = cupo;
     render(); est(); setInterval(est, 60000); upd();
+    seguirCupoNube();
     pintarCuenta();
     if (hayNube) SmashNube.perfil().then(function (p) { if (p) entro(p, false); }, function () {});
   });

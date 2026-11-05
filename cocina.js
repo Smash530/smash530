@@ -64,34 +64,47 @@
   });
   $('menuToggle').addEventListener('click', () => $('side').classList.toggle('open'));
 
-  /* ============== PEDIDOS PENDIENTES (recibido + confirmado + preparando) ============== */
-  const EMPTY = { nuevo: 'Sin pedidos nuevos.', confirmado: 'Nada por iniciar.', preparando: 'Nada en preparación.', listo: 'No hay domicilios esperando salida.', en_camino: 'Ningún domicilio en camino.' };
-  function fillCol(status, orders) {
-    const list = orders.filter((o) => o.status === status).sort((a, b) => a.id - b.id);
-    $('col-' + status).innerHTML = list.length ? list.map((o) => SmashUI.card(o)).join('') : `<p class="empty-col-msg">${EMPTY[status]}</p>`;
-    const n = $('n-' + status); if (n) n.textContent = list.length || '';
-  }
+  /* ============== PEDIDOS: listado horizontal + ficha lateral (pedidos-lista.js) ============== */
 
   function renderCupo() {
     const el = $('cupoBar'), c = SmashExt.cupoHoy();
     if (!c) { el.className = 'cupo-bar'; el.innerHTML = '🍔 Cupo de hoy sin definir. Defínelo en Configuración.'; return; }
     const rest = c.total - c.vendidas;
     el.className = 'cupo-bar' + (rest <= 0 ? ' out' : rest <= 10 ? ' low' : '');
-    el.innerHTML = rest <= 0 ? `🍔 <b>AGOTADO</b>: vendidas ${c.vendidas} de ${c.total}`
-      : `🍔 Hoy: <b>${c.vendidas}</b> vendidas · quedan <b>${rest}</b> de ${c.total}`;
+    el.innerHTML = (rest <= 0 ? `🍔 <b>AGOTADO</b>: vendidas ${c.vendidas} de ${c.total}`
+      : `🍔 Hoy: <b>${c.vendidas}</b> vendidas · quedan <b>${rest}</b> de ${c.total}`)
+      + (CN.error ? ` <small title="${SmashUI.esc(CN.error)}">· ⚠ la página de clientes NO lo ve (${SmashUI.esc(CN.error)})</small>`
+        : CN.enviado === c.total + ':' + c.vendidas ? ' <small>· 🌐 visible en la página de clientes</small>' : '');
+    subirCupo(c);
   }
+
+  /* El cupo y las vendidas se publican solos en la nube (tabla cupo_dia) para la
+     página de clientes. Solo se envía cuando cambia; si falla, reintenta cada 30 s. */
+  const CN = { enviado: '', enviando: false, error: '', fallo: 0 };
+  async function subirCupo(c, forzar) {
+    if (typeof SmashNube === 'undefined' || !SmashNube.ok || !c || CN.enviando) return;
+    const clave = c.total + ':' + c.vendidas;
+    if (!forzar && (clave === CN.enviado || (CN.error && Date.now() - CN.fallo < 30000))) return;
+    CN.enviando = true;
+    let r;
+    try { r = await SmashNube.guardarCupo(c.total, c.vendidas); } catch (e) { r = { ok: false, error: String(e && e.message || e) }; }
+    CN.enviando = false;
+    if (r.ok) { CN.enviado = clave; CN.error = ''; } else { CN.error = r.error; CN.fallo = Date.now(); }
+    renderCupoSolo();
+    return r;
+  }
+  // repinta la barra sin volver a enviar
+  function renderCupoSolo() { const e = CN.enviando; CN.enviando = true; renderCupo(); CN.enviando = e; }
+  // al conectar la cuenta de caja o dueño se publica de inmediato
+  if (typeof SmashNube !== 'undefined' && SmashNube.alCambiar) SmashNube.alCambiar(() => { CN.error = ''; CN.fallo = 0; subirCupo(SmashExt.cupoHoy(), true); });
 
   function renderPedidos() {
     renderCupo();
-    const orders = SmashDB.getOrders();
-    ['nuevo', 'confirmado', 'preparando'].forEach((s) => fillCol(s, orders));
+    SmashLista.render();
   }
 
-  /* ============== DOMICILIOS (listos para despachar + en camino) ============== */
-  function renderDomicilios() {
-    const orders = SmashDB.getOrders();
-    ['listo', 'en_camino'].forEach((s) => fillCol(s, orders));
-  }
+  // Los domicilios (listos y en camino) ahora están en el mismo listado de pedidos
+  function renderDomicilios() {}
 
   /* ============== CONTEO DEL DÍA ============== */
   function renderConteo() {
@@ -144,11 +157,19 @@
     const raw = SmashExt.getCupoRaw();
     $('cupoInput').value = raw ? raw.total : '';
   }
-  $('guardarCupoBtn').addEventListener('click', () => {
+  $('guardarCupoBtn').addEventListener('click', async () => {
     SmashExt.setCupo($('cupoInput').value);
-    renderCupo();
-    $('cupoOk').textContent = 'Cupo de hoy guardado.';
-    setTimeout(() => ($('cupoOk').textContent = ''), 4000);
+    const ok = $('cupoOk');
+    ok.textContent = 'Cupo guardado en este equipo. Publicándolo en la página de clientes…';
+    CN.error = ''; CN.fallo = 0; CN.enviado = '';
+    renderCupoSolo();
+    let r = null;
+    for (let i = 0; i < 20 && CN.enviando; i++) await new Promise((x) => setTimeout(x, 150));   // espera un envío en curso
+    r = await subirCupo(SmashExt.cupoHoy(), true);
+    ok.textContent = !r ? 'Cupo de hoy guardado.'
+      : r.ok ? '✓ Cupo de hoy guardado y visible en la página de clientes.'
+      : '⚠ Cupo guardado solo en este equipo: la página de clientes NO lo ve porque ' + r.error + '.';
+    if (r && r.ok) setTimeout(() => (ok.textContent = ''), 6000);
   });
   document.querySelectorAll('.publish-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -236,120 +257,9 @@
   document.addEventListener('pointerdown', () => { SmashExt.unlockAudio(); setTimeout(paintSound, 200); });
   setInterval(paintSound, 4000);
 
-  /* ============== CREAR PEDIDO (como un cliente) ============== */
-  // combo: { 'hamburguesa|combo': unidades }. El combo es una opción de cada hamburguesa, no un producto suelto.
-  // sab: { 'adicional|sabor': unidades } para adicionales con sabores (ej. gaseosas)
-  const cr = { qty: {}, nota: {}, combo: {}, sab: {}, built: '' };
-  const crSabs = (id) => Object.keys(cr.sab).filter((k) => k.split('|')[0] === id);
-  const crElegidas = (id) => crSabs(id).reduce((s, k) => s + cr.sab[k], 0);
-  const crCombos = () => SmashDB.getProducts({ soloActivos: true }).filter((p) => p.categoria === 'combo');
-  const crEnCombo = (bid) => Object.keys(cr.combo).filter((k) => k.split('|')[0] === bid).reduce((s, k) => s + cr.combo[k], 0);
-  function crZonas() {
-    const z = SmashExt.getZones(), sel = $('crZona'), cur = sel.value;
-    const html = Object.keys(z).map((k) => `<option value="${k}">${esc(z[k].nombre)}${z[k].variable ? ' — valor variable' : ' — ' + fmt(z[k].fee)}</option>`).join('');
-    if (sel.dataset.h !== html) { sel.innerHTML = html; sel.dataset.h = html; if (cur) sel.value = cur; }
-  }
-  // Fotos de los productos: las del menú publicado (las mismas que ve el cliente) y, si no hay, las del panel
-  const imgsMenu = {};
-  SmashExt.loadMenu().then((m) => {
-    if (!m) return;
-    m.productos.forEach((p) => { if (p && p.id && p.img) imgsMenu[p.id] = p.img; });
-    if (!$('dashboardSection').hidden) renderCrear();
-  });
-  const fotoProd = (p) => imgsMenu[p.id] || p.img || '';
-  function renderCrear() {
-    crZonas();
-    const prods = SmashDB.getProducts({ soloActivos: true });
-    const box = $('crProducts');
-    // no redibujar si el usuario está escribiendo una nota
-    if (box.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') { crTotal(); return; }
-    const cs = prods.filter((p) => p.categoria === 'combo');
-    box.innerHTML = prods.filter((p) => p.categoria !== 'combo').map((p) => {
-      const q = cr.qty[p.id] || 0;
-      const combo = q && p.categoria === 'hamburguesa' ? cs.map((c) => { const n = cr.combo[p.id + '|' + c.id] || 0; return `<div class="cr-combo">🍟 En combo (+${fmt(c.price)}): <b>${n} de ${q}</b>
-          <div class="qty-mini"><button type="button" data-cr="cminus" data-id="${esc(p.id)}" data-c="${esc(c.id)}" aria-label="Menos combos">−</button><b>${n}</b><button type="button" data-cr="cplus" data-id="${esc(p.id)}" data-c="${esc(c.id)}" aria-label="Más combos">+</button></div></div>`; }).join('') : '';
-      const ss = p.sabores || [];
-      const sab = q && ss.length ? `<div class="cr-combo">🥤 Sabor: <b>${crElegidas(p.id)} de ${q}</b></div>` + ss.map((s, i) => { const n = cr.sab[p.id + '|' + s] || 0; return `<div class="cr-combo">${esc(s)}
-          <div class="qty-mini"><button type="button" data-cr="sminus" data-id="${esc(p.id)}" data-s="${i}" aria-label="Menos ${esc(s)}">−</button><b>${n}</b><button type="button" data-cr="splus" data-id="${esc(p.id)}" data-s="${i}" aria-label="Más ${esc(s)}">+</button></div></div>`; }).join('') : '';
-      return `<div class="cr-card${q ? ' sel' : ''}">
-        ${fotoProd(p) ? `<img src="${esc(fotoProd(p))}" alt="${esc(p.name)}" loading="lazy" onerror="smashImgFallback(this)">` : '<div class="cr-ph" aria-hidden="true">🍔</div>'}
-        <div class="cr-info"><b>${esc(p.name)}</b><small>${esc(p.desc || '')}</small><span class="cr-price">${fmt(p.price)}</span>
-          <div class="qty-mini"><button type="button" data-cr="minus" data-id="${esc(p.id)}" aria-label="Menos">−</button><b>${q}</b><button type="button" data-cr="plus" data-id="${esc(p.id)}" aria-label="Más">+</button></div>
-          ${combo}${sab}
-          ${q ? `<input class="cr-note" data-id="${esc(p.id)}" maxlength="200" placeholder="Nota de este producto (sin cebolla, etc.)" value="${esc(cr.nota[p.id] || '')}">` : ''}
-        </div></div>`;
-    }).join('') || '<p class="hint">No hay productos activos.</p>';
-    crTotal();
-  }
-  function crTotal() {
-    const sub = crItems().reduce((s, i) => s + i.qty * i.price, 0);
-    const zk = $('crZona').value, z = SmashExt.getZones()[zk] || { fee: 0 };
-    $('crDomWrap').hidden = !z.variable;
-    const dom = z.variable ? (parseFloat($('crDom').value) || 0) : z.fee;
-    $('crTotal').innerHTML = `Subtotal ${fmt(sub)} · Domicilio ${fmt(dom)} · <b>Total ${fmt(sub + dom)}</b>`;
-  }
-  $('crProducts').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-cr]'); if (!b) return;
-    const id = b.dataset.id, q = cr.qty[id] || 0, act = b.dataset.cr;
-    if (act === 'cplus' || act === 'cminus') {
-      const k = id + '|' + b.dataset.c, n = cr.combo[k] || 0;
-      if (act === 'cplus' && crEnCombo(id) < q) cr.combo[k] = n + 1;
-      if (act === 'cminus') cr.combo[k] = Math.max(0, n - 1);
-      renderCrear(); return;
-    }
-    if (act === 'splus' || act === 'sminus') {
-      const p = SmashDB.getProductById(id), s = p && (p.sabores || [])[+b.dataset.s];
-      if (!s) return;
-      const k = id + '|' + s, n = cr.sab[k] || 0;
-      if (act === 'splus' && crElegidas(id) < q) cr.sab[k] = n + 1;
-      if (act === 'sminus') cr.sab[k] = Math.max(0, n - 1);
-      renderCrear(); return;
-    }
-    cr.qty[id] = act === 'plus' ? Math.min(50, q + 1) : Math.max(0, q - 1);
-    let sobraS = crElegidas(id) - (cr.qty[id] || 0);
-    crSabs(id).reverse().forEach((k) => { const r = Math.min(cr.sab[k], Math.max(0, sobraS)); cr.sab[k] -= r; sobraS -= r; });
-    if (!cr.qty[id]) delete cr.nota[id];
-    // si quedan menos hamburguesas que combos, se quitan los combos que sobran
-    let sobra = crEnCombo(id) - (cr.qty[id] || 0);
-    Object.keys(cr.combo).filter((k) => k.split('|')[0] === id).forEach((k) => { const r = Math.min(cr.combo[k], Math.max(0, sobra)); cr.combo[k] -= r; sobra -= r; });
-    renderCrear();
-  });
-  function crItems() {
-    const prods = SmashDB.getProducts({ soloActivos: true }), cs = crCombos(), out = [];
-    prods.filter((p) => p.categoria !== 'combo' && cr.qty[p.id] > 0).forEach((p) => {
-      const ss = p.sabores || [], nota = (cr.nota[p.id] || '').trim();
-      if (ss.length) {
-        // una línea por sabor; las unidades sin sabor elegido quedan en una línea aparte
-        let resto = cr.qty[p.id];
-        ss.forEach((s) => { const n = Math.min(cr.sab[p.id + '|' + s] || 0, resto); if (n) { out.push({ id: p.id, name: p.name, price: p.price, qty: n, cat: p.categoria, nota: 'Sabor: ' + s + (nota ? ' · ' + nota : '') }); resto -= n; } });
-        if (resto) out.push({ id: p.id, name: p.name, price: p.price, qty: resto, cat: p.categoria, nota });
-        return;
-      }
-      out.push({ id: p.id, name: p.name, price: p.price, qty: cr.qty[p.id], cat: p.categoria, nota: (cr.nota[p.id] || '').trim() });
-      if (p.categoria === 'hamburguesa') cs.forEach((c) => { const n = cr.combo[p.id + '|' + c.id] || 0; if (n) out.push({ id: c.id, name: c.name, price: c.price, qty: n, cat: 'combo', nota: 'Para ' + p.name }); });
-    });
-    return out;
-  }
-  $('crProducts').addEventListener('input', (e) => { if (e.target.classList.contains('cr-note')) cr.nota[e.target.dataset.id] = e.target.value; });
-  ['crZona', 'crDom'].forEach((i) => $(i).addEventListener('input', crTotal));
-  $('crBtn').addEventListener('click', () => {
-    const msg = $('crMsg'); msg.className = 'error'; msg.textContent = '';
-    const items = crItems();
-    const cliente = $('crCliente').value.trim(), zk = $('crZona').value, z = SmashExt.getZones()[zk];
-    if (!items.length) { msg.textContent = 'Elige al menos un producto.'; return; }
-    if (!cliente) { msg.textContent = 'Escribe el nombre del cliente.'; return; }
-    let dom = z.fee, pend = false;
-    if (z.variable) { const v = $('crDom').value; if (v === '' || !(parseFloat(v) >= 0)) { msg.textContent = 'Escribe el valor del domicilio de la agencia.'; return; } dom = parseFloat(v); }
-    const res = SmashExt.addOrder({ cliente, telefono: $('crTel').value.trim(), direccion: $('crDir').value.trim(), items, notas: $('crNotas').value.trim(),
-      zona: z.nombre, domicilio: dom, domicilioPendiente: pend, pago: $('crPago').value, origen: 'cocina' });
-    if (!res.ok) { msg.textContent = 'No se creó: era igual al pedido #' + num(res.order) + ' de hace unos minutos.'; return; }
-    cr.qty = {}; cr.nota = {}; cr.combo = {}; cr.sab = {};
-    ['crCliente', 'crTel', 'crDir', 'crNotas', 'crDom'].forEach((i) => ($(i).value = ''));
-    msg.className = 'ok-msg'; msg.textContent = '✓ Pedido #' + num(res.order) + ' creado. Ya está en Pedidos pendientes.';
-    ultimoConteo = SmashDB.getOrders().length;
-    renderAll();
-  });
-
+  /* ============== CREAR PEDIDO: vive en crear-pedido.js (compartido con dueños) ============== */
+  const renderCrear = () => { if (typeof SmashCrear !== 'undefined') SmashCrear.render(); };
+  if (typeof SmashCrear !== 'undefined') SmashCrear.init({ alCrear: () => { ultimoConteo = SmashDB.getOrders().length; renderAll(); } });
   /* ============== INICIO ============== */
   SmashUI.init({ who: 'cocina', refresh: renderAll, print: printComanda, pdf: pdfComanda });
   const existingStaff = SmashDB.currentStaff();

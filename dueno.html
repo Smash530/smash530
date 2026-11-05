@@ -8,6 +8,10 @@
 <link rel="stylesheet" href="dueno.css">
 <link rel="stylesheet" href="ui.css">
 <link rel="stylesheet" href="modulos.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="panel-pro.css">
 </head>
 <body>
 
@@ -42,64 +46,67 @@
     <button id="menuToggle" class="menu-toggle" type="button">☰ Menú</button>
     <aside class="side" id="side">
       <nav class="side-nav" id="panelNav">
-        <button class="nav-btn active" data-section="pendientes" type="button">📦 Pedidos pendientes</button>
-        <button class="nav-btn" data-section="informes" type="button">📈 Informes</button>
-        <button class="nav-btn" data-section="gastos" type="button">💸 Gastos</button>
-        <button class="nav-btn" data-section="ventas" type="button">📊 Registro de ventas</button>
-        <button class="nav-btn" data-section="historial" type="button">📜 Historial de comandas</button>
-        <button class="nav-btn" data-section="cierres" type="button">🏦 Caja y cierres</button>
-        <button class="nav-btn" data-section="top" type="button">🏆 Más vendidas</button>
-        <button class="nav-btn" data-section="simulador" type="button">🧮 Simulador de costos</button>
-        <button class="nav-btn" data-section="contabilidad" type="button">💰 Contabilidad</button>
-        <button class="nav-btn" data-section="productos" type="button">🍽️ Productos</button>
-        <button class="nav-btn" data-section="inventario" type="button">🥩 Inventario</button>
-        <button class="nav-btn" data-section="recetas" type="button">📋 Recetas</button>
-        <button class="nav-btn" data-section="costos" type="button">💲 Costos por producto</button>
-        <button class="nav-btn" data-section="personal" type="button">👥 Personal</button>
-        <button class="nav-btn" data-section="clientes" type="button">📇 Clientes (por pedidos)</button>
-        <button class="nav-btn" data-section="leales" type="button">⭐ Clientes leales</button>
-        <button class="nav-btn" data-section="promos" type="button">🎁 Promociones</button>
-        <button class="nav-btn" data-section="auditoria" type="button">🛡️ Auditoría</button>
-        <button class="nav-btn" data-section="horario" type="button">🕐 Horario</button>
-        <button class="nav-btn" data-section="config" type="button">⚙️ Configuración</button>
+        <div class="nav-group">Operación</div>
+        <button class="nav-btn active" data-section="pendientes" type="button"><span class="ni">📦</span>Pedidos<span class="nav-count" data-count="encurso"></span></button>
+        <button class="nav-btn" data-section="finalizados" type="button"><span class="ni">✅</span>Finalizados</button>
+        <button class="nav-btn" data-section="crear" type="button"><span class="ni">➕</span>Crear pedido</button>
+        <button class="nav-btn" data-section="cierres" type="button"><span class="ni">🏦</span>Caja y cierres</button>
+        <button class="nav-btn" data-section="historial" type="button"><span class="ni">📜</span>Historial de comandas</button>
+        <div class="nav-group">Ventas y finanzas</div>
+        <button class="nav-btn" data-section="informes" type="button"><span class="ni">📈</span>Informes</button>
+        <button class="nav-btn" data-section="ventas" type="button"><span class="ni">📊</span>Registro de ventas</button>
+        <button class="nav-btn" data-section="contabilidad" type="button"><span class="ni">💰</span>Contabilidad</button>
+        <button class="nav-btn" data-section="gastos" type="button"><span class="ni">💸</span>Gastos</button>
+        <button class="nav-btn" data-section="top" type="button"><span class="ni">🏆</span>Más vendidas</button>
+        <div class="nav-group">Menú y costos</div>
+        <button class="nav-btn" data-section="productos" type="button"><span class="ni">🍽️</span>Productos</button>
+        <button class="nav-btn" data-section="inventario" type="button"><span class="ni">🥩</span>Inventario</button>
+        <button class="nav-btn" data-section="recetas" type="button"><span class="ni">📋</span>Recetas</button>
+        <button class="nav-btn" data-section="costos" type="button"><span class="ni">💲</span>Costos por producto</button>
+        <button class="nav-btn" data-section="simulador" type="button"><span class="ni">🧮</span>Simulador de costos</button>
+        <div class="nav-group">Clientes</div>
+        <button class="nav-btn" data-section="clientes" type="button"><span class="ni">📇</span>Clientes</button>
+        <button class="nav-btn" data-section="leales" type="button"><span class="ni">⭐</span>Clientes leales</button>
+        <button class="nav-btn" data-section="promos" type="button"><span class="ni">🎁</span>Promociones</button>
+        <div class="nav-group">Equipo y sistema</div>
+        <button class="nav-btn" data-section="personal" type="button"><span class="ni">👥</span>Personal</button>
+        <button class="nav-btn" data-section="horario" type="button"><span class="ni">🕐</span>Horario</button>
+        <button class="nav-btn" data-section="auditoria" type="button"><span class="ni">🛡️</span>Auditoría</button>
+        <button class="nav-btn" data-section="config" type="button"><span class="ni">⚙️</span>Configuración</button>
       </nav>
     </aside>
     <div class="content">
     <section class="panel-section" id="section-pendientes">
-      <h2 class="section-title" style="margin-top:0">Pedidos pendientes</h2>
-      <div class="cupo-bar" id="cupoBar"></div>
-      <div class="web-estado" id="webEstado" hidden></div>
-      <div class="import-box">
-        <b>📲 Agregar pedido de WhatsApp</b>
+      <div class="page-head">
+        <div><h2 class="page-title">Pedidos</h2><p class="page-sub">Todos los pedidos en curso. Toca un pedido para ver sus datos y opciones.</p></div>
+      </div>
+      <div class="status-strip">
+        <div class="cupo-bar" id="cupoBar"></div>
+        <div class="web-estado" id="webEstado" hidden></div>
+        <div class="imp-estado web-estado" hidden></div>
+      </div>
+      <details class="import-box">
+        <summary>📲 Agregar pedido de WhatsApp</summary>
         <p class="hint">Copia el mensaje del cliente y pégalo aquí tal como llegó. Se numera solo y queda listo para imprimir.</p>
         <textarea id="importText" placeholder="*NUEVO PEDIDO - SMASH* ..."></textarea>
         <button id="importBtn" class="btn-primary" type="button">Agregar pedido</button>
         <p class="error" id="importMsg"></p>
+      </details>
+      <div id="pedidosLista"></div>
+    </section>
+
+    <section class="panel-section" id="section-finalizados" hidden>
+      <div class="page-head">
+        <div><h2 class="page-title">Pedidos finalizados</h2><p class="page-sub">Entregados y cancelados del día que elijas. Toca uno para ver el detalle.</p></div>
       </div>
-      <div class="board board-3">
-        <div class="column">
-          <h3>🆕 Recibidos <span class="col-n" id="n-nuevo"></span></h3>
-          <div class="orders" id="col-nuevo"></div>
-        </div>
-        <div class="column">
-          <h3>✔ Confirmados <span class="col-n" id="n-confirmado"></span></h3>
-          <div class="orders" id="col-confirmado"></div>
-        </div>
-        <div class="column">
-          <h3>🔥 En preparación <span class="col-n" id="n-preparando"></span></h3>
-          <div class="orders" id="col-preparando"></div>
-        </div>
+      <div id="finalizadosLista"></div>
+    </section>
+
+    <section class="panel-section" id="section-crear" hidden>
+      <div class="page-head">
+        <div><h2 class="page-title">Crear pedido</h2><p class="page-sub">Elige los productos a la izquierda y llena los datos del cliente a la derecha.</p></div>
       </div>
-      <div class="board" style="margin-top:16px">
-        <div class="column">
-          <h3>📦 Listos para despacho <span class="col-n" id="n-listo"></span></h3>
-          <div class="orders" id="col-listo"></div>
-        </div>
-        <div class="column">
-          <h3>🛵 En camino <span class="col-n" id="n-en_camino"></span></h3>
-          <div class="orders" id="col-en_camino"></div>
-        </div>
-      </div>
+      <div class="crear-root"></div>
     </section>
 
     <section class="panel-section" id="section-ventas" hidden>
@@ -416,6 +423,8 @@
 
     <section class="panel-section" id="section-config" hidden>
       <h2 class="section-title" style="margin-top:0">Configuración</h2>
+      <h3 class="section-title">🖨️ Impresión de comandas a distancia</h3>
+      <div class="imp-root"></div>
       <h3 class="section-title">Zonas de cobertura y tarifas de domicilio</h3>
       <p class="hint">Solo los dueños pueden cambiar zonas y tarifas. Una zona desactivada deja de aparecer para los clientes. Las zonas de <b>valor variable</b> (como "Otros") no tienen tarifa fija: caja escribe el valor de la agencia en cada pedido.</p>
       <div id="zonasLista"></div>
@@ -472,6 +481,6 @@
 <div id="printArea" class="print-area"></div>
 
 <script src="boot.js"></script>
-<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'store.js', 'inventario.js', 'costos.js', 'comandas.js', 'caja.js', 'clientes.js', 'finanzas.js', 'ticket.js', 'orders-ui.js', 'leales-ui.js', 'pedidos-web.js', 'dueno.js', 'inventario-ui.js', 'costos-ui.js', 'comandas-ui.js', 'caja-ui.js', 'clientes-ui.js', 'finanzas-ui.js', 'auditoria.js', 'auditoria-ui.js']);</script>
+<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'store.js', 'inventario.js', 'costos.js', 'comandas.js', 'caja.js', 'clientes.js', 'finanzas.js', 'ticket.js', 'orders-ui.js', 'pedidos-lista.js', 'impresion-remota.js', 'leales-ui.js', 'pedidos-web.js', 'crear-pedido.js', 'dueno.js', 'inventario-ui.js', 'costos-ui.js', 'comandas-ui.js', 'caja-ui.js', 'clientes-ui.js', 'finanzas-ui.js', 'auditoria.js', 'auditoria-ui.js']);</script>
 </body>
 </html>

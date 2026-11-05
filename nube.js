@@ -53,7 +53,10 @@ const SmashNube = (function () {
   // Al abrir el enlace de "Olvidé mi contraseña" llega este evento: la página pide la clave nueva
   let alRecuperar = null;
   const enRecuperacion = (f) => { alRecuperar = f; };
-  if (ok) sb.auth.onAuthStateChange((ev) => {
+  // Token de la sesión a la mano: el pedido web sale al instante, sin esperar a leerlo
+  let tokenSesion = null;
+  if (ok) sb.auth.onAuthStateChange((ev, s) => {
+    tokenSesion = s && s.access_token ? s.access_token : null;
     if (ev === 'PASSWORD_RECOVERY' && alRecuperar) setTimeout(alRecuperar, 0);
     if (ev === 'SIGNED_OUT') { perfilCache = null; avisar(); }
     else if (ev === 'SIGNED_IN' || ev === 'USER_UPDATED') setTimeout(() => perfil(true).then(avisar), 0);
@@ -244,14 +247,25 @@ const SmashNube = (function () {
      (supabase/pedidos-en-linea.sql). Caja y dueños los reciben al
      instante y se guardan solos en el panel, listos para la comanda. */
   // keepalive: el envío termina aunque el celular salte a WhatsApp
-  async function enviarPedido(ref, datos) {
-    let token = CLAVE_PUBLICA;
-    try { if (ok) { const { data: s } = await sb.auth.getSession(); if (s && s.session) token = s.session.access_token; } } catch (e) {}
-    const r = await fetch(URL_NUBE + '/rest/v1/pedidos_web', {
+  // El envío arranca de inmediato (sin esperas antes del fetch): en el celular la
+  // página puede quedar congelada en cuanto se abre WhatsApp.
+  function postPedido(ref, datos, token) {
+    return fetch(URL_NUBE + '/rest/v1/pedidos_web', {
       method: 'POST', keepalive: true,
       headers: { apikey: CLAVE_PUBLICA, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify({ ref, datos }),
     });
+  }
+  async function enviarPedido(ref, datos) {
+    const token = tokenSesion || CLAVE_PUBLICA;
+    let r;
+    try { r = await postPedido(ref, datos, token); }
+    catch (e) {   // falla de red: un reintento a los 2 segundos
+      await new Promise((listo) => setTimeout(listo, 2000));
+      try { r = await postPedido(ref, datos, tokenSesion || CLAVE_PUBLICA); } catch (e2) { return { ok: false, error: errorTxt(e2) }; }
+    }
+    // sesión del cliente vencida: se envía igual como pedido sin cuenta, para que no se pierda
+    if (r.status === 401 && token !== CLAVE_PUBLICA) { try { r = await postPedido(ref, datos, CLAVE_PUBLICA); } catch (e) {} }
     if (r.ok || r.status === 409) return { ok: true };   // 409: ya estaba (se envió dos veces)
     let m = ''; try { m = (await r.json()).message; } catch (e) {}
     return { ok: false, error: m || 'HTTP ' + r.status };
@@ -274,7 +288,9 @@ const SmashNube = (function () {
     async function arrancar() {
       const p = await perfil(true);
       if (!activo) return;
-      if (!p || (p.rol !== 'caja' && p.rol !== 'dueno')) { estado('sin-sesion'); return; }
+      if (!p) { estado('sin-sesion'); return; }
+      // hay sesión, pero la cuenta sigue con rol cliente: la base no le entrega los pedidos
+      if (p.rol !== 'caja' && p.rol !== 'dueno') { estado('rol-cliente', { correo: p.correo }); return; }
       await revisar();
       canal = sb.channel('pedidos-web-' + Date.now())
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos_web' }, (m) => entregar(m.new))
@@ -289,7 +305,102 @@ const SmashNube = (function () {
     if (!ok) return;
     await sb.from('pedidos_web').update({ recibido: new Date().toISOString() }).eq('ref', ref).is('recibido', null);
   }
+
+  /* ---------------- Cupo de hamburguesas en línea ----------------
+     Cocina guarda el cupo de hoy y las vendidas en la tabla cupo_dia
+     (supabase/cupo-en-linea.sql); la página de clientes lo ve al instante. */
+  async function guardarCupo(total, vendidas) {
+    if (!ok) return sinNube();
+    const p = await perfil();
+    if (!p) return { ok: false, error: 'falta conectar la cuenta de caja o dueño en "⭐ Clientes leales"' };
+    if (p.rol !== 'caja' && p.rol !== 'dueno') return { ok: false, error: 'la cuenta conectada (' + p.correo + ') tiene rol Cliente; debe ser Caja o Dueño' };
+    const fila = { dia: hoyCO(), total: Math.max(0, parseInt(total, 10) || 0), vendidas: Math.max(0, parseInt(vendidas, 10) || 0), actualizado: new Date().toISOString() };
+    const { error } = await sb.from('cupo_dia').upsert(fila, { onConflict: 'dia' });
+    if (!error) return { ok: true };
+    if (/does not exist|schema cache/i.test(error.message)) return { ok: false, error: 'falta ejecutar supabase/cupo-en-linea.sql en Supabase' };
+    return { ok: false, error: errorTxt(error) };
+  }
+  async function leerCupo() {
+    if (!ok) return null;
+    const { data, error } = await sb.from('cupo_dia').select('*').eq('dia', hoyCO()).maybeSingle();
+    return error ? undefined : data;   // undefined = no se pudo leer; null = no hay cupo hoy
+  }
+  // Para la página de clientes: avisa cada cambio del cupo de hoy. Devuelve una función para detener.
+  function seguirCupo(alCambio) {
+    if (!ok) return () => {};
+    const revisar = async () => { const c = await leerCupo(); if (c !== undefined) try { alCambio(c); } catch (e) { console.warn(e); } };
+    const alVolver = () => { if (document.visibilityState !== 'hidden') revisar(); };
+    const canal = sb.channel('cupo-' + Date.now())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cupo_dia' }, (m) => { if (m.new && m.new.dia === hoyCO()) alCambio(m.new); })
+      .subscribe();
+    const reloj = setInterval(revisar, 30000);   // respaldo por si se cae la conexión en vivo
+    document.addEventListener('visibilitychange', alVolver); window.addEventListener('online', alVolver);
+    revisar();
+    return () => { clearInterval(reloj); sb.removeChannel(canal); document.removeEventListener('visibilitychange', alVolver); window.removeEventListener('online', alVolver); };
+  }
+
+  /* ---------------- Impresión de comandas a distancia ----------------
+     Cola en la tabla impresiones (supabase/impresion-remota.sql). Cualquier
+     equipo de caja/dueño manda; el "equipo impresor" la toma y la imprime. */
+  const faltaTablaImp = (m) => /does not exist|schema cache/i.test(m || '');
+  async function staffOk() {
+    const p = await perfil();
+    if (!p) return { ok: false, error: 'falta conectar la cuenta de caja o dueño en "⭐ Clientes leales"' };
+    if (p.rol !== 'caja' && p.rol !== 'dueno') return { ok: false, error: 'la cuenta conectada (' + p.correo + ') tiene rol Cliente; debe ser Caja o Dueño' };
+    return { ok: true, p };
+  }
+  async function enviarImpresion(pedido, etiqueta) {
+    if (!ok) return sinNube();
+    const s = await staffOk(); if (!s.ok) return s;
+    const { data, error } = await sb.from('impresiones').insert({ pedido: String(etiqueta).slice(0, 40), datos: pedido, por_nombre: String(s.p.nombre || s.p.correo || '').slice(0, 80) }).select('id').single();
+    if (error) return { ok: false, error: faltaTablaImp(error.message) ? 'falta ejecutar supabase/impresion-remota.sql en Supabase' : errorTxt(error) };
+    return { ok: true, id: data.id };
+  }
+  async function estadoImpresion(id) {
+    if (!ok) return null;
+    const { data } = await sb.from('impresiones').select('id,estado,equipo,detalle,actualizado').eq('id', id).maybeSingle();
+    return data || null;
+  }
+  // El equipo impresor "toma" el trabajo: solo uno gana aunque haya dos equipos impresores
+  async function tomarImpresion(id, equipo) {
+    const { data, error } = await sb.from('impresiones').update({ estado: 'imprimiendo', equipo: String(equipo).slice(0, 60), actualizado: new Date().toISOString() })
+      .eq('id', id).eq('estado', 'pendiente').select('id');
+    return !error && data && data.length === 1;
+  }
+  async function marcarImpresion(id, estado, detalle) {
+    await sb.from('impresiones').update({ estado, detalle: detalle ? String(detalle).slice(0, 200) : null, actualizado: new Date().toISOString() }).eq('id', id);
+  }
+  // Para el equipo impresor: entrega cada trabajo pendiente (de los últimos 30 min). Devuelve una función para detener.
+  function seguirImpresiones(alTrabajo, alEstado) {
+    if (!ok) { if (alEstado) alEstado('sin-nube'); return () => {}; }
+    let canal = null, reloj = null, activo = true;
+    const estado = (e, info) => { if (alEstado) try { alEstado(e, info); } catch (x) {} };
+    const entregar = (f) => { if (f && f.id && f.estado === 'pendiente') try { alTrabajo(f); } catch (e) { console.warn(e); } };
+    async function revisar() {
+      const desde = new Date(Date.now() - 30 * 60000).toISOString();
+      const { data, error } = await sb.from('impresiones').select('*').eq('estado', 'pendiente').gte('creado', desde).order('creado', { ascending: true });
+      if (error) { estado(faltaTablaImp(error.message) ? 'sin-tabla' : 'error', { error: error.message }); return; }
+      (data || []).forEach(entregar);
+      estado('revisado', { hora: new Date() });
+    }
+    const alVolver = () => { if (document.visibilityState !== 'hidden') revisar(); };
+    (async () => {
+      const s = await staffOk();
+      if (!activo) return;
+      if (!s.ok) { estado('sin-sesion', { error: s.error }); return; }
+      await revisar();
+      canal = sb.channel('impresiones-' + Date.now())
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'impresiones' }, (m) => entregar(m.new))
+        .subscribe((st) => estado(st === 'SUBSCRIBED' ? 'en-vivo' : st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' ? 'respaldo' : 'conectando'));
+      reloj = setInterval(revisar, 10000);   // respaldo por si se cae la conexión en vivo
+      document.addEventListener('visibilitychange', alVolver); window.addEventListener('online', alVolver);
+    })();
+    return () => { activo = false; if (reloj) clearInterval(reloj); if (canal) sb.removeChannel(canal); document.removeEventListener('visibilitychange', alVolver); window.removeEventListener('online', alVolver); };
+  }
+
   return {
+    enviarImpresion, estadoImpresion, tomarImpresion, marcarImpresion, seguirImpresiones,
+    guardarCupo, leerCupo, seguirCupo,
     ok, perfil, alCambiar, enRecuperacion, registrar, entrar, salir, recuperarClave, nuevaClave, guardarPerfil, usuarioLibre,
     promociones, guardarPromo, activarPromo, borrarPromo, aplicarPromos, vigente, hoyCO, diaCO, tocaHoy, textoDias, DIAS,
     puntosPedido, REGLAS, clientes, movimientos, sumarPuntos, cambiarRol, buscarPorCorreo,

@@ -66,13 +66,7 @@
 
   function renderPedidos() {
     renderCupo();
-    const orders = SmashDB.getOrders();
-    const EMPTY = { nuevo: 'Sin pedidos nuevos.', confirmado: 'Nada por iniciar.', preparando: 'Nada en preparación.', listo: 'Nada esperando salida.', en_camino: 'Ningún domicilio en camino.' };
-    Object.keys(EMPTY).forEach((s) => {
-      const list = orders.filter((o) => o.status === s).sort((a, b) => a.id - b.id);
-      $('col-' + s).innerHTML = list.length ? list.map((o) => SmashUI.card(o)).join('') : `<p class="empty-col-msg">${EMPTY[s]}</p>`;
-      $('n-' + s).textContent = list.length || '';
-    });
+    SmashLista.render();   // listado horizontal + ficha lateral (pedidos-lista.js)
   }
 
   /* ============== CONTABILIDAD ============== */
@@ -604,6 +598,9 @@
   $('simNombre').addEventListener('input', () => { sim.nombre = $('simNombre').value; simSave(); });
   $('simMargen').addEventListener('input', () => { sim.margen = parseFloat($('simMargen').value) || 52; simSave(); renderSim(); });
   $('simLimpiar').addEventListener('click', () => { if (confirm('¿Borrar la simulación actual?')) { sim = { nombre: '', margen: 52, ings: [] }; simSave(); renderSim(); } });
+
+  /* ============== CREAR PEDIDO (crear-pedido.js, compartido con cocina) ============== */
+  if (typeof SmashCrear !== 'undefined') SmashCrear.init({ alCrear: () => { ultimoConteo = SmashDB.getOrders().length; renderAll(); } });
 
   /* ============== INICIO ============== */
   SmashUI.init({ who: 'dueño', refresh: renderAll, print: printComanda, pdf: pdfComanda });

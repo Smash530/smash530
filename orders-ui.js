@@ -76,6 +76,97 @@ const SmashUI = (function () {
       </div>`;
   }
 
+  /* ---------- fila del listado horizontal ---------- */
+  const telHref = (t) => 'tel:' + esc(String(t).replace(/[^\d+]/g, ''));
+  function resumenItems(o) {
+    return (o.items || []).map((it) => esc(it.qty) + '× ' + esc(it.name)).join(', ');
+  }
+  function pagoCorto(o) {
+    const ep = typeof SmashCaja !== 'undefined' ? SmashCaja.estadoPago(o) : null;
+    if (ep && ep.k === 'pagado') return '<span class="ol-paid">Pagado</span>';
+    if (ep && ep.k === 'pendiente') return '<span class="ol-unpaid">Por cobrar</span>';
+    return esc(o.pago || '');
+  }
+  function fila(o, opt) {
+    opt = opt || {};
+    const st = o.status, id = esc(o.id), fin = st === 'entregado' || st === 'cancelado';
+    const cuando = fin ? (st === 'entregado' ? o.entregadoEn : o.canceladoEn) : o.creado;
+    return `<div class="ol-row st-${esc(st)}${opt.activo ? ' sel' : ''}" data-open="${id}" tabindex="0" role="button" aria-label="Abrir pedido ${esc(num(o))}">
+      <div class="ol-num"><b>#${esc(num(o))}</b><small>${esc(hora(o.creado))}</small></div>
+      <div class="ol-st"><span class="st-badge st-${esc(st)}">${esc(C.NOMBRE[st] || st)}</span>${o.reserva ? '<span class="ol-flag">📅 Reserva</span>' : ''}${o.origen === 'web' ? '<span class="ol-flag web">🌐 Web</span>' : ''}</div>
+      <div class="ol-cli"><b>${esc(o.cliente || 'Sin nombre')}</b><small>📍 ${esc(o.zona || o.direccion || 'sin dirección')}${o.horaEntrega ? ' · 🕒 ' + esc(o.horaEntrega) : ''}</small></div>
+      <div class="ol-items" title="${resumenItems(o)}">${resumenItems(o)}</div>
+      <div class="ol-tot"><b>${fmt(o.total)}</b><small>${pagoCorto(o)}</small></div>
+      <div class="ol-time">${fin ? `<span class="ol-end">${st === 'entregado' ? '✓' : '✕'} ${esc(hora(cuando))}</span>` : timerHtml(o)}</div>
+      <div class="ol-act">${!fin && NEXT[st] ? `<button type="button" class="ol-next" data-act="advance" data-id="${id}" data-status="${esc(st)}">${NEXT_LABEL[st]}</button>` : '<span class="ol-chev">›</span>'}</div>
+    </div>`;
+  }
+
+  /* ---------- ficha completa del pedido (panel lateral derecho) ---------- */
+  const PASOS = [['nuevo', 'Recibido', 'creado'], ['confirmado', 'Confirmado', 'confirmadoEn'], ['preparando', 'Preparación', 'preparandoEn'], ['listo', 'Listo', 'listoEn'], ['en_camino', 'En camino', 'salioEn'], ['entregado', 'Entregado', 'entregadoEn']];
+  function detalle(o) {
+    const st = o.status, id = esc(o.id), d = C.desglose(o), fin = st === 'entregado' || st === 'cancelado';
+    const idx = PASOS.findIndex((p) => p[0] === st);
+    const ep = typeof SmashCaja !== 'undefined' ? SmashCaja.estadoPago(o) : null;
+    const despacho = st === 'listo' || st === 'en_camino';
+    const btn = (act, txt, cls) => `<button type="button" class="od-btn ${cls || ''}" data-act="${act}" data-id="${id}">${txt}</button>`;
+    const acciones = [];
+    if (ep && (ep.k === 'pendiente' || ep.k === 'pagado')) acciones.push(btn('pay', ep.k === 'pagado' ? '💰 Ver pago' : '💰 Cobrar', ep.k === 'pagado' ? '' : 'hl'));
+    // Imprimir a distancia: en un equipo que NO es el impresor va primero y resaltado
+    const remota = typeof SmashImpRemota !== 'undefined' && SmashImpRemota.disponible();
+    if (remota && !SmashImpRemota.esImpresor()) acciones.push(btn('remote', '📡 Imprimir en cocina', 'hl'));
+    acciones.push(btn('print', remota && !SmashImpRemota.esImpresor() ? '🖨️ Imprimir aquí' : '🖨️ Imprimir comanda'), btn('pdf', '⬇️ PDF'));    if (!fin && (o.impresa || despacho)) acciones.push(btn('rep', o.repartidor ? '🛵 Cambiar repartidor' : '🛵 Asignar repartidor'));
+    if (!fin && (o.domicilioPendiente || despacho)) acciones.push(btn('dom', o.domicilioPendiente ? '💲 Valor del domicilio' : '💲 Domicilio', o.domicilioPendiente ? 'hl' : ''));
+    if (!fin) acciones.push(btn('edit', '✏️ Editar pedido'));
+    acciones.push(btn('nov', '📝 Novedad'));
+    if (o.cuenta && !o.puntosSumados && st !== 'cancelado' && typeof SmashLealesUI !== 'undefined') acciones.push(btn('puntos', '⭐ Sumar puntos'));
+    const c = o.cancelacion;
+    return `
+      <div class="od-head st-${esc(st)}">
+        <div><div class="od-num">Pedido #${esc(num(o))}</div>
+          <div class="od-sub">Comanda ${esc(C.codigo(o))}${o.ref ? ' · ' + esc(o.ref) : ''} · ${o.origen === 'web' ? 'página web' : o.origen === 'whatsapp' ? 'WhatsApp' : o.origen === 'cocina' ? 'tomado en caja' : esc(o.origen || '')}${o.editadoEn ? ' · editado' : ''}</div></div>
+        <div class="od-head-r"><span class="st-badge st-${esc(st)}">${esc(C.NOMBRE[st] || st)}</span>${timerHtml(o)}</div>
+      </div>
+      ${st === 'cancelado' ? '' : `<ol class="od-steps">${PASOS.map((p, i) => `<li class="${i < idx ? 'done' : i === idx ? 'now' : ''}"><span></span><b>${p[1]}</b><small>${esc(hora(o[p[2]])) || '&nbsp;'}</small></li>`).join('')}</ol>`}
+      ${!fin && NEXT[st] ? `<button type="button" class="od-next" data-act="advance" data-id="${id}" data-status="${esc(st)}">${NEXT_LABEL[st]}</button>` : ''}
+      ${o.reserva && st === 'nuevo' ? '<div class="od-alert warn">📅 <b>Reserva:</b> llegó fuera de horario. Confírmala para despacharla al abrir.</div>' : ''}
+      ${o.domicilioPendiente && !fin ? '<div class="od-alert warn">💲 Falta definir el valor del domicilio (zona por confirmar).</div>' : ''}
+      ${c ? `<div class="od-alert bad">✕ <b>Cancelado</b> en ${esc(C.NOMBRE[c.etapa] || c.etapa)} · ${esc(hora(c.en))}<br>${esc(c.motivo)} · responsable ${esc(c.responsable)}${c.preparado ? ' · se alcanzó a preparar' : ''}</div>` : ''}
+
+      <section class="od-sec">
+        <h4>Cliente</h4>
+        <div class="od-cli">${esc(o.cliente || 'Sin nombre')}</div>
+        <div class="od-lines">
+          ${o.telefono ? `<a class="od-tel" href="${telHref(o.telefono)}">📞 ${esc(o.telefono)}</a>` : '<span class="od-mut">Sin teléfono</span>'}
+          ${o.telefono2 ? `<a class="od-tel" href="${telHref(o.telefono2)}">📞 Ref. ${esc(o.telefono2)}</a>` : ''}
+        </div>
+        <div class="od-addr">📍 ${esc(o.direccion || 'Sin dirección')}${o.zona ? ` <span class="od-mut">· ${esc(o.zona)}</span>` : ''}</div>
+        ${o.horaEntrega ? `<div class="od-tag">🕒 Entregar: <b>${esc(o.horaEntrega)}</b></div>` : ''}
+        ${o.cuenta ? `<div class="od-tag gold">⭐ Cliente leal @${esc(o.cuenta.usuario || '-')} · ${esc(o.cuenta.correo)}${o.puntosSumados ? ` · +${esc(o.puntosSumados)} pts` : ''}</div>` : ''}
+        ${o.repartidor ? `<div class="od-tag">🛵 Repartidor: <b>${esc(o.repartidor)}</b>${o.salioEn ? ' · salió ' + esc(hora(o.salioEn)) : ''}</div>` : ''}
+      </section>
+
+      <section class="od-sec">
+        <h4>Productos</h4>
+        <ul class="od-items">${(o.items || []).map((it) => `<li><span class="q">${esc(it.qty)}×</span><span class="n">${esc(it.name)}${it.nota ? `<small>↳ ${esc(it.nota)}</small>` : ''}</span><span class="p">${fmt(it.price * it.qty)}</span></li>`).join('')}</ul>
+        ${o.notas ? `<div class="od-note">📝 ${esc(o.notas)}</div>` : ''}
+      </section>
+
+      <section class="od-sec od-sum">
+        <div><span>Productos</span><b>${fmt(d.productos)}</b></div>
+        ${d.adicionales ? `<div><span>Adicionales</span><b>${fmt(d.adicionales)}</b></div>` : ''}
+        ${d.descuento ? `<div><span>Descuento</span><b>−${fmt(d.descuento)}</b></div>` : ''}
+        <div><span>Domicilio</span><b>${o.domicilioPendiente ? '<span class="pend">por confirmar</span>' : fmt(d.domicilio)}</b></div>
+        <div class="tot"><span>Total${o.pago ? ' · ' + esc(o.pago) : ''}</span><b>${fmt(d.total)}</b></div>
+        ${ep && ep.k === 'pagado' ? `<div class="od-paid">💰 Pagado: ${esc(ep.pago.lineas.map((l) => SmashCaja.METODOS[l.metodo] + ' ' + fmt(l.monto)).join(' + '))}</div>` : ep && ep.k === 'pendiente' ? '<div class="od-unpaid">💰 Pendiente de pago</div>' : ''}
+      </section>
+
+      ${(o.novedades || []).length ? `<section class="od-sec"><h4>Novedades</h4>${o.novedades.map((n) => `<div class="od-nov">⚠ ${esc(n.texto)} <small>${esc(hora(n.en))}${n.por ? ' · ' + esc(n.por) : ''}</small></div>`).join('')}</section>` : ''}
+
+      <section class="od-sec"><h4>Acciones</h4><div class="od-acts">${acciones.join('')}</div>
+        ${!fin ? `<button type="button" class="od-cancel" data-act="cancel" data-id="${id}">✕ Cancelar pedido</button>` : ''}</section>`;
+  }
+
   /* ---------- ventana emergente ---------- */
   let openModal = null;
   function closeModal() { if (openModal) { openModal.remove(); openModal = null; } }
@@ -246,6 +337,10 @@ const SmashUI = (function () {
       switch (b.dataset.act) {
         case 'print': SmashExt.updateOrder(id, { impresa: true, impresaEn: o.impresaEn || new Date().toISOString() }); cfg.print(id); cfg.refresh(); break;
         case 'pdf': cfg.pdf(id); break;
+        case 'remote':   // imprimir en la térmica del negocio desde otro equipo
+          if (typeof SmashImpRemota === 'undefined') break;
+          SmashImpRemota.enviar(o).then((r) => { if (r && r.ok) { SmashExt.updateOrder(id, { impresa: true, impresaEn: o.impresaEn || new Date().toISOString() }); cfg.refresh(); } });
+          break;
         case 'puntos': SmashLealesUI.sumarDePedido(o, () => cfg.refresh()); break;
         case 'advance': {
           if (o.status !== b.dataset.status) { cfg.refresh(); break; } // la tarjeta estaba desactualizada (otra pestaña)
@@ -306,5 +401,5 @@ const SmashUI = (function () {
       <p class="hint caja-note">Dinero cobrado ese día por medio de pago${res.domicilios ? `, incluye ${fmt(res.domicilios)} de domicilios que el cliente pagó a SMASH (son del domiciliario)` : ''}. Domicilios de los pedidos del día: ${fmt(del.reduce((s, o) => s + (o.domicilio || 0), 0))}.</p>`;
   }
 
-  return { init, card, caja, fmtMs, timerHtml, tick, esc, fmt, openCancelar, modal, closeModal, refresh: () => cfg.refresh(), who: () => cfg.who };
+  return { init, card, fila, detalle, caja, fmtMs, timerHtml, tick, esc, fmt, openCancelar, modal, closeModal, refresh: () => cfg.refresh(), who: () => cfg.who };
 })();

@@ -74,7 +74,8 @@ MENÚ, FOTOS Y CUPO PARA CLIENTES (cómo se actualiza)
   La página del cliente muestra la hora de esa publicación. NO se actualiza sola en cada venta.
 
 LÍMITES (importante)
-  - La "base de datos" es localStorage: vive en cada navegador/dispositivo. El pedido hecho en
+  - La "base de datos" vive en cada navegador/dispositivo (IndexedDB, hasta 500 MB; ver abajo
+    "ESPACIO DE DATOS: 500 MB"). El pedido hecho en
     el celular del cliente NO llega solo al dispositivo de cocina; por eso el paso de pegar el mensaje.
   - Usuario de cocina por defecto (en data.js): cocina / smash2026. Cualquiera que abra data.js lo ve.
     Esto no es seguridad real. Para seguridad real y pedidos automáticos hace falta un backend.
@@ -259,19 +260,216 @@ RESPALDO Y RECUPERACIÓN
   - Solo se guarda la huella de cada clave. Crear y eliminar usuarios queda en la Auditoría.
   - Como todo, viven en el navegador de este equipo: viajan en el respaldo.
 
-=========== PROTECCIÓN EN VERCEL (2026-11-02) ===========
-  Archivos: middleware.js, vercel.json, package.json (sin dependencias ni compilación).
-  - La página de clientes (cliente.html, sus estilos, data.js, data-ext.js, menu.json e images/)
-    sigue pública y sin cambios.
-  - TODO lo demás (panel de caja, panel de dueños y sus scripts) lo bloquea el servidor de Vercel
-    con una ventana de usuario y clave ANTES de entregar el archivo. Sin la clave ni siquiera se
-    descarga el código del panel.
-  - Las claves NO están en el código. Se configuran en Vercel → Settings → Environment Variables:
-      CAJA_USUARIO, CAJA_CLAVE     → abre el panel de caja
-      DUENO_USUARIO, DUENO_CLAVE   → abre el panel de dueños (y también el de caja)
-    Después de crear o cambiar una variable: Deployments → Redeploy.
-  - Si falta alguna variable, los paneles quedan cerrados (mensaje "Falta configurar...").
-  - Es una puerta ADICIONAL: después siguen pidiendo su usuario/clave de caja o de dueños de siempre.
-  - Para cambiar una clave: edítala en Vercel y vuelve a desplegar. Usa claves largas y al azar.
-  - Solo funciona publicado en Vercel. Abriendo los archivos directo en el equipo no hay esta puerta.
-  - Nunca subas a Vercel ni a GitHub el archivo con las claves.
+
+=========== COMBOS DENTRO DE CADA HAMBURGUESA (2026-11-03) ===========
+  - El combo (papas + gaseosa) ya no se pide suelto. En la página del cliente y en "Crear pedido"
+    de caja, cada hamburguesa elegida muestra "¿En combo?" con su propio + y −.
+  - Máximo un combo por hamburguesa: si pide 5 Bacon Royal puede poner de 0 a 5 en combo. Si quita
+    hamburguesas, los combos de más se quitan solos. Cada combo suma su precio al total.
+  - En el pedido queda una línea "Combo (papas + gaseosa)" con la nota "Para <hamburguesa>". En
+    WhatsApp llega como "- 1 x Combo (papas + gaseosa) para Smash Toci ($6.900)" y "Agregar pedido
+    de WhatsApp" la reconoce.
+  - El precio, la receta y el costo del combo se siguen manejando en Dueños > Productos (categoría
+    Combo). Si se desactiva el producto Combo, la opción desaparece de todas las hamburguesas.
+  - Los pedidos anteriores con combos sueltos no cambian.
+  - Después de este cambio, publica de nuevo el menu.json si usas hosting.
+=========== HORARIO, RESERVAS Y MENSAJE DE GRACIAS (2026-11-03) ===========
+  - Dueños > Horario: hora de apertura y de cierre (hora de Colombia, todos los días). Si cierra
+    después de medianoche (ej. 6:00 pm a 2:00 am) también funciona. El cambio queda en Auditoría.
+  - La página del cliente muestra ese horario arriba ("Abierto ahora · hasta las...") y abajo.
+  - Fuera de horario la página sigue recibiendo pedidos como RESERVA: muestra el aviso "Ahora
+    estamos cerrados... lo despachamos al abrir cocina, hoy/mañana a las...", el botón dice
+    "Reservar pedido" y el mensaje de WhatsApp lleva la línea "*RESERVA:*".
+  - En caja la reserva aparece en Pedidos pendientes (Recibidos) con un aviso amarillo hasta que el
+    cajero la confirma; después queda una etiqueta pequeña "Reserva". La comanda impresa dice
+    *** RESERVA ***. "Agregar pedido de WhatsApp" también reconoce las reservas.
+  - Al enviar un pedido, la página muestra: "Gracias por tu Compra, esperamos disfrutes la Burger
+    y vuelvas pronto a Smash 😊".
+  - Si usas hosting, después de cambiar el horario publica de nuevo el menu.json.
+  - La reserva cuenta en las ventas y en el cupo del día en que se hizo, no del día en que se despacha.
+=========== NUEVO DISEÑO DE LA PÁGINA DE CLIENTES (2026-11-03) ===========
+  - Barra superior oscura fija con el logo y el botón "Tu pedido". Portada compacta con el nombre
+    SMASH en grafiti en el centro (sobre la foto o video de portada; ya no ocupa
+    toda la pantalla) con el horario, el cupo y los botones "Ver el menú" e Instagram.
+  - Menú en tarjetas: en celular, foto pequeña a la izquierda; en tablet y PC, foto arriba.
+  - "Tu pedido": resumen de lo elegido + datos de entrega. En celular el total y el botón de
+    enviar quedan en una barra fija abajo; en PC el pedido queda fijo a la derecha del menú.
+  - Modo oscuro automático si el celular lo usa. Probado en 320, 375, 768, 1366 px.
+  - Fotos y video de portada: ver images/LEEME.txt (portada.jpg, portada.mp4 y fotos de producto).
+  - Tipografía: Archivo (Google Fonts). Sin internet usa la letra del sistema.
+  - La lógica del pedido, combos, reservas y el mensaje de WhatsApp no cambiaron.
+=========== GASEOSAS Y SABORES EN LOS ADICIONALES (2026-11-03) ===========
+  - Se agregaron dos adicionales: "Gaseosa Postobón" (Uva, Manzana, Colombiana, Naranja, Pepsi)
+    y "Coca-Cola Zero" (sin sabores todavía). Llegan OCULTOS y con precio $0: en Dueños →
+    Productos pon el precio de venta, marca "Visible para clientes" y da Guardar.
+    No se puede hacer visible un producto con precio $0.
+  - Cualquier adicional puede tener "Sabores / tipos para elegir": escribe el sabor y da
+    "+ Agregar" (o Enter), quita con la ×, y da Guardar. Queda en la auditoría.
+  - En la página de clientes, al agregar una unidad se despliega "¿De cuál la quieres?" con la
+    lista de sabores. Hay que elegir el sabor de cada unidad para poder enviar el pedido.
+    Si ya eligió todas, el + de un sabor agrega una unidad más.
+  - En el pedido, el ticket y WhatsApp cada sabor sale en su línea: "1 x Gaseosa Postobón (Uva)".
+    La caja también elige el sabor al crear un pedido. El inventario y las ventas no cambian.
+  - Después de cambiar precios o sabores, publica de nuevo el menu.json si usas hosting.
+=========== ESPACIO DE DATOS: 500 MB (2026-11-03) ===========
+  - Antes los datos estaban en localStorage, que el navegador limita a ~5 MB (no se puede ampliar).
+    Ahora van en IndexedDB, el almacén grande del mismo navegador, con límite de 500 MB.
+  - Archivo nuevo: boot.js. Lee los datos al abrir la página y luego carga los demás scripts
+    (por eso cliente.html, cocina.html y dueno.html ahora cargan "SmashBoot.cargar([...])").
+  - La primera vez que abras el panel con esta versión, copia solo los datos que ya tenías
+    (pedidos, productos, usuarios, caja...). No hay que hacer nada. La copia vieja en
+    localStorage queda intacta pero ya no se usa.
+  - Recomendado: descarga un respaldo completo ANTES de subir esta versión.
+  - El espacio usado se ve en Dueños → Configuración ("X MB de 500 MB").
+  - Si un navegador no permite IndexedDB, sigue funcionando con localStorage (~5 MB) y lo indica.
+  - Igual que antes, los datos viven en ese navegador: si borras "datos de sitios" se pierden.
+    Sigue descargando el respaldo cada noche.=========== CLIENTES LEALES, PUNTOS Y PROMOCIONES (Supabase, 2026-11-03) ===========
+  Base de datos en la nube: Supabase (proyecto boatydzqlrtgxzptpehb). Archivos nuevos:
+    nube.js        conexión con Supabase (clave PÚBLICA; la seguridad la pone la base de datos)
+    leales-ui.js   secciones "⭐ Clientes leales" (caja y dueños) y "🎁 Promociones" (solo dueños)
+    supabase/esquema.sql  tablas y reglas de seguridad (ya ejecutado en Supabase)
+  PÁGINA DE CLIENTES
+  - Botones "Iniciar sesión" y "Registrarse" arriba. El formulario está oculto hasta pulsarlos.
+  - Registro: usuario, nombre, teléfono, correo, dirección de entrega y contraseña (mín. 8).
+    Se entra con el CORREO y la contraseña. La contraseña la guarda Supabase cifrada.
+  - Con sesión: nombre y teléfono se llenan solos; la dirección se escribe en cada pedido
+    (botón "Usar mi dirección guardada"). Campo nuevo para todos: "Otro teléfono de referencia".
+  - Las promociones SOLO se ven y se aplican con sesión iniciada. Sin cuenta se pide igual, sin descuentos.
+  - El mensaje de WhatsApp lleva "Cuenta SMASH", "Descuento cliente leal" y "Puntos a sumar".
+  PUNTOS: hamburguesa 10 · hamburguesa en combo 15 · papas 2 · gaseosa 2 · salsa 1.
+  - Se suman en caja o dueños con el botón "⭐ Sumar puntos" del pedido (verifica la cuenta y el
+    descuento antes; un pedido no puede sumar dos veces). También "± Puntos" para canjes o regalos.
+  PROMOCIONES (solo dueños, sección "🎁 Promociones"): % de descuento, $ de descuento, precio
+    especial de un producto (ej. el combo) o incentivo (beneficio que solo se muestra).
+    Con fecha desde/hasta, pausar, editar y borrar. Se activan al instante (no requiere menu.json).
+  CUENTAS DE CAJA Y DUEÑOS EN LA NUBE
+  - Para ver clientes o sumar puntos, en "⭐ Clientes leales" se conecta una cuenta de la nube con rol
+    Caja o Dueño. Cada persona se registra primero en la página de clientes con su correo.
+  - PRIMER DUEÑO (una sola vez): Supabase → SQL Editor → New query → pega y ejecuta (cambia el correo):
+        update public.perfiles set rol = 'dueno' where correo = 'tu-correo@ejemplo.com';
+    Desde ahí, los demás roles (Caja / Dueño) se dan en "⭐ Clientes leales" → lista → Rol.
+  - En Supabase → Authentication → Sign In / Providers → Email: "Confirm email" DESACTIVADO
+    (el plan gratis envía muy pocos correos por hora). Site URL: https://smash530.vercel.app
+  - El plan gratis de Supabase pausa el proyecto si pasa 1 semana sin uso: con pedidos diarios no pasa.
+
+=========== PROMOCIONES POR DÍA DE LA SEMANA (2026-11-03) ===========
+- En "🎁 Promociones", cada promoción tiene "Días de la semana" (Lun a Dom).
+  Sin marcar ninguno = todos los días. Marca solo Mar = se repite todos los
+  martes entre las fechas "desde" y "hasta".
+- La página de clientes cambia sola cada día: los clientes con sesión solo
+  ven y usan las promociones de HOY (fecha y día de Colombia).
+- Antes de usarlo, ejecuta UNA vez supabase/promos-por-dia.sql en
+  Supabase → SQL Editor → New query → Run. No borra nada.
+
+=========== PEDIDOS WEB EN TIEMPO REAL (2026-11-03) ===========
+- Antes: el pedido del cliente se guardaba solo en SU celular y viajaba por
+  WhatsApp; caja tenía que pegarlo a mano.
+- Ahora: la página de clientes deja el pedido en Supabase (tabla pedidos_web)
+  y el panel de cocina lo recibe al instante en "Pedidos pendientes", con
+  sonido, listo para imprimir la comanda. WhatsApp sigue como confirmación;
+  si caja pega ese mensaje, se detecta como repetido.
+- Preparar (una vez): ejecuta supabase/pedidos-en-linea.sql en Supabase →
+  SQL Editor → New query → Run.
+- En el panel de cocina, conecta la cuenta de caja (rol Caja o Dueño) en
+  "⭐ Clientes leales". Queda guardada en ese equipo. Arriba de "Pedidos
+  pendientes" se ve: 🟢 en tiempo real / ⚠ qué falta.
+- Funciona en cocina y en dueños. Si ambos están abiertos en el mismo navegador,
+  solo una pestaña recibe (sin repetidos) y la otra los ve igual.
+- El aviso verde muestra la hora de la última revisión y cuántos pedidos web
+  hay en las últimas 36 h; si algo falla, muestra el error real.
+- Al cliente, en la ventana de gracias, le aparece "✓ Tu pedido ya llegó a la
+  cocina" o un aviso para que envíe el WhatsApp.
+
+=========== ARREGLO: PEDIDOS WEB QUE NO LLEGABAN (2026-11-04) ===========
+- Causa: el panel solo recibe los pedidos si en "⭐ Clientes leales" está
+  conectada una cuenta de la nube con rol Caja o Dueño. La contraseña del panel
+  de dueños NO sirve para esto, y toda cuenta nueva empieza con rol Cliente.
+- Solución (una vez): ejecuta supabase/hacer-dueno.sql en Supabase → SQL Editor
+  → Run. Luego en cocina, "⭐ Clientes leales" → Conectar con esa cuenta.
+- El aviso rojo del panel ahora dice exactamente qué falta (sin cuenta o cuenta
+  con rol Cliente) y al tocarlo lleva a "⭐ Clientes leales".
+- El pedido del cliente sale al instante (antes esperaba leer la sesión y en el
+  celular se podía cortar al abrir WhatsApp), reintenta si falla la red y, si la
+  sesión del cliente venció, se envía igual sin cuenta para que no se pierda.
+
+=========== NUEVO DISEÑO DE LOS PANELES (2026-11-04) ===========
+- Cocina y dueños tienen un diseño moderno (panel-pro.css): barra superior
+  limpia, menú lateral agrupado por temas (Operación, El día / Ventas y
+  finanzas, Menú y costos, Clientes, Sistema) y modo oscuro automático.
+- Pedidos: ya no van en columnas verticales. Ahora es UN listado horizontal
+  con TODOS los pedidos en curso (recibidos, confirmados, en preparación,
+  listos y en camino), del más antiguo al más nuevo. Arriba hay filtros por
+  estado con su cantidad y un buscador.
+- Cada fila tiene el botón del siguiente paso (Confirmar, Iniciar
+  preparación, Marcar listo, En camino, Entregado) para ir rápido.
+- Al tocar un pedido se abre a la DERECHA su ficha: avance del pedido, datos
+  del cliente, productos, totales, pago y todas las opciones (cobrar,
+  imprimir, PDF, repartidor, domicilio, editar, novedad, cancelar). Se cierra
+  con la ✕, tocando fuera o con Escape.
+- Nuevo ítem "✅ Finalizados": pedidos entregados (y cancelados) del día que
+  elijas, con total vendido y tiempo promedio. Tocar uno abre su ficha.
+- "Domicilios" de cocina desapareció como sección aparte: los listos y en
+  camino están en el mismo listado de Pedidos.
+- "Agregar pedido de WhatsApp" queda plegado; se abre al tocarlo.
+- El listado de Pedidos va del ÚLTIMO pedido que entró (arriba) al más
+  antiguo (abajo).
+- "➕ Crear pedido" está en cocina Y en dueños: productos a la izquierda y,
+  a la derecha, los datos del cliente, el resumen, el total y el botón
+  "Crear pedido" (queda fijo al bajar). Tras crearlo, "Ver pedido" lo abre.
+- 🎁 Promociones (dueños): a la izquierda el formulario "Nueva promoción" y a
+  la derecha cada promoción en su propio recuadro (estado con color, descuento,
+  días y fechas). Al tocar un recuadro se abre una ventana para editarla,
+  pausarla/activarla o borrarla; al guardar cambios la ventana se cierra sola.
+- Archivos nuevos: panel-pro.css, pedidos-lista.js y crear-pedido.js (hay que
+  subirlos).
+
+=========== IMPRIMIR COMANDAS A DISTANCIA (2026-11-04) ===========
+- Desde un celular o cualquier PC (fuera del negocio también) se manda la
+  comanda a la impresora térmica del negocio: en la ficha del pedido, botón
+  "📡 Imprimir en cocina". Aparece un aviso: en cola → "✓ impresa en PC cocina".
+- Preparar (una vez): ejecuta supabase/impresion-remota.sql en Supabase.
+- En el PC que tiene la impresora: Configuración → "🖨️ Impresión de comandas a
+  distancia" → marca "Este equipo imprime…" y ponle nombre. Ese PC debe tener
+  el panel (cocina o dueños) abierto y la cuenta de caja o dueño conectada en
+  "⭐ Clientes leales". Arriba de Pedidos se ve "🖨️ Este equipo es el impresor".
+- Quien manda también necesita su cuenta de caja o dueño conectada.
+- Para que imprima solo, sin preguntar: impresora térmica como predeterminada
+  de Windows y abrir Chrome con un acceso directo con --kiosk-printing (la línea
+  exacta está en Configuración). Sin eso, Chrome muestra la ventana de
+  impresión y alguien debe tocar "Imprimir".
+- La comanda viaja completa por la nube, así que sale aunque el pedido no esté
+  en ese PC. Si nadie la imprime en 30 minutos, se descarta.
+- "📡 Enviar comanda de prueba" (en Configuración) sirve para probar la impresora.
+
+=========== CUPO DE HAMBURGUESAS EN LÍNEA (2026-11-04) ===========
+- Antes: el cupo se guardaba solo en el navegador de cocina y la página de
+  clientes lo leía de menu.json, que había que publicar y subir a mano (por eso
+  no aparecía).
+- Ahora: al tocar "Guardar cupo de hoy", cocina lo publica en Supabase (tabla
+  cupo_dia) y las vendidas se actualizan solas con cada pedido. La página de
+  clientes lo ve al instante (y revisa cada 30 s por si acaso).
+- Preparar (una vez): ejecuta supabase/cupo-en-linea.sql en Supabase → SQL
+  Editor → Run. Necesita la cuenta de caja o dueño conectada en cocina
+  ("⭐ Clientes leales"), igual que los pedidos web.
+- La barra del cupo en cocina dice "🌐 visible en la página de clientes" o el
+  motivo por el que no se publicó.
+
+=========== HORA DE ENTREGA Y FOTOS EN CREAR PEDIDO (2026-11-03) ===========
+- Formulario del cliente: "Hora de entrega (opcional)". Muestra horas cada
+  15 minutos dentro del horario de atención, desde 30 minutos después de
+  ahora (si está cerrado: desde la apertura). Por defecto "Lo antes posible".
+- La hora llega en el mensaje de WhatsApp, en el pedido web, en la tarjeta del
+  pedido ("🕒 Entregar: …") y en la comanda impresa ("ENTREGAR: …").
+- Crear pedido (cocina): usa las fotos del menú publicado (menu.json), las
+  mismas que ve el cliente.
+- Nota fuera de horario: se quitó "Puedes pedir igual".
+
+=========== RECIBO DE CIERRE DEL DÍA (2026-11-03) ===========
+- En "Facturación del día" (cocina) y "Contabilidad del día" (dueños):
+  botón "🧾 Imprimir cierre del día" (impresora térmica 80 mm) y "Descargar PDF".
+- Usa la fecha elegida arriba. Incluye: logo, SMASH, fecha y hora de impresión,
+  vendido producto por producto (cantidad y valor), total en productos,
+  descuentos, domicilios, total vendido, margen bruto (ventas de producto −
+  costo de producto) y al final "Paso a paso se construye el camino".
+- El costo sale de las recetas/costos del panel de dueños de ESE equipo. Si un
+  producto no tiene costo registrado, el recibo lo avisa.
