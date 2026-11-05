@@ -72,6 +72,7 @@
         <div class="kv"><span>Actualizado</span><span>${esc(fecha(i.actualizado))}</span></div>
         ${i.stock < 0 ? '<p class="hint neg" style="margin:0">Existencia negativa: registra la compra que falta o haz un conteo físico.</p>' : ''}
         <div class="mod-actions">
+          <button type="button" class="ing-recargar${e.k === 'agotado' || e.k === 'bajo' ? ' urge' : ''}" data-ing="recargar" data-id="${esc(i.id)}">➕ Recargar</button>
           <button type="button" data-ing="edit" data-id="${esc(i.id)}">✏️ Editar</button>
           <button type="button" data-ing="toggle" data-id="${esc(i.id)}">${i.activo === false ? 'Activar' : 'Desactivar'}</button>
           ${uso ? '' : `<button type="button" data-ing="del" data-id="${esc(i.id)}">🗑️</button>`}
@@ -128,6 +129,8 @@
       $('ingBox').open = true;
       $('ingBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
       $('ingNombre').focus();
+    } else if (b.dataset.ing === 'recargar') {
+      recargar(i);
     } else if (b.dataset.ing === 'toggle') {
       tryDo($('ingMsg'), () => { I.setActivo(i.id, i.activo === false); renderInv(); });
     } else if (b.dataset.ing === 'del') {
@@ -135,6 +138,40 @@
       tryDo($('ingMsg'), () => { I.eliminarIngrediente(i.id); renderInv(); });
     }
   });
+
+  /* ---- Recargar un insumo (agotado o no): es una compra, queda en el historial ---- */
+  function recargar(i) {
+    const e = I.estado(i);
+    SmashUI.modal('Recargar ' + esc(i.nombre),
+      `<p class="hint">Hay <b>${esc(q(i.stock, i.unidad))}</b> (${esc(e.n.toLowerCase())}). Escribe lo que entró: se suma a lo que hay${i.activo === false ? ' y el insumo vuelve a quedar activo' : ''}.</p>
+       <div class="rec-grid">
+         <label>Cantidad que entró<input id="recCant" type="number" min="0" step="any" inputmode="decimal" autofocus></label>
+         <label>Unidad<select id="recUnidad">${unitOpts(I.unidadesDe(i.unidad), i.unidad)}</select></label>
+         <label>Precio total pagado (COP)<input id="recTotal" type="number" min="0" step="any" inputmode="decimal" placeholder="Vacío = costo actual"></label>
+         <label>Fecha<input id="recFecha" type="date" value="${S.today()}"></label>
+         <label class="wide">Proveedor<input id="recProv" list="provList" maxlength="80" value="${esc(i.proveedor || '')}"></label>
+       </div>
+       <p class="hint" id="recCalc" style="margin:6px 0 0"></p>
+       <p class="error" id="recErr"></p>`,
+      (m) => {
+        const v = (id) => m.querySelector('#' + id).value;
+        try {
+          // Sin precio: se usa el costo actual, para no dejar el insumo en $0
+          const total = v('recTotal') === '' ? Math.round(i.costo * I.aBase(parseFloat(v('recCant')) || 0, v('recUnidad'))) : v('recTotal');
+          const mv = I.registrarCompra({ ingId: i.id, cantidad: v('recCant'), unidad: v('recUnidad'), precioTotal: total, fecha: v('recFecha'), proveedor: v('recProv'), obs: 'Recarga' }, POR);
+          if (i.activo === false) I.setActivo(i.id, true);
+          flash($('ingMsg'), true, '✓ ' + mv.ingNombre + ' recargado: +' + nq(mv.cantOrig) + ' ' + mv.unidadOrig + '. Ahora hay ' + q(I.getIngrediente(i.id).stock, i.unidad) + '.');
+          renderInv();
+        } catch (x) { m.querySelector('#recErr').textContent = x.message; return false; }
+      }, 'Recargar');
+    const calc = () => {
+      const box = document.querySelector('.smash-modal'); if (!box) return;
+      const c = parseFloat(box.querySelector('#recCant').value), u = box.querySelector('#recUnidad').value;
+      box.querySelector('#recCalc').textContent = c > 0 ? 'Quedarán ' + q(i.stock + I.aBase(c, u), i.unidad) + '.' : '';
+    };
+    const box = document.querySelector('.smash-modal');
+    if (box) { box.addEventListener('input', calc); box.querySelector('#recCant').focus(); }
+  }
 
   $('ingForm').addEventListener('submit', (e) => {
     e.preventDefault();

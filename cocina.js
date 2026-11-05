@@ -14,16 +14,29 @@
   const num = (o) => o.numeroDia || o.id;
 
   /* ============== LOGIN DE PERSONAL ============== */
-  $('staffLoginForm').addEventListener('submit', (e) => {
+  $('staffLoginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const usuario = $('staffUsuario').value.trim();
     const password = $('staffPassword').value;
-    const err = $('staffError');
+    const err = $('staffError'), btn = e.target.querySelector('button[type=submit]');
     err.textContent = '';
 
     const res = SmashDB.loginStaff(usuario, password);
-    if (!res.ok) { err.textContent = res.error; return; }
-    enterDashboard(res.user);
+    const Sy = typeof SmashSync !== 'undefined' ? SmashSync : null;
+    if (res.ok) {
+      if (Sy) Sy.entrarConNube('caja', usuario, password);   // conecta la nube solo, sin esperar
+      enterDashboard(res.user);
+      return;
+    }
+    // Equipo nuevo: el usuario puede existir en la nube aunque aquí todavía no
+    if (!Sy || typeof SmashNube === 'undefined' || !SmashNube.ok) { err.textContent = res.error; return; }
+    btn.disabled = true; err.textContent = 'Buscando tu usuario en la nube…';
+    const r = await Sy.entrarConNube('caja', usuario, password);
+    let res2 = res;
+    if (r.ok) res2 = SmashDB.loginStaff(usuario, password);   // la nube ya trajo los usuarios
+    btn.disabled = false;
+    if (res2.ok) { err.textContent = ''; enterDashboard(res2.user); return; }
+    err.textContent = r.ok ? res.error : r.error;
   });
 
   $('staffLogoutBtn').addEventListener('click', () => {

@@ -429,21 +429,39 @@ const SmashNube = (function () {
   }
 
   /* ---------------- Datos del negocio en vivo ----------------
-     Tablas "datos" y "datos_aviso" (supabase/datos-en-vivo.sql). Las usa sincronizar.js. */
-  const errDatos = (e) => (faltaTablaImp(e && e.message) || /guardar_dato/i.test((e && e.message) || '') && /function|exist/i.test((e && e.message) || '')
-    ? 'falta ejecutar supabase/datos-en-vivo.sql en Supabase' : errorTxt(e));
+     Tablas "datos" y "datos_aviso" (supabase/datos-en-vivo.sql). Las usa sincronizar.js.
+     Cada equipo entra a la nube con el mismo usuario y clave del panel: la nube le da
+     una llave de acceso (60 días) que se guarda solo en este equipo. */
+  const LS_PANEL = 'nube_panel';
+  const panelSesion = () => { try { const v = JSON.parse(localStorage.getItem(LS_PANEL) || 'null'); return v && v.token ? v : null; } catch (e) { return null; } };
+  const panelSalir = () => { const s = panelSesion(); try { localStorage.removeItem(LS_PANEL); } catch (e) { /* nada */ } if (ok && s) sb.rpc('panel_salir', { p_token: s.token }).then(() => {}, () => {}); };
+  const tok = () => { const s = panelSesion(); return s ? s.token : null; };
+  const errDatos = (e) => {
+    const m = String((e && e.message) || '');
+    if (/sin-acceso/.test(m)) return 'sin-acceso';
+    if (faltaTablaImp(m) || /could not find the function|function .* does not exist/i.test(m)) return 'falta ejecutar supabase/datos-en-vivo.sql en Supabase';
+    return errorTxt(e);
+  };
+  async function panelEntrar(tipo, usuario, clave, equipo) {
+    if (!ok) return sinNube();
+    const { data, error } = await sb.rpc('panel_entrar', { p_tipo: tipo, p_usuario: String(usuario || ''), p_clave: String(clave || ''), p_equipo: String(equipo || '').slice(0, 60) });
+    if (error) return { ok: false, error: errDatos(error) };
+    if (!data || !data.ok) return { ok: false, error: (data && data.error) || 'No se pudo entrar a la nube.' };
+    try { localStorage.setItem(LS_PANEL, JSON.stringify({ token: data.token, rol: data.rol, usuario: String(usuario).trim().toLowerCase(), nombre: data.nombre, en: new Date().toISOString() })); } catch (e) { /* sin espacio */ }
+    return { ok: true, rol: data.rol, nombre: data.nombre };
+  }
   async function datosAvisos() {
-    const { data, error } = await sb.from('datos_aviso').select('clave,version,equipo,actualizado');
+    const { data, error } = await sb.rpc('datos_avisos', { p_token: tok() });
     if (error) return { ok: false, error: errDatos(error) };
     return { ok: true, lista: data || [] };
   }
   async function datosLeer(claves) {
-    const { data, error } = await sb.from('datos').select('clave,valor,version').in('clave', claves);
+    const { data, error } = await sb.rpc('datos_leer', { p_token: tok(), p_claves: claves });
     if (error) return { ok: false, error: errDatos(error) };
     return { ok: true, lista: data || [] };
   }
   async function guardarDato(clave, valor, base, equipo, soloDueno) {
-    const { data, error } = await sb.rpc('guardar_dato', { p_clave: clave, p_valor: valor, p_base: base || 0, p_equipo: equipo || '', p_solo_dueno: !!soloDueno });
+    const { data, error } = await sb.rpc('guardar_dato', { p_token: tok(), p_clave: clave, p_valor: valor, p_base: base || 0, p_equipo: equipo || '', p_solo_dueno: !!soloDueno });
     if (error) return { ok: false, error: errDatos(error) };
     return data;   // {ok, version} o {ok:false, conflicto, version, valor}
   }
@@ -456,7 +474,7 @@ const SmashNube = (function () {
   }
 
   return {
-    datosAvisos, datosLeer, guardarDato, seguirDatos,
+    panelEntrar, panelSesion, panelSalir, datosAvisos, datosLeer, guardarDato, seguirDatos,
     subirRespaldo, listarRespaldos, leerRespaldo,
     enviarImpresion, estadoImpresion, tomarImpresion, marcarImpresion, seguirImpresiones,
     guardarCupo, leerCupo, seguirCupo,

@@ -16,14 +16,28 @@
   const num = (o) => o.numeroDia || o.id;
 
   /* ============== ACCESO DE DUEÑOS ============== */
-  $('staffLoginForm').addEventListener('submit', (e) => {
+  $('staffLoginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const err = $('staffError');
+    const err = $('staffError'), btn = e.target.querySelector('button[type=submit]');
     err.textContent = '';
-    const res = SmashExt.loginOwner($('staffUsuario').value, $('staffPassword').value);
+    const correo = $('staffUsuario').value, clave = $('staffPassword').value;
+    const res = SmashExt.loginOwner(correo, clave);
     $('staffPassword').value = '';
-    if (!res.ok) { err.textContent = res.error; return; }
-    enterDashboard(res.email);
+    const Sy = typeof SmashSync !== 'undefined' ? SmashSync : null;
+    if (res.ok) {
+      if (Sy) Sy.entrarConNube('dueno', correo, clave);   // conecta la nube solo, sin esperar
+      enterDashboard(res.email);
+      return;
+    }
+    // Equipo nuevo o clave cambiada en otro equipo: se revisa en la nube
+    if (!Sy || typeof SmashNube === 'undefined' || !SmashNube.ok) { err.textContent = res.error; return; }
+    btn.disabled = true; err.textContent = 'Revisando en la nube…';
+    const r = await Sy.entrarConNube('dueno', correo, clave);
+    let res2 = res;
+    if (r.ok) res2 = SmashExt.loginOwner(correo, clave);   // la nube ya trajo las claves
+    btn.disabled = false;
+    if (res2.ok) { err.textContent = ''; enterDashboard(res2.email); return; }
+    err.textContent = r.ok ? res.error : r.error;
   });
   $('staffLogoutBtn').addEventListener('click', () => { SmashExt.logoutOwner(); location.reload(); });
 

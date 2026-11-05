@@ -130,9 +130,52 @@ const SmashSync = (function () {
   const chip = document.createElement('button');
   chip.type = 'button'; chip.className = 'sync-chip'; chip.hidden = true;
   chip.addEventListener('click', () => {
-    if (estadoMem && estadoMem.k === 'cuenta') { const b = document.querySelector('.nav-btn[data-section="leales"]'); if (b) b.click(); }
+    if (estadoMem && estadoMem.k === 'cuenta') pedirClave();
     else if (lider) revisarTodo();
+    else alert(chip.title);
   });
+  // Panel de dueños o de cocina, y quién está dentro
+  const ES_DUENO = /dueno/.test(location.pathname);
+  function quienEsta() {
+    try {
+      if (ES_DUENO) return typeof SmashExt !== 'undefined' && SmashExt.currentOwner ? SmashExt.currentOwner() : '';
+      const s = typeof SmashDB !== 'undefined' && SmashDB.currentStaff ? SmashDB.currentStaff() : null;
+      return s ? s.usuario : '';
+    } catch (e) { return ''; }
+  }
+  // Conecta la nube con el usuario y clave del panel (se usa al entrar al panel)
+  async function entrarConNube(tipo, usuario, clave) {
+    if (!usable || !N || !N.ok || !N.panelEntrar) return { ok: false, error: 'Sin nube' };
+    const r = await N.panelEntrar(tipo, usuario, clave, equipo());
+    if (r.ok) {
+      const t0 = Date.now();
+      if (lider) await iniciar();
+      else {                                        // otra pestaña sincroniza: se espera a que termine (máx. 10 s)
+        lsSet('sync_reintentar', t0);
+        for (let i = 0; i < 40; i++) { const e = lsGet(LS_EST, null); if (e && e.k === 'ok' && new Date(e.en).getTime() >= t0) break; await new Promise((ok) => setTimeout(ok, 250)); }
+      }
+    } else if (!rol) estado('cuenta', 'Conectar nube', { detalle: r.error });
+    return r;
+  }
+  // Para quien ya estaba dentro del panel antes de esta versión: confirma su clave una sola vez
+  function pedirClave() {
+    const u = quienEsta();
+    if (!u || typeof SmashUI === 'undefined') { alert(chip.title); return; }
+    SmashUI.modal('Conectar este equipo a la nube',
+      `<p class="hint">Escribe la clave con la que entras al panel. Se pide una sola vez: después este equipo guarda y recibe los datos solo.</p>
+       <label class="ed-wide">Usuario<input value="${String(u).replace(/"/g, '&quot;')}" disabled></label>
+       <label class="ed-wide">Clave<input type="password" id="syncClave" autocomplete="current-password"></label>
+       <p class="error" id="syncErr"></p>`,
+      (m) => {
+        const btn = m.querySelector('.sm-save'), err = m.querySelector('#syncErr');
+        btn.disabled = true; btn.textContent = 'Conectando…';
+        entrarConNube(ES_DUENO ? 'dueno' : 'caja', u, m.querySelector('#syncClave').value).then((r) => {
+          if (r.ok) SmashUI.closeModal();
+          else { err.textContent = r.error; btn.disabled = false; btn.textContent = 'Conectar'; }
+        });
+        return false;
+      }, 'Conectar');
+  }
   function montarChip() {
     const top = document.querySelector('.topbar');
     if (top && !chip.isConnected) { const ub = top.querySelector('.top-links'); top.insertBefore(chip, ub || null); }
@@ -208,7 +251,11 @@ const SmashSync = (function () {
       estado('ok', pend ? 'Subiendo cambios…' : 'En la nube · al día');
     } catch (e) {
       const m = String((e && e.message) || e);
-      if (/sin conexi|failed to fetch|network/i.test(m) || !navigator.onLine) estado('pend', 'Sin internet · se sube al volver', { detalle: m });
+      if (m === 'sin-acceso') {                       // la llave venció o fue retirada: hay que volver a entrar
+        if (N.panelSalir) N.panelSalir();
+        rol = ''; if (dejar) { dejar(); dejar = null; }
+        estado('cuenta', 'Conectar nube', { detalle: 'La conexión de este equipo con la nube venció. Toca aquí y escribe tu clave.' });
+      } else if (/sin conexi|failed to fetch|network/i.test(m) || !navigator.onLine) estado('pend', 'Sin internet · se sube al volver', { detalle: m });
       else estado('error', 'Revisar nube', { detalle: m });
     } finally {
       ocupado = false;
@@ -236,17 +283,25 @@ const SmashSync = (function () {
   }
 
   /* ---------------- 5. Arranque ---------------- */
+  // Quién es este equipo en la nube: la llave que dio la nube al entrar al panel,
+  // o (como antes) la cuenta de caja/dueño conectada en "⭐ Clientes leales".
+  async function acceso() {
+    const s = N.panelSesion && N.panelSesion();
+    if (s && (s.rol === 'caja' || s.rol === 'dueno')) return s.rol;
+    const p = await N.perfil().catch(() => null);
+    return p && (p.rol === 'caja' || p.rol === 'dueno') ? p.rol : '';
+  }
   async function iniciar() {
     if (!usable) { estado('off', 'Sin sincronizar', { detalle: 'Este navegador no permite el almacén de datos.' }); return; }
     if (!N || !N.ok) { estado('off', 'Sin nube', { detalle: 'Este equipo no está conectado a la nube.' }); return; }
-    const p = await N.perfil().catch(() => null);
-    if (!p || (p.rol !== 'caja' && p.rol !== 'dueno')) {
+    const r = await acceso();
+    if (!r) {
       rol = '';
       if (dejar) { dejar(); dejar = null; }
-      estado('cuenta', 'Conectar nube', { detalle: p ? 'La cuenta conectada (' + (p.correo || '') + ') es de cliente. Conecta la cuenta de caja o dueño en "⭐ Clientes leales".' : 'Conecta la cuenta de caja o dueño en "⭐ Clientes leales" para que los datos se guarden en la nube.' });
+      estado('cuenta', 'Conectar nube', { detalle: 'Entra al panel con tu usuario y clave: la nube se conecta sola. Si ya estás dentro, toca aquí.' });
       return;
     }
-    const cambio = rol !== p.rol; rol = p.rol;
+    const cambio = rol !== r; rol = r;
     if (cambio || !dejar) {
       if (dejar) dejar();
       dejar = N.seguirDatos((av) => { if (sincroniza(av.clave) && av.version > (meta()[av.clave] || 0)) pedirBajar(av.clave); });
@@ -263,10 +318,12 @@ const SmashSync = (function () {
     window.addEventListener('online', () => { if (rol) revisarTodo(); else iniciar(); });
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && rol) revisarTodo(); });
     if (N && N.alCambiar) N.alCambiar(() => iniciar());
+    // Otra pestaña de este equipo entró al panel y conectó la nube
+    window.addEventListener('storage', (e) => { if (e.key === 'nube_panel' || e.key === 'sync_reintentar') iniciar(); });
   }
   if (navigator.locks && navigator.locks.request) navigator.locks.request('smash-sync', () => new Promise(() => comoLider()));
   else comoLider();
   pintar();
 
-  return { estado: () => estadoMem, revisarTodo, iniciar, _merge: merge3, _fusionar: fusionar };
+  return { estado: () => estadoMem, revisarTodo, iniciar, entrarConNube, _merge: merge3, _fusionar: fusionar };
 })();

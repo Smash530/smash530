@@ -519,6 +519,14 @@ body.od-open{overflow:hidden}
   .soc-bar span{display:none}
 }
 
+/* ================= RECARGAR INSUMO ================= */
+.ing-recargar{font-weight:700}
+.ing-recargar.urge{background:var(--red)!important;color:#fff!important;border-color:var(--red)!important}
+.rec-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+.rec-grid label{display:flex;flex-direction:column;gap:5px;font-size:.82rem;font-weight:600}
+.rec-grid .wide{grid-column:1/-1}
+@media (max-width:520px){.rec-grid{grid-template-columns:1fr}}
+
 /* ================= SINCRONIZACIÓN EN VIVO ================= */
 .sync-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--card-2);color:var(--text);border-radius:999px;padding:6px 12px 6px 9px;font:600 .78rem/1 inherit;font-family:inherit;cursor:pointer;white-space:nowrap;max-width:240px}
 .sync-chip .t{overflow:hidden;text-overflow:ellipsis}
