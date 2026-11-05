@@ -53,11 +53,60 @@ const SmashExt = (function () {
     const d = new Date(iso);
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   }
-  function nextDayNumber(orders) {
-    const hoy = localDay(new Date().toISOString());
-    const del = orders.filter((o) => localDay(o.creado) === hoy);
-    const max = del.reduce((m, o) => Math.max(m, o.numeroDia || 0), 0);
+  /* ---- Día de servicio de un pedido ----
+     Normalmente es el día en que se creó. Una reserva hecha DESPUÉS del cierre
+     (ej. a las 22:30) es para despachar al día siguiente: pertenece a ese día,
+     lleva su numeración y su cronómetro arranca a la hora de apertura. */
+  const minHora = (s) => { const p = String(s || '').split(':'); return (+p[0] || 0) * 60 + (+p[1] || 0); };
+  const sumarDia = (dia, n) => { const d = new Date(dia + 'T12:00:00'); d.setDate(d.getDate() + n); return localDay(d.toISOString()); };
+  function diaServicio(o) {
+    if (!o || !o.creado) return '';
+    if (o.diaServicio) return o.diaServicio;
+    const dia = localDay(o.creado);
+    if (!o.reserva) return dia;
+    const h = getHorario();
+    if (minHora(h.cierra) <= minHora(h.abre)) return dia;          // cierra después de medianoche
+    const c = new Date(o.creado);
+    return c.getHours() * 60 + c.getMinutes() >= minHora(h.cierra) ? sumarDia(dia, 1) : dia;
+  }
+  // Desde cuándo corre el cronómetro: una reserva cuenta desde que abre la cocina
+  function inicioPedido(o) {
+    if (!o || !o.creado || !o.reserva) return o ? o.creado : '';
+    const dia = diaServicio(o), a = minHora(getHorario().abre);
+    const abre = new Date(dia + 'T00:00:00');
+    abre.setHours(Math.floor(a / 60), a % 60, 0, 0);
+    return abre.getTime() > new Date(o.creado).getTime() ? abre.toISOString() : o.creado;
+  }
+  function nextDayNumber(orders, dia) {
+    dia = dia || localDay(new Date().toISOString());
+    const del = orders.filter((o) => diaServicio(o) === dia);
+    const max = del.reduce((m, o) => Math.max(m, Number(o.numeroDia) || 0), 0);
     return Math.max(del.length, max) + 1;
+  }
+  /* Corrige números de pedido mal puestos en el día de hoy:
+     - reservas de anoche que conservaban el número de ayer (ej. #29)
+     - números fuera de serie que dejó la sincronización entre dos equipos
+     No toca otros días. Devuelve cuántos pedidos se corrigieron. */
+  function arreglarNumerosHoy() {
+    const K = SmashDB.KEYS;
+    const orders = rd(K.ORDERS, []);
+    const hoyD = localDay(new Date().toISOString());
+    const del = orders.filter((o) => diaServicio(o) === hoyD).sort((a, b) => new Date(a.creado) - new Date(b.creado));
+    if (!del.length) return 0;
+    const malos = del.filter((o) => {
+      if (o.reserva && localDay(o.creado) !== hoyD && !o.diaServicio) return true;      // reserva de anoche con número de ayer
+      return !(Number(o.numeroDia) >= 1) || Number(o.numeroDia) > del.length + 2;          // número fuera de serie
+    });
+    if (!malos.length) return 0;
+    const usados = new Set(del.filter((o) => malos.indexOf(o) < 0).map((o) => Number(o.numeroDia)));
+    let n = 1;
+    malos.forEach((o) => {
+      while (usados.has(n)) n++;
+      o.numeroDia = n; usados.add(n);
+      if (localDay(o.creado) !== hoyD) o.diaServicio = hoyD;
+    });
+    wr(K.ORDERS, orders);
+    return malos.length;
   }
   function addOrder(d) {
     const K = SmashDB.KEYS;
@@ -66,7 +115,8 @@ const SmashExt = (function () {
       const dup = orders.find((o) => o.ref === d.ref);
       if (dup) return { ok: false, dup: true, order: dup };
     }
-    const seq = (rd(K.ORDER_SEQ, 0) || 0) + 1;
+    // nunca repite un número interno ya usado (otro equipo pudo crear pedidos con su propio contador)
+    const seq = Math.max(rd(K.ORDER_SEQ, 0) || 0, orders.reduce((m, o) => (typeof o.id === "number" && o.id > m ? o.id : m), 0)) + 1;
     wr(K.ORDER_SEQ, seq);
     const subtotal = d.items.reduce((s, it) => s + it.price * it.qty, 0);
     const domicilio = Number(d.domicilio) || 0;
@@ -74,7 +124,7 @@ const SmashExt = (function () {
     const descuento = Math.min(subtotal, Math.max(0, Math.round(Number(d.descuento) || 0)));
     const order = {
       id: seq,
-      numeroDia: nextDayNumber(orders),
+      numeroDia: 0,
       clienteUsuario: '',
       cliente: d.cliente,
       telefono: d.telefono || '',
@@ -103,6 +153,7 @@ const SmashExt = (function () {
     if (d.horaEntrega) order.horaEntrega = String(d.horaEntrega).slice(0, 40);
     if (descuento) { order.descuento = descuento; order.descuentos = (d.descuentos || []).map((x) => ({ motivo: 'Promo cliente leal: ' + String(x.titulo || x.motivo || '').slice(0, 80), valor: Math.round(Number(x.valor) || 0) })); }
     if (d.cuenta && d.cuenta.correo) order.cuenta = { usuario: String(d.cuenta.usuario || '').slice(0, 30), correo: String(d.cuenta.correo).toLowerCase().slice(0, 120) };
+    { const dia = diaServicio(order); if (dia !== localDay(order.creado)) order.diaServicio = dia; order.numeroDia = nextDayNumber(orders, dia); }
     orders.push(order);
     wr(K.ORDERS, orders);
     return { ok: true, order };
@@ -512,7 +563,7 @@ const SmashExt = (function () {
   }
 
   return {
-    getZones, setZoneFees, getZonasCfg, saveZonasCfg, addOrder, localDay, getCupoRaw, setCupo, cupoHoy, buildMenu, loadMenu,
+    getZones, setZoneFees, getZonasCfg, saveZonasCfg, addOrder, localDay, diaServicio, inicioPedido, nextDayNumber, arreglarNumerosHoy, getCupoRaw, setCupo, cupoHoy, buildMenu, loadMenu,
     setStatus, updateOrder, getRepartidores, rememberRepartidor, soundOn, setSound, unlockAudio, audioReady, chime,
     refreshLedger, getLedger, deleteOrder, getDeletedOrders, DIAS, getPersonal, addPersonal, deletePersonal, antiguedad,
     hashPassword, loginOwner, currentOwner, logoutOwner, changeOwnerPassword, OWNER_DEF,

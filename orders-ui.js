@@ -18,9 +18,11 @@ const SmashUI = (function () {
     return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
   };
   const cls = (ms, done) => 'timer ' + (done ? 'done' : ms < 15 * 60000 ? 'ok' : ms < 25 * 60000 ? 'warn' : 'late');
+  // una reserva cuenta desde que abre la cocina, no desde la noche anterior
+  const inicio = (o) => (SmashExt.inicioPedido ? SmashExt.inicioPedido(o) : o.creado);
   function timerHtml(o) {
-    const ms = (o.entregadoEn ? new Date(o.entregadoEn).getTime() : Date.now()) - new Date(o.creado).getTime();
-    return `<span class="${cls(ms, !!o.entregadoEn)}" data-since="${esc(o.creado)}" data-until="${esc(o.entregadoEn || '')}">⏱ ${fmtMs(ms)}</span>`;
+    const ms = (o.entregadoEn ? new Date(o.entregadoEn).getTime() : Date.now()) - new Date(inicio(o)).getTime();
+    return `<span class="${cls(ms, !!o.entregadoEn)}" data-since="${esc(inicio(o))}" data-until="${esc(o.entregadoEn || '')}">⏱ ${fmtMs(ms)}</span>`;
   }
   function tick() {
     document.querySelectorAll('.timer[data-since]').forEach((el) => {

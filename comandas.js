@@ -27,7 +27,7 @@ const SmashComandas = (function () {
   const valido = (o) => o.status !== 'cancelado';
   const vigentes = (orders) => orders.filter(valido);
   // Número de comanda único: AAMMDD-NN (fecha local + número del día)
-  const codigo = (o) => SmashExt.localDay(o.creado).replace(/-/g, '').slice(2) + '-' + String(o.numeroDia || o.id).padStart(2, '0');
+  const codigo = (o) => (SmashExt.diaServicio ? SmashExt.diaServicio(o) : SmashExt.localDay(o.creado)).replace(/-/g, '').slice(2) + '-' + String(o.numeroDia || o.id).padStart(2, '0');
 
   // Valor de productos, adicionales, descuentos y domicilio, siempre por separado
   function desglose(o) {

@@ -17,21 +17,10 @@ const SmashLista = (function () {
   const hoy = () => SmashExt.localDay(new Date().toISOString());
   const diaMas = (dia, n) => { const d = new Date(dia + 'T12:00:00'); d.setDate(d.getDate() + n); return SmashExt.localDay(d.toISOString()); };
   const diaTxt = (dia) => new Date(dia + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  /* "Pedidos" muestra solo los hechos hoy. Los de días anteriores pasan al historial
-     (sus datos no se borran). Única excepción: una reserva que llegó ayer DESPUÉS de
-     la hora de cierre (ej. 22:00) es para despachar hoy. */
-  const minDe = (hhmm) => { const p = String(hhmm || '').split(':'); return (+p[0] || 0) * 60 + (+p[1] || 0); };
-  const reservaParaHoy = (o) => {
-    if (!o.reserva || SmashExt.localDay(o.creado) !== diaMas(hoy(), -1)) return false;
-    const h = SmashExt.getHorario ? SmashExt.getHorario() : null;
-    if (!h || minDe(h.cierra) <= minDe(h.abre)) return false;   // cierra después de medianoche: lo de ayer ya era de ayer
-    const d = new Date(o.creado);
-    return d.getHours() * 60 + d.getMinutes() >= minDe(h.cierra);
-  };
-  const enCursoHoy = (o) => {
-    if (EN_CURSO.indexOf(o.status) < 0) return false;
-    return SmashExt.localDay(o.creado) === hoy() || reservaParaHoy(o);
-  };
+  /* "Pedidos" muestra solo los pedidos del día de servicio de hoy. Los de días anteriores
+     pasan al historial (sus datos no se borran). Una reserva hecha anoche después del
+     cierre es del día siguiente: aparece hoy con número de hoy (ver SmashExt.diaServicio). */
+  const enCursoHoy = (o) => EN_CURSO.indexOf(o.status) > -1 && SmashExt.diaServicio(o) === hoy();
   const S ={ filtro: '', buscar: '', finDia: hoy(), finTipo: 'entregado', finBuscar: '', abierto: null, firma: '' };
 
   const coincide = (o, t) => !t || [o.cliente, o.telefono, o.direccion, o.zona, o.ref, '#' + (o.numeroDia || o.id), o.repartidor].join(' ').toLowerCase().includes(t);
@@ -60,7 +49,7 @@ const SmashLista = (function () {
   function renderVentasHoy() {
     if (!$('vhKpis')) return;
     const dia = hoy();
-    const ped = SmashDB.getOrders().filter((o) => SmashExt.localDay(o.creado) === dia && C.valido(o));
+    const ped = SmashDB.getOrders().filter((o) => SmashExt.diaServicio(o) === dia && C.valido(o));
     const productos = SmashDB.getProducts();
     const por = {};
     let unidades = 0, burgers = 0;
@@ -129,7 +118,7 @@ const SmashLista = (function () {
     montarFinalizados();
     if (!$('fnList')) return;
     // Todos los pedidos del día elegido; los que siguen en curso de días pasados salen como "Sin cerrar"
-    const delDia = SmashDB.getOrders().filter((o) => SmashExt.localDay(o.creado) === S.finDia && (o.status === 'entregado' || o.status === 'cancelado' || !enCursoHoy(o)));
+    const delDia = SmashDB.getOrders().filter((o) => SmashExt.diaServicio(o) === S.finDia && (o.status === 'entregado' || o.status === 'cancelado' || !enCursoHoy(o)));
     const ent = delDia.filter((o) => o.status === 'entregado'), can = delDia.filter((o) => o.status === 'cancelado');
     const abiertos = delDia.filter((o) => EN_CURSO.indexOf(o.status) > -1);
     const chips = [['entregado', 'Entregados', ent.length], ['cancelado', 'Cancelados', can.length]];
@@ -204,6 +193,7 @@ const SmashLista = (function () {
   }, true);   // antes que la ventana emergente: Escape cierra primero la ventana y luego la ficha
 
   function render() {
+    try { SmashExt.arreglarNumerosHoy(); } catch (e) { /* sin datos */ }
     renderActivos();
     renderFinalizados();
     pintarDrawer();

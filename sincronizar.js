@@ -94,10 +94,12 @@ const SmashSync = (function () {
     if (choques.length) {
       let maxId = out.reduce((m, x) => (typeof x.id === 'number' && x.id > m ? x.id : m), 0);
       choques.forEach((x) => {
+        if (x.ref && out.some((o) => o.ref === x.ref)) return;                                     // el mismo pedido web lo recibieron los dos equipos: queda uno
         const n = Object.assign({}, x, { id: ++maxId });
         if (x.numeroDia != null && x.creado) {
-          const dia = String(x.creado).slice(0, 10);
-          n.numeroDia = out.filter((o) => String(o.creado || '').slice(0, 10) === dia).reduce((m, o) => Math.max(m, Number(o.numeroDia) || 0), 0) + 1;
+          const E = typeof SmashExt !== "undefined" && SmashExt.diaServicio ? SmashExt : null;
+          const dia = E ? E.diaServicio(x) : String(x.creado).slice(0, 10);
+          n.numeroDia = E ? E.nextDayNumber(out, dia) : out.filter((o) => String(o.creado || "").slice(0, 10) === dia).reduce((m, o) => Math.max(m, Number(o.numeroDia) || 0), 0) + 1;
         }
         out.push(n);
       });
