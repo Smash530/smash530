@@ -17,13 +17,20 @@ const SmashLista = (function () {
   const hoy = () => SmashExt.localDay(new Date().toISOString());
   const diaMas = (dia, n) => { const d = new Date(dia + 'T12:00:00'); d.setDate(d.getDate() + n); return SmashExt.localDay(d.toISOString()); };
   const diaTxt = (dia) => new Date(dia + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  /* "Pedidos" muestra solo los del día. Los de días anteriores pasan al historial
-     (sus datos no se borran). Excepción: una reserva que llegó ayer fuera de horario
-     es para hoy, así que sigue apareciendo. */
+  /* "Pedidos" muestra solo los hechos hoy. Los de días anteriores pasan al historial
+     (sus datos no se borran). Única excepción: una reserva que llegó ayer DESPUÉS de
+     la hora de cierre (ej. 22:00) es para despachar hoy. */
+  const minDe = (hhmm) => { const p = String(hhmm || '').split(':'); return (+p[0] || 0) * 60 + (+p[1] || 0); };
+  const reservaParaHoy = (o) => {
+    if (!o.reserva || SmashExt.localDay(o.creado) !== diaMas(hoy(), -1)) return false;
+    const h = SmashExt.getHorario ? SmashExt.getHorario() : null;
+    if (!h || minDe(h.cierra) <= minDe(h.abre)) return false;   // cierra después de medianoche: lo de ayer ya era de ayer
+    const d = new Date(o.creado);
+    return d.getHours() * 60 + d.getMinutes() >= minDe(h.cierra);
+  };
   const enCursoHoy = (o) => {
     if (EN_CURSO.indexOf(o.status) < 0) return false;
-    const d = SmashExt.localDay(o.creado);
-    return d === hoy() || (o.reserva && d === diaMas(hoy(), -1));
+    return SmashExt.localDay(o.creado) === hoy() || reservaParaHoy(o);
   };
   const S ={ filtro: '', buscar: '', finDia: hoy(), finTipo: 'entregado', finBuscar: '', abierto: null, firma: '' };
 
