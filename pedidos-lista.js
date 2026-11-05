@@ -25,6 +25,11 @@ const SmashLista = (function () {
     if (!root || root.dataset.ok) return;
     root.dataset.ok = '1';
     root.innerHTML = `
+      <details class="vh-box" id="vhBox" open>
+        <summary><span class="vh-tit">📊 Ventas de hoy</span><span class="vh-res" id="vhRes"></span></summary>
+        <div class="fn-kpis" id="vhKpis"></div>
+        <div class="vh-prods" id="vhProds"></div>
+      </details>
       <div class="ol-bar">
         <div class="ol-chips" id="olChips" role="tablist"></div>
         <input type="search" id="olBuscar" class="ol-search" placeholder="Buscar cliente, teléfono, # …" aria-label="Buscar pedido">
@@ -34,9 +39,41 @@ const SmashLista = (function () {
     $('olChips').addEventListener('click', (e) => { const b = e.target.closest('[data-f]'); if (!b) return; S.filtro = b.dataset.f; render(); });
     $('olBuscar').addEventListener('input', (e) => { S.buscar = e.target.value.trim().toLowerCase(); render(); });
   }
+  /* Ventas de hoy: productos vendidos en el día (sin cancelados) */
+  function renderVentasHoy() {
+    if (!$('vhKpis')) return;
+    const dia = hoy();
+    const ped = SmashDB.getOrders().filter((o) => SmashExt.localDay(o.creado) === dia && C.valido(o));
+    const productos = SmashDB.getProducts();
+    const por = {};
+    let unidades = 0, burgers = 0;
+    ped.forEach((o) => (o.items || []).forEach((it) => {
+      const q = Number(it.qty) || 0;
+      const p = productos.find((x) => x.id === it.id);
+      const k = it.id || it.name;
+      if (!por[k]) por[k] = { nombre: (p && p.name) || it.name || k, qty: 0, valor: 0 };
+      por[k].qty += q;
+      por[k].valor += q * (Number(it.price) || 0);
+      unidades += q;
+      if (p && p.categoria === 'hamburguesa') burgers += q;
+    }));
+    const vendido = ped.reduce((s, o) => s + (o.total || 0), 0);
+    $('vhRes').textContent = `${unidades} productos · ${fmt(vendido)}`;
+    $('vhKpis').innerHTML = `
+      <div class="fn-kpi"><small>Productos vendidos</small><b>${unidades}</b></div>
+      <div class="fn-kpi"><small>Hamburguesas</small><b>${burgers}</b></div>
+      <div class="fn-kpi"><small>Pedidos</small><b>${ped.length}</b></div>
+      <div class="fn-kpi"><small>Vendido hoy</small><b>${fmt(vendido)}</b></div>`;
+    const filas = Object.values(por).sort((a, b) => b.qty - a.qty);
+    $('vhProds').innerHTML = filas.length
+      ? filas.map((f) => `<div class="vh-prod"><b>${f.qty}</b><span>${esc(f.nombre)}</span><small>${fmt(f.valor)}</small></div>`).join('')
+      : '<p class="hint" style="margin:0">Todavía no hay ventas hoy.</p>';
+  }
+
   function renderActivos() {
     montarActivos();
     if (!$('olList')) return;
+    renderVentasHoy();
     const todos = SmashDB.getOrders().filter((o) => EN_CURSO.indexOf(o.status) > -1);
     $('olChips').innerHTML = FILTROS.map(([k, n]) => {
       const c = k ? todos.filter((o) => o.status === k).length : todos.length;

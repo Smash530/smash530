@@ -181,6 +181,22 @@ details.import-box textarea{border-radius:10px;border:1px solid var(--border-2)}
 .fn-kpi b{font-size:1.25rem;font-weight:800;letter-spacing:-.02em}
 .fn-kpi.bad b{color:var(--danger)}
 
+/* Pedidos: ventas de hoy */
+.vh-box{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:4px 14px;margin-bottom:14px}
+.vh-box>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;cursor:pointer;list-style:none}
+.vh-box>summary::-webkit-details-marker{display:none}
+.vh-box>summary::after{content:"▾";color:var(--muted);transition:transform .15s}
+.vh-box:not([open])>summary::after{transform:rotate(-90deg)}
+.vh-tit{font-weight:700}
+.vh-res{margin-left:auto;color:var(--muted);font-size:.85rem;font-weight:600;white-space:nowrap}
+.vh-box .fn-kpis{margin-bottom:10px}
+.vh-box .fn-kpi{box-shadow:none;background:var(--bg)}
+.vh-prods{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;padding-bottom:12px}
+.vh-prod{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;min-width:0}
+.vh-prod b{min-width:34px;text-align:center;font-size:1.05rem;font-weight:800;color:var(--red)}
+.vh-prod span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.vh-prod small{color:var(--muted);white-space:nowrap}
+
 /* ================= PANEL LATERAL DEL PEDIDO ================= */
 .od-wrap{position:fixed;inset:0;z-index:900}
 .od-backdrop{position:absolute;inset:0;background:rgba(17,24,39,.28);animation:odFade .18s ease}
