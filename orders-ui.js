@@ -53,6 +53,7 @@ const SmashUI = (function () {
         ${o.horaEntrega ? `<div class="hora-tag">🕒 Entregar: <b>${esc(o.horaEntrega)}</b></div>` : ''}
         ${o.telefono2 ? `<div class="meta">📞 Ref. domicilio: <a class="otel" href="tel:${esc(String(o.telefono2).replace(/[^\d+]/g, ''))}">${esc(o.telefono2)}</a></div>` : ''}
         ${o.cuenta ? `<div class="leal-tag">⭐ Cliente leal: @${esc(o.cuenta.usuario || '-')} · ${esc(o.cuenta.correo)}${o.puntosSumados ? ` · <b>+${esc(o.puntosSumados)} pts sumados</b>` : ''}</div>` : ''}
+        ${o.cuenta && !o.puntosSumados && o.puntosAviso ? `<div class="leal-tag">⚠ ${esc(o.puntosAviso)}</div>` : ''}
         <div class="oaddr">📍 ${esc(o.direccion || 'sin dirección')}${o.zona ? ` <span class="meta">(${esc(o.zona)})</span>` : ''}</div>
         <div class="items">${items}</div>
         ${o.notas ? `<div class="meta">📝 ${esc(o.notas)}</div>` : ''}
@@ -143,6 +144,7 @@ const SmashUI = (function () {
         <div class="od-addr">📍 ${esc(o.direccion || 'Sin dirección')}${o.zona ? ` <span class="od-mut">· ${esc(o.zona)}</span>` : ''}</div>
         ${o.horaEntrega ? `<div class="od-tag">🕒 Entregar: <b>${esc(o.horaEntrega)}</b></div>` : ''}
         ${o.cuenta ? `<div class="od-tag gold">⭐ Cliente leal @${esc(o.cuenta.usuario || '-')} · ${esc(o.cuenta.correo)}${o.puntosSumados ? ` · +${esc(o.puntosSumados)} pts` : ''}</div>` : ''}
+        ${o.cuenta && !o.puntosSumados && o.puntosAviso ? `<div class="od-tag">⚠ ${esc(o.puntosAviso)}</div>` : ''}
         ${o.repartidor ? `<div class="od-tag">🛵 Repartidor: <b>${esc(o.repartidor)}</b>${o.salioEn ? ' · salió ' + esc(hora(o.salioEn)) : ''}</div>` : ''}
       </section>
 

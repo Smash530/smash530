@@ -78,7 +78,7 @@ const SmashLealesUI = (function () {
         <div class="summary-box"><div class="label">Puntos acumulados</div><div class="value">${clientes.reduce((s, c) => s + (c.puntos || 0), 0).toLocaleString('es-CO')}</div></div>
         <div class="summary-box"><div class="label">Promociones vigentes</div><div class="value">${promos.filter(N.vigente).length}</div></div>
       </div>
-      <p class="hint">Puntos por pedido: hamburguesa 10 · hamburguesa en combo 15 · papas 2 · gaseosa 2 · salsa 1. Se suman con el botón "⭐ Sumar puntos" del pedido.</p>
+      <p class="hint">Puntos por pedido: hamburguesa 10 · hamburguesa en combo 15 · papas 2 · gaseosa 2 · salsa 1. Se suman solos cuando el pedido se marca como Entregado (si falla, queda el botón "⭐ Sumar puntos").</p>
       <div class="date-row"><input type="search" class="leal-q" placeholder="Buscar por usuario, nombre, teléfono, correo o dirección" value="${esc(filtro)}"></div>
       <table class="rtable leal-tabla"><thead><tr><th>Usuario</th><th>Nombre</th><th>Teléfono</th><th>Tel. ref.</th><th>Correo</th><th>Dirección</th><th>Puntos</th><th>Registro</th><th></th></tr></thead><tbody>
       ${ver.map((c) => `<tr>
@@ -302,12 +302,55 @@ const SmashLealesUI = (function () {
     if (!confirm(`¿Sumar ${pts} puntos a ${c.nombre || c.correo} (@${c.usuario || '-'})? Hoy tiene ${c.puntos || 0}.`)) return;
     const r = await N.sumarPuntos(c.id, pts, 'Pedido #' + (o.numeroDia || o.id), o.ref || 'pedido-' + o.id);
     if (!r.ok && !/ya se habían sumado/.test(r.error)) { alert(r.error); return; }
-    SmashExt.updateOrder(o.id, { puntosSumados: r.ok ? pts : (o.puntosSumados || pts), puntosEn: new Date().toISOString() });
+    SmashExt.updateOrder(o.id, { puntosSumados: r.ok ? pts : (o.puntosSumados || pts), puntosEn: new Date().toISOString(), puntosAviso: '' });
     if (r.ok) alert(`✓ ${pts} puntos sumados. Ahora tiene ${r.total}.`); else alert(r.error);
     if (refrescar) refrescar();
     if (root && staff()) cargar();
   }
 
+  /* ---------------- Puntos automáticos al entregar ----------------
+     Cuando un pedido de un cliente con cuenta pasa a "Entregado" (en cocina o dueños)
+     los puntos se suman solos, sin preguntar. La nube no deja sumar dos veces el
+     mismo pedido, así que no importa si varios equipos lo intentan a la vez.
+     Si no se puede (sin cuenta de caja conectada, correo inexistente…) la tarjeta
+     muestra el motivo y queda el botón "⭐ Sumar puntos" para hacerlo a mano. */
+  const enCurso = new Set();
+  const avisar = (o, txt) => { if (o.puntosAviso !== txt) SmashExt.updateOrder(o.id, { puntosAviso: txt }); };
+  async function autoPuntos(o) {
+    if (!o || !o.cuenta || !o.cuenta.correo || o.puntosSumados || o.status !== 'entregado' || o.puntosSinAuto) return;
+    if (enCurso.has(o.id) || !N || !N.ok) return;
+    enCurso.add(o.id);
+    try {
+      if (!staff()) await cargar();
+      if (!staff()) { avisar(o, 'Puntos pendientes: conecta la cuenta de caja o dueño en "⭐ Clientes leales" y se suman solos.'); return; }
+      const pts = N.puntosPedido(o.items, SmashDB.getProductById);
+      if (!pts) { SmashExt.updateOrder(o.id, { puntosSinAuto: true, puntosAviso: 'Este pedido no tiene productos que sumen puntos.' }); return; }
+      const c = await N.buscarPorCorreo(o.cuenta.correo);
+      if (!c) { SmashExt.updateOrder(o.id, { puntosSinAuto: true, puntosAviso: `No existe ninguna cuenta con el correo ${o.cuenta.correo}: no se sumaron puntos.` }); return; }
+      const r = await N.sumarPuntos(c.id, pts, 'Pedido #' + (o.numeroDia || o.id), o.ref || 'pedido-' + o.id);
+      if (!r.ok && !/ya se habían sumado/.test(r.error)) { avisar(o, 'No se pudieron sumar los puntos: ' + r.error); return; }
+      SmashExt.updateOrder(o.id, { puntosSumados: pts, puntosEn: new Date().toISOString(), puntosAviso: '' });
+      if (typeof SmashUI !== 'undefined' && SmashUI.toast) SmashUI.toast(`⭐ +${pts} puntos para ${c.nombre || '@' + (c.usuario || c.correo)}`);
+      if (root && staff()) cargar();
+    } catch (e) {
+      avisar(o, 'No se pudieron sumar los puntos (sin internet). Se reintenta solo.');
+    } finally { enCurso.delete(o.id); }
+  }
+  // Revisa los pedidos entregados de los últimos 2 días que aún no tienen puntos
+  function revisarEntregados() {
+    const desde = Date.now() - 2 * 864e5;
+    SmashDB.getOrders().filter((o) => o.status === 'entregado' && o.cuenta && !o.puntosSumados && !o.puntosSinAuto &&
+      new Date(o.entregadoEn || o.creado).getTime() >= desde).forEach((o) => { autoPuntos(o); });
+  }
+  const _setStatus = SmashExt.setStatus;
+  SmashExt.setStatus = function (id, status) {
+    const r = _setStatus.apply(this, arguments);
+    if (r && status === 'entregado') setTimeout(() => autoPuntos(SmashDB.getOrderById(id)), 0);
+    return r;
+  };
+  setTimeout(revisarEntregados, 4000);
+  setInterval(revisarEntregados, 60000);
+
   if (N && N.ok) cargar(); else render();
-  return { render, cargar, sumarDePedido };
+  return { render, cargar, sumarDePedido, autoPuntos, revisarEntregados };
 })();
