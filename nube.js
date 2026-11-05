@@ -428,7 +428,35 @@ const SmashNube = (function () {
     return { ok: true, respaldo: data };
   }
 
+  /* ---------------- Datos del negocio en vivo ----------------
+     Tablas "datos" y "datos_aviso" (supabase/datos-en-vivo.sql). Las usa sincronizar.js. */
+  const errDatos = (e) => (faltaTablaImp(e && e.message) || /guardar_dato/i.test((e && e.message) || '') && /function|exist/i.test((e && e.message) || '')
+    ? 'falta ejecutar supabase/datos-en-vivo.sql en Supabase' : errorTxt(e));
+  async function datosAvisos() {
+    const { data, error } = await sb.from('datos_aviso').select('clave,version,equipo,actualizado');
+    if (error) return { ok: false, error: errDatos(error) };
+    return { ok: true, lista: data || [] };
+  }
+  async function datosLeer(claves) {
+    const { data, error } = await sb.from('datos').select('clave,valor,version').in('clave', claves);
+    if (error) return { ok: false, error: errDatos(error) };
+    return { ok: true, lista: data || [] };
+  }
+  async function guardarDato(clave, valor, base, equipo, soloDueno) {
+    const { data, error } = await sb.rpc('guardar_dato', { p_clave: clave, p_valor: valor, p_base: base || 0, p_equipo: equipo || '', p_solo_dueno: !!soloDueno });
+    if (error) return { ok: false, error: errDatos(error) };
+    return data;   // {ok, version} o {ok:false, conflicto, version, valor}
+  }
+  // Escucha los avisos de cambio de otros equipos. Devuelve una función para dejar de escuchar.
+  function seguirDatos(alAviso, alEstado) {
+    const canal = sb.channel('datos-' + Math.random().toString(36).slice(2, 8))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'datos_aviso' }, (m) => { if (m.new && m.new.clave) alAviso(m.new); })
+      .subscribe((st) => { if (alEstado) alEstado(st === 'SUBSCRIBED' ? 'en-vivo' : st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' ? 'respaldo' : 'conectando'); });
+    return () => sb.removeChannel(canal);
+  }
+
   return {
+    datosAvisos, datosLeer, guardarDato, seguirDatos,
     subirRespaldo, listarRespaldos, leerRespaldo,
     enviarImpresion, estadoImpresion, tomarImpresion, marcarImpresion, seguirImpresiones,
     guardarCupo, leerCupo, seguirCupo,
