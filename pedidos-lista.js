@@ -64,10 +64,10 @@ const SmashLista = (function () {
       if (p && p.categoria === 'hamburguesa') burgers += q;
     }));
     const vendido = ped.reduce((s, o) => s + (o.total || 0), 0);
-    $('vhRes').textContent = `${unidades} productos · ${fmt(vendido)}`;
+    $("vhRes").textContent = `${burgers} hamburguesa${burgers === 1 ? "" : "s"} · ${ped.length} pedido${ped.length === 1 ? "" : "s"} · ${fmt(vendido)}`;
     $('vhKpis').innerHTML = `
-      <div class="fn-kpi"><small>Productos vendidos</small><b>${unidades}</b></div>
-      <div class="fn-kpi"><small>Hamburguesas</small><b>${burgers}</b></div>
+      <div class="fn-kpi"><small>Hamburguesas (cupo)</small><b>${burgers}</b></div>
+      <div class="fn-kpi"><small>Combos y adicionales</small><b>${unidades - burgers}</b></div>
       <div class="fn-kpi"><small>Pedidos</small><b>${ped.length}</b></div>
       <div class="fn-kpi"><small>Vendido hoy</small><b>${fmt(vendido)}</b></div>`;
     const filas = Object.values(por).sort((a, b) => b.qty - a.qty);

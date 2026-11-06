@@ -401,7 +401,7 @@ const SmashExt = (function () {
     const d = hoy();
     let n = 0;
     rd(SmashDB.KEYS.ORDERS, []).forEach((o) => {
-      if (localDay(o.creado) !== d || o.status === 'cancelado') return;
+      if (diaServicio(o) !== d || o.status === 'cancelado') return;            // una reserva de anoche cuenta en el cupo de hoy
       (o.items || []).forEach((it) => { const p = SmashDB.getProductById(it.id); if (p && p.categoria === 'hamburguesa') n += it.qty; });
     });
     return n;

@@ -124,15 +124,56 @@ var SmashLS, SmashBoot;
   })();
   try { SmashLS = window.localStorage; } catch (e) { SmashLS = memoria; }
 
+  /* ---------- Versión publicada (version.json) ----------
+     Cada publicación cambia version.json. Los scripts se piden con ?v=versión (así el
+     navegador no usa archivos viejos) y cada minuto se revisa si hay una versión nueva:
+     si la hay, la página se recarga sola cuando nadie la está usando (sin ventanas
+     abiertas, sin escribir y, en la página de clientes, con el carrito vacío).
+     Así un panel que quedó abierto todo el día no sigue con código viejo. */
+  var version = '';
+  function leerVersion() {
+    if (typeof fetch === 'undefined' || location.protocol === 'file:') return Promise.resolve('');
+    var tiempo = new Promise(function (ok) { setTimeout(function () { ok(''); }, 2500); });
+    var pedir = fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : {}; })
+      .then(function (j) { return String((j && j.v) || ''); }, function () { return ''; });
+    return Promise.race([pedir, tiempo]);
+  }
+  var ultimoUso = Date.now();
+  ['pointerdown', 'keydown', 'input', 'touchstart'].forEach(function (ev) {
+    document.addEventListener(ev, function () { ultimoUso = Date.now(); }, true);
+  });
+  function sePuedeRecargar() {
+    if (Date.now() - ultimoUso < 45000) return false;                     // alguien la está usando
+    var a = document.activeElement;
+    if (a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && a.value && a.type !== 'search') return false;   // a medio escribir
+    if (document.querySelector('.smash-modal, .sm-box, .acc:not([hidden]), .gracias:not([hidden])')) return false;
+    var cnt = document.getElementById('cnt');                             // página de clientes: carrito con productos
+    if (cnt && !/vac/i.test(cnt.textContent || '')) return false;
+    return true;
+  }
+  var nueva = '';
+  function revisarVersion() {
+    if (!version) return;
+    leerVersion().then(function (v) {
+      if (v && v !== version) nueva = v;
+      if (nueva && (document.visibilityState === 'hidden' || sePuedeRecargar())) location.reload();
+    });
+  }
+  setInterval(revisarVersion, 60000);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') revisarVersion(); });
+
   // Carga los scripts en orden cuando los datos ya están en memoria
   function cargar(scripts) {
-    listo.then(function () {
+    Promise.all([listo, leerVersion()]).then(function (r) {
+      version = r[1] || '';
       scripts.forEach(function (src) {
         var s = document.createElement('script');
-        s.src = src; s.async = false;
+        s.src = version && !/^https?:/.test(src) ? src + (src.indexOf('?') > -1 ? '&' : '?') + 'v=' + encodeURIComponent(version) : src;
+        s.async = false;
         document.body.appendChild(s);
       });
     });
   }
-  SmashBoot = { cargar: cargar, info: info, listo: listo };
+  SmashBoot = { cargar: cargar, info: info, listo: listo, version: function () { return version; } };
 })();
