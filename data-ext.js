@@ -91,7 +91,8 @@ const SmashExt = (function () {
   const RANGO = { nuevo: 1, confirmado: 2, preparando: 3, listo: 4, en_camino: 5, entregado: 6, cancelado: 0 };
   function pedidosRepetidos(orders) {
     const g = {};
-    (orders || rd(SmashDB.KEYS.ORDERS, [])).forEach((o) => { if (o && o.ref && o.origen !== 'local') (g[o.ref] = g[o.ref] || []).push(o); });
+    // los cancelados no cuentan: si el personal ya canceló la copia, no hay nada que arreglar
+    (orders || rd(SmashDB.KEYS.ORDERS, [])).forEach((o) => { if (o && o.ref && o.origen !== 'local' && o.status !== 'cancelado') (g[o.ref] = g[o.ref] || []).push(o); });
     return Object.keys(g).filter((k) => g[k].length > 1).map((k) => g[k]);
   }
   function arreglarRepetidosPorRef() {
@@ -108,7 +109,7 @@ const SmashExt = (function () {
     grupos.forEach((g) => {
       g.sort((a, b) => peso(b) - peso(a) || new Date(a.creado) - new Date(b.creado) || a.id - b.id);
       g.slice(1).forEach((o) => {
-        if (o.status !== 'entregado' && (RANGO[o.status] || 0) <= 2 && !tienePago(o) && !tieneInv(o)) quitar.add(o);
+        if ((o.status === 'nuevo' || o.status === 'confirmado') && !tienePago(o) && !tieneInv(o)) quitar.add(o);
       });
     });
     if (!quitar.size) return 0;
@@ -118,7 +119,8 @@ const SmashExt = (function () {
 
   /* Corrige números de pedido mal puestos en el día de hoy:
      - reservas de anoche que conservaban el número de ayer (ej. #29)
-     - números fuera de serie que dejó la sincronización entre dos equipos
+     - dos pedidos de hoy con el mismo # (el más nuevo toma el siguiente libre)
+     Nunca cambia un número que ya está bien, aunque haya saltos: ese número ya pudo salir impreso en la comanda.
      No toca otros días. Devuelve cuántos pedidos se corrigieron. */
   /* Dos pedidos distintos con el mismo número interno (id): al tocar uno se abría el otro.
      Pasaba cuando dos equipos creaban pedidos a la vez con su propio contador.
@@ -239,7 +241,7 @@ const SmashExt = (function () {
     const malos = del.filter((o) => {
       if (o.reserva && localDay(o.creado) !== hoyD && !o.diaServicio) return true;      // reserva de anoche con número de ayer
       const n = Number(o.numeroDia);
-      if (!(n >= 1) || n > del.length + 2) return true;                                  // número fuera de serie
+      if (!(n >= 1)) return true;                                                        // sin número
       if (vistos.has(n)) return true;                                                    // dos pedidos de hoy con el mismo #: el más nuevo cambia
       vistos.add(n);
       return false;
