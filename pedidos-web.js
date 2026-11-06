@@ -64,7 +64,13 @@ const SmashPedidosWeb = (function () {
       if (!f.recibido) {
         const t = N.tomarPedido ? await N.tomarPedido(f.ref) : null;
         if (t === false) return;                       // otro equipo lo tomó: llega por la sincronización
-      } else if (Date.now() - new Date(f.recibido).getTime() < 3 * 60000) return;   // lo tomó otro equipo hace poco
+      } else {
+        // Ya lo recibió otro equipo. Si este equipo sincroniza con la nube, el pedido le llega por ahí
+        // (aunque tarde unos segundos al abrir el panel): NO se vuelve a crear, porque saldría repetido
+        // con otro número. Solo un equipo sin sincronización lo toma, y después de 3 minutos.
+        if (N.panelSesion && N.panelSesion()) return;
+        if (Date.now() - new Date(f.recibido).getTime() < 3 * 60000) return;
+      }
       if (SmashDB.getOrders().some((x) => x.ref === o.ref)) return;
       const r = SmashExt.addOrder(o);
       if (r.ok) { recibidos++; ultimo = o.ref; pintar(); }
