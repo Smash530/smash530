@@ -19,8 +19,21 @@ const SmashCajaUI = (function () {
   const difHtml = (d) => `<span class="${d < 0 ? 'neg' : d > 0 ? 'pos' : ''}">${d > 0 ? '+' : ''}${fmt(d)}</span>`;
   function refreshAll() { SmashUI.refresh(); render(); }
 
-  /* ================= COBRO DE UN PEDIDO ================= */
-  function openPago(o) {
+  /* ================= COBRO DE UN PEDIDO =================
+     op.entregar: se llama desde "Entregado". El pedido solo se marca entregado al registrar
+     el pago (o si alguien elige a propósito "Entregar sin cobrar"), para que no se olvide cobrar. */
+  const sinCobroHtml = '<p class="pg-sincobro"><button type="button" class="btn-link" id="pgSinCobro">Entregar sin cobrar ahora (queda "Por cobrar" en Caja)</button></p>';
+  function enlazarSinCobro(m, op) {
+    const b = m && m.querySelector('#pgSinCobro');
+    if (!b) return;
+    b.addEventListener('click', () => {
+      if (!confirm('¿Marcar el pedido como entregado SIN registrar el pago?\nQuedará en la lista "Por cobrar" de Caja hasta que se cobre.')) return;
+      SmashUI.closeModal();
+      op.entregar();
+    });
+  }
+  function openPago(o, op) {
+    op = op || {};
     const ep = SC.estadoPago(o), num = o.numeroDia || o.id;
     if (ep.k === 'pagado' || ep.k === 'devolver') {
       const p = ep.pago, t = SC.turnoAbierto(), puedeAnular = t && p.turnoId === t.id;
@@ -40,22 +53,26 @@ const SmashCajaUI = (function () {
       return;
     }
     if (!SC.turnoAbierto()) {
-      const m = SmashUI.modal('Caja cerrada', '<p>Para registrar pagos primero hay que <b>abrir la caja</b> con el dinero inicial.</p>', () => {
+      const m = SmashUI.modal('Caja cerrada', '<p>Para registrar pagos primero hay que <b>abrir la caja</b> con el dinero inicial.</p>' +
+        (op.entregar ? '<p class="hint">El pedido se marca como entregado cuando quede cobrado.</p>' + sinCobroHtml : ''), () => {
         const b = document.querySelector('.nav-btn[data-section="caja"]'); if (b) b.click();
       }, document.querySelector('.nav-btn[data-section="caja"]') ? 'Ir a Caja' : 'Entendido');
+      if (op.entregar) enlazarSinCobro(m, op);
       return m;
     }
     const conDom = (o.domicilio || 0) > 0 && !o.domicilioPendiente;
     const d = SmashComandas.desglose(o);
     const metodo0 = /transf/i.test(o.pago) ? 'transferencia' : /efect/i.test(o.pago) ? 'efectivo' : 'efectivo';
     let lineas = [{ metodo: metodo0, monto: SC.montoACobrar(o, false), cuentaId: '', ref: '' }];
-    const m = SmashUI.modal(`Cobrar pedido #${esc(num)}`, '<div id="pgBody"></div>', (mm) => {
+    const m = SmashUI.modal(`${op.entregar ? 'Cobrar y entregar' : 'Cobrar'} pedido #${esc(num)}`, '<div id="pgBody"></div>' + (op.entregar ? sinCobroHtml : ''), (mm) => {
       try {
         SC.registrarPago(o.id, { lineas, incluyeDomicilio: conDom && mm.querySelector('#pgDom').checked }, por());
       } catch (e) { mm.querySelector('#pgErr').textContent = e.message; return false; }
       refreshAll();
-    }, '💰 Registrar pago');
+      if (op.entregar) op.entregar();
+    }, op.entregar ? '💰 Cobrar y entregar' : '💰 Registrar pago');
     m.querySelector('.sm-box').classList.add('wide');
+    if (op.entregar) enlazarSinCobro(m, op);
     const body = m.querySelector('#pgBody');
     const debe = () => SC.montoACobrar(o, conDom && body.querySelector('#pgDom') && body.querySelector('#pgDom').checked);
     function draw() {

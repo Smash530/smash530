@@ -373,6 +373,11 @@ const SmashUI = (function () {
           const st = NEXT[o.status];
           if (!st) break;
           if (st === 'en_camino' && !o.repartidor) { openRepartidor(o, st); break; }
+          // Al entregar se cobra de una vez: se abre el cobro y el pedido queda entregado al registrar el pago
+          if (st === 'entregado' && typeof SmashCajaUI !== 'undefined' && typeof SmashCaja !== 'undefined' && SmashCaja.estadoPago(o).k === 'pendiente') {
+            SmashCajaUI.openPago(o, { entregar: () => { const x = SmashDB.getOrderById(id); if (x && x.status !== 'entregado' && x.status !== 'cancelado') SmashExt.setStatus(id, 'entregado'); cfg.refresh(); } });
+            break;
+          }
           SmashExt.setStatus(id, st);
           // Al entrar a preparación se descuentan los insumos de la receta (una sola vez por pedido)
           if (st === 'preparando' && typeof SmashInv !== 'undefined') {

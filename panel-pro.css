@@ -675,3 +675,7 @@ body:has(#staffAuthSection:not([hidden])) .container{max-width:none;padding:0;ma
 }
 :root[data-theme="dark"] .od-tag.warn,:root[data-theme="dark"] .leal-tag.warn{background:#3b1d0b;color:#fdba74;border-color:#7c2d12}
 :root[data-theme="dark"] .ol-flag.pts{background:#4d3a12;color:#fcd47a}
+
+/* Cobrar y entregar: opción para entregar sin cobrar (a propósito) */
+.pg-sincobro{margin:10px 0 0;text-align:center}
+.pg-sincobro .btn-link{display:inline;font-size:.82rem;color:var(--muted)}
