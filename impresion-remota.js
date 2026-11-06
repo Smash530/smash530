@@ -40,6 +40,7 @@ const SmashImpRemota = (function () {
     const ini = Date.now();
     (async function seguir() {
       const e = await N.estadoImpresion(r.id);
+      if (e && e.estado === 'impreso' && e.detalle === 'ventana') { toast('✓ Comanda ' + esc(etiqueta) + ' impresa en <b>' + esc(e.equipo || 'el negocio') + '</b>, pero allá Chrome pidió confirmar la impresión: ese PC no tiene activa la impresión automática (ver Configuración → Impresión a distancia).', 'bad', 12000); return; }
       if (e && e.estado === 'impreso') { toast('✓ Comanda ' + esc(etiqueta) + ' impresa en <b>' + esc(e.equipo || 'el negocio') + '</b>.', 'ok', 6000); return; }
       if (e && e.estado === 'error') { toast('⚠ El equipo ' + esc(e.equipo || '') + ' no pudo imprimir: ' + esc(e.detalle || 'error') + '.', 'bad', 9000); return; }
       if (Date.now() - ini > 60000) { toast('⚠ Ningún equipo impresor tomó la comanda ' + esc(etiqueta) + ' en 1 minuto. Revisa que el PC del negocio esté encendido con el panel abierto. Queda en cola 30 minutos.', 'bad', 12000); return; }
@@ -58,7 +59,13 @@ const SmashImpRemota = (function () {
       area.innerHTML = html;
       const waits = Array.from(area.querySelectorAll('img')).map((im) => (im.complete ? Promise.resolve() : new Promise((r) => { im.addEventListener('load', r); im.addEventListener('error', r); })));
       Promise.race([Promise.all(waits), new Promise((r) => setTimeout(r, 1500))]).then(() => {
-        try { window.print(); listo(true); } catch (e) { listo(false); }
+        // Con impresión automática (--kiosk-printing) window.print() vuelve casi al instante.
+        // Si tarda, es que Chrome mostró la ventana de "Imprimir" y alguien tuvo que tocarla.
+        const t0 = Date.now();
+        try { window.print(); } catch (e) { listo(false); return; }
+        const conVentana = Date.now() - t0 > 2500;
+        if (conVentana !== S.ventana) { S.ventana = conVentana; pintar(); }
+        listo(conVentana ? 'ventana' : true);
       });
     });
   }
@@ -70,7 +77,7 @@ const SmashImpRemota = (function () {
       try {
         if (!(await N.tomarImpresion(t.id, cfg.nombre))) continue;   // otro equipo ya la tomó
         const ok = await imprimirHtml(SmashTicket.html(t.datos || {}));
-        await N.marcarImpresion(t.id, ok ? 'impreso' : 'error', ok ? '' : 'no se pudo abrir la impresión');
+        await N.marcarImpresion(t.id, ok ? 'impreso' : 'error', ok === 'ventana' ? 'ventana' : ok ? '' : 'no se pudo abrir la impresión');
         if (ok) { S.impresas++; S.ultima = t.pedido; }
       } catch (e) { try { await N.marcarImpresion(t.id, 'error', String(e && e.message || e)); } catch (x) {} }
       pintar();
@@ -124,7 +131,9 @@ const SmashImpRemota = (function () {
     const t = S.error && S.con !== 'sin-tabla' && S.con !== 'sin-sesion' ? ['off', '⚠ Equipo impresor: no se pudo revisar la cola (' + esc(S.error) + '). Se reintenta solo.'] : TXT[S.con] || TXT.conectando;
     const extra = S.impresas ? ` · ${S.impresas} impresa${S.impresas === 1 ? '' : 's'} (última ${esc(S.ultima)})` : '';
     const otra = cfg.activo && !S.lider ? ['prog', 'ℹ Otra pestaña de este navegador es la que imprime.'] : null;
-    const v = otra || t;
+    const ventana = cfg.activo && S.lider && S.ventana
+      ? ['off', '⚠ Chrome está pidiendo confirmar cada impresión: este Chrome <b>no se abrió con el acceso directo de impresión automática</b>. Cierra Chrome por completo y ábrelo con ese acceso directo (pasos en Configuración → Impresión a distancia).'] : null;
+    const v = otra || ventana || t;
     document.querySelectorAll('.imp-root').forEach(renderCfg);
     document.querySelectorAll('.imp-estado').forEach((el) => {
       el.hidden = !cfg.activo;
@@ -154,10 +163,11 @@ const SmashImpRemota = (function () {
         <details class="imp-ayuda"><summary>Para que imprima solo, sin preguntar (recomendado)</summary>
           <ol>
             <li>En este PC pon la impresora térmica como <b>impresora predeterminada</b> de Windows.</li>
-            <li>Crea un acceso directo de Chrome con esta línea en "Destino":<br><code>"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --kiosk-printing ${esc(location.origin + location.pathname)}</code></li>
-            <li>Abre el panel siempre con ese acceso directo y déjalo abierto (puede estar minimizado).</li>
+            <li>Crea un acceso directo de Chrome con esta línea en "Destino". Usa una ventana de Chrome aparte, así funciona aunque haya otro Chrome abierto:<br><code>"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --kiosk-printing --user-data-dir="C:\\SmashImpresora" ${esc(location.origin + location.pathname)}</code></li>
+            <li>La primera vez, en esa ventana entra al panel, conecta la nube y marca de nuevo "Este equipo imprime…". Queda guardado.</li>
+            <li>Abre el panel siempre con ese acceso directo y déjalo abierto (puede estar minimizado). Para que abra solo al prender el PC, copia el acceso directo en la carpeta <b>Inicio</b> de Windows (tecla Windows + R → escribe <b>shell:startup</b>).</li>
           </ol>
-          <p class="hint">Sin ese paso también imprime, pero Chrome muestra la ventana de impresión y alguien en el negocio debe tocar "Imprimir".</p>
+          <p class="hint">Sin ese paso también imprime, pero Chrome muestra la ventana de impresión y alguien en el negocio debe tocar "Imprimir". Si el panel avisa que Chrome está pidiendo confirmar, es porque se abrió sin el acceso directo.</p>
         </details>
       </div>`;
   }
