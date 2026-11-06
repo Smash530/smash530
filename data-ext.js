@@ -125,59 +125,124 @@ const SmashExt = (function () {
      - Copias idénticas del mismo pedido (mismo id y misma hora de creación): queda una.
      - Pedidos distintos con el mismo id: el más antiguo conserva el id; los demás reciben
        uno nuevo, y sus pagos, inventario y costos se mueven con él. */
+  /* IMPORTANTE: todo lo que se repara aquí corre en TODOS los equipos a la vez, así que
+     cada decisión debe salir igual en todos (no puede depender de qué otros pedidos tenga
+     cada equipo). Si no, cada equipo le pone un número distinto al mismo pedido, la
+     sincronización los toma como dos pedidos y se multiplican. */
+  // "Huella" de un pedido: no cambia aunque cambie su número interno ni su estado
+  const huellaPed = (o) => [o.creado || '', o.ref || '', o.cliente || '', o.telefono || ''].join('|');
+  // Número interno fijo sacado de la huella: el mismo pedido recibe el mismo número en todos los equipos.
+  // Es negativo para no chocar con la numeración normal (1, 2, 3…).
+  function idFijo(o) {
+    const s = huellaPed(o);
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return -(1000000 + (h % 900000000));
+  }
+  const llaveDe = (o) => o.id + '|' + o.creado;
+  // Cambia la llave de un pedido en pagos, inventario, costos y puntos
+  function moverLlave(viejo, nuevo, idNuevo) {
+    for (let i = 0; i < SmashLS.length; i++) {
+      const key = SmashLS.key(i);
+      if (!key || !/^smash_/.test(key) || key === SmashDB.KEYS.ORDERS) continue;
+      const txt = SmashLS.getItem(key);
+      if (!txt || txt.indexOf(viejo) < 0) continue;
+      let val;
+      try { val = JSON.parse(txt.split(JSON.stringify(viejo)).join(JSON.stringify(nuevo))); } catch (e) { continue; }
+      if (key === 'smash_pagos' && Array.isArray(val)) val.forEach((p) => { if (p.pedidoKey === nuevo) p.pedidoId = idNuevo; });
+      wr(key, val);
+    }
+  }
+  /* Copias del MISMO pedido (misma huella) con distinto número interno: queda una sola,
+     la más avanzada. Si la copia que sobra tenía pago o insumos descontados y la que queda
+     también, el pago repetido se anula y los insumos repetidos se reintegran. */
+  function unirCopias(orders) {
+    const g = {};
+    orders.forEach((o) => { if (o && o.creado) (g[huellaPed(o)] = g[huellaPed(o)] || []).push(o); });
+    const grupos = Object.keys(g).map((k) => g[k]).filter((x) => x.length > 1);
+    if (!grupos.length) return null;
+    const pagos = rd('smash_pagos', []), movs = rd('smash_inv_movs', []), ings = rd('smash_ingredientes', []);
+    const tienePago = (o) => pagos.some((p) => p.pedidoKey === llaveDe(o) && !p.anulado);
+    const tieneInv = (o) => movs.some((m) => m.pedidoKey === llaveDe(o) && m.tipo === 'venta');
+    const peso = (o) => (RANGO[o.status] || 0) * 10 + (tienePago(o) ? 5 : 0) + (tieneInv(o) ? 3 : 0) + (o.impresa ? 1 : 0);
+    const quitar = new Set(), mover = [];
+    let cambioPagos = false, cambioInv = false;
+    grupos.forEach((gr) => {
+      gr.sort((a, b) => peso(b) - peso(a) || String(a.id).localeCompare(String(b.id)));
+      const queda = gr[0], kq = llaveDe(queda);
+      gr.slice(1).forEach((o) => {
+        quitar.add(o);
+        const ko = llaveDe(o);
+        if (ko === kq) return;
+        if (tienePago(o)) {
+          if (tienePago(queda)) { pagos.forEach((p) => { if (p.pedidoKey === ko && !p.anulado) { p.anulado = true; p.anuladoMotivo = 'Copia repetida del pedido'; p.anuladoEn = new Date().toISOString(); cambioPagos = true; } }); }
+          else { pagos.forEach((p) => { if (p.pedidoKey === ko) { p.pedidoKey = kq; p.pedidoId = queda.id; cambioPagos = true; } }); }
+        }
+        if (tieneInv(o)) {
+          if (tieneInv(queda)) {
+            movs.filter((m) => m.pedidoKey === ko && m.tipo === 'venta' && m.ingId && m.cant).forEach((m) => {
+              const i = ings.find((x) => x.id === m.ingId);
+              if (i) i.stock = Math.round(((Number(i.stock) || 0) - m.cant) * 1000) / 1000;
+              movs.push({ id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ingId: m.ingId, ingNombre: m.ingNombre, tipo: 'reintegro', cant: -m.cant, costo: m.costo, valor: m.valor,
+                fecha: localDay(new Date().toISOString()), pedidoKey: ko, pedidoNum: m.pedidoNum, motivo: 'Copia repetida del pedido #' + m.pedidoNum, por: 'sistema', creado: new Date().toISOString() });
+              cambioInv = true;
+            });
+          } else mover.push([ko, kq, queda.id]);
+        }
+      });
+    });
+    if (cambioPagos) wr('smash_pagos', pagos);
+    if (cambioInv) { wr('smash_ingredientes', ings); wr('smash_inv_movs', movs); }
+    mover.forEach((x) => moverLlave(x[0], x[1], x[2]));
+    return orders.filter((o) => !quitar.has(o));
+  }
   function arreglarIdsRepetidos() {
     const K = SmashDB.KEYS;
-    const orders = rd(K.ORDERS, []);
-    const visto = new Set(), unicos = [];
+    let orders = rd(K.ORDERS, []);
     let cambio = false;
-    orders.forEach((o) => {
-      const k = o && o.id + '|' + o.creado;
-      if (visto.has(k)) { cambio = true; return; }
-      visto.add(k); unicos.push(o);
-    });
+    const unidos = unirCopias(orders);
+    if (unidos) { orders = unidos; cambio = true; }
+    // Pedidos DISTINTOS con el mismo número interno: el más antiguo lo conserva y los demás
+    // reciben su número fijo (igual en todos los equipos)
     const grupos = {};
-    unicos.forEach((o) => { if (o && o.id != null) (grupos[o.id] = grupos[o.id] || []).push(o); });
-    let maxId = unicos.reduce((m, o) => (typeof o.id === 'number' && o.id > m ? o.id : m), 0);
+    orders.forEach((o) => { if (o && o.id != null) (grupos[o.id] = grupos[o.id] || []).push(o); });
+    const usados = new Set(orders.map((o) => o.id));
     const mover = [];
-    Object.keys(grupos).sort((a, b) => a - b).forEach((id) => {
+    Object.keys(grupos).forEach((id) => {
       const g = grupos[id];
       if (g.length < 2) return;
-      g.sort((a, b) => new Date(a.creado) - new Date(b.creado) || String(a.ref || '').localeCompare(String(b.ref || '')));
+      g.sort((a, b) => new Date(a.creado) - new Date(b.creado) || huellaPed(a).localeCompare(huellaPed(b)));
       g.slice(1).forEach((o) => {
-        const viejo = o.id + '|' + o.creado;
-        o.id = ++maxId;
-        mover.push([viejo, o.id + '|' + o.creado, o.id]);
+        const viejo = llaveDe(o);
+        let n = idFijo(o);
+        while (usados.has(n)) n--;
+        usados.add(n);
+        o.id = n;
+        mover.push([viejo, llaveDe(o), o.id]);
       });
     });
     if (!cambio && !mover.length) return 0;
-    wr(K.ORDERS, unicos);
-    if (mover.length) wr(K.ORDER_SEQ, Math.max(rd(K.ORDER_SEQ, 0) || 0, maxId));
-    // Pagos, movimientos de inventario, costos y puntos guardan "id|creado" del pedido
-    mover.forEach(([viejo, nuevo, idNuevo]) => {
-      for (let i = 0; i < SmashLS.length; i++) {
-        const key = SmashLS.key(i);
-        if (!key || !/^smash_/.test(key) || key === K.ORDERS) continue;
-        const txt = SmashLS.getItem(key);
-        if (!txt || txt.indexOf(viejo) < 0) continue;
-        let val;
-        try { val = JSON.parse(txt.split(JSON.stringify(viejo)).join(JSON.stringify(nuevo))); } catch (e) { continue; }
-        if (key === 'smash_pagos' && Array.isArray(val)) val.forEach((p) => { if (p.pedidoKey === nuevo) p.pedidoId = idNuevo; });
-        wr(key, val);
-      }
-    });
+    wr(K.ORDERS, orders);
+    mover.forEach((x) => moverLlave(x[0], x[1], x[2]));
     return mover.length + (cambio ? 1 : 0);
   }
   function arreglarNumerosHoy() {
-    try { arreglarRepetidosPorRef(); } catch (e) { /* sigue */ }
-    try { arreglarIdsRepetidos(); } catch (e) { /* sigue con los números */ }
+    try { arreglarIdsRepetidos(); } catch (e) { /* sigue */ }
+    try { arreglarRepetidosPorRef(); } catch (e) { /* sigue con los números */ }
     const K = SmashDB.KEYS;
     const orders = rd(K.ORDERS, []);
     const hoyD = localDay(new Date().toISOString());
-    const del = orders.filter((o) => diaServicio(o) === hoyD).sort((a, b) => new Date(a.creado) - new Date(b.creado));
+    const del = orders.filter((o) => diaServicio(o) === hoyD)
+      .sort((a, b) => new Date(a.creado) - new Date(b.creado) || huellaPed(a).localeCompare(huellaPed(b)));
     if (!del.length) return 0;
+    const vistos = new Set();
     const malos = del.filter((o) => {
       if (o.reserva && localDay(o.creado) !== hoyD && !o.diaServicio) return true;      // reserva de anoche con número de ayer
-      return !(Number(o.numeroDia) >= 1) || Number(o.numeroDia) > del.length + 2;          // número fuera de serie
+      const n = Number(o.numeroDia);
+      if (!(n >= 1) || n > del.length + 2) return true;                                  // número fuera de serie
+      if (vistos.has(n)) return true;                                                    // dos pedidos de hoy con el mismo #: el más nuevo cambia
+      vistos.add(n);
+      return false;
     });
     if (!malos.length) return 0;
     const usados = new Set(del.filter((o) => malos.indexOf(o) < 0).map((o) => Number(o.numeroDia)));
