@@ -83,6 +83,39 @@ const SmashExt = (function () {
     const max = del.reduce((m, o) => Math.max(m, Number(o.numeroDia) || 0), 0);
     return Math.max(del.length, max) + 1;
   }
+  /* El mismo pedido web guardado dos veces (mismo N° de la página, "ref").
+     Pasaba cuando el pedido llegaba al mismo tiempo a cocina y a dueños.
+     Se queda el que va más avanzado (o el primero que llegó). La copia sobrante se
+     borra sola SOLO si no tiene pago, ni insumos descontados, ni está entregada;
+     si no, se deja y la lista la marca como "repetido" para cancelarla a mano. */
+  const RANGO = { nuevo: 1, confirmado: 2, preparando: 3, listo: 4, en_camino: 5, entregado: 6, cancelado: 0 };
+  function pedidosRepetidos(orders) {
+    const g = {};
+    (orders || rd(SmashDB.KEYS.ORDERS, [])).forEach((o) => { if (o && o.ref && o.origen !== 'local') (g[o.ref] = g[o.ref] || []).push(o); });
+    return Object.keys(g).filter((k) => g[k].length > 1).map((k) => g[k]);
+  }
+  function arreglarRepetidosPorRef() {
+    const K = SmashDB.KEYS;
+    const orders = rd(K.ORDERS, []);
+    const grupos = pedidosRepetidos(orders);
+    if (!grupos.length) return 0;
+    const pagos = rd('smash_pagos', []), movs = rd('smash_inv_movs', []);
+    const llave = (o) => o.id + '|' + o.creado;
+    const tienePago = (o) => pagos.some((p) => p.pedidoKey === llave(o) && !p.anulado);
+    const tieneInv = (o) => movs.some((m) => m.pedidoKey === llave(o) && m.tipo === 'venta');
+    const peso = (o) => (RANGO[o.status] || 0) * 10 + (tienePago(o) ? 5 : 0) + (tieneInv(o) ? 3 : 0) + (o.impresa ? 1 : 0);
+    const quitar = new Set();
+    grupos.forEach((g) => {
+      g.sort((a, b) => peso(b) - peso(a) || new Date(a.creado) - new Date(b.creado) || a.id - b.id);
+      g.slice(1).forEach((o) => {
+        if (o.status !== 'entregado' && (RANGO[o.status] || 0) <= 2 && !tienePago(o) && !tieneInv(o)) quitar.add(o);
+      });
+    });
+    if (!quitar.size) return 0;
+    wr(K.ORDERS, orders.filter((o) => !quitar.has(o)));
+    return quitar.size;
+  }
+
   /* Corrige números de pedido mal puestos en el día de hoy:
      - reservas de anoche que conservaban el número de ayer (ej. #29)
      - números fuera de serie que dejó la sincronización entre dos equipos
@@ -135,6 +168,7 @@ const SmashExt = (function () {
     return mover.length + (cambio ? 1 : 0);
   }
   function arreglarNumerosHoy() {
+    try { arreglarRepetidosPorRef(); } catch (e) { /* sigue */ }
     try { arreglarIdsRepetidos(); } catch (e) { /* sigue con los números */ }
     const K = SmashDB.KEYS;
     const orders = rd(K.ORDERS, []);
@@ -201,6 +235,8 @@ const SmashExt = (function () {
     if (d.horaEntrega) order.horaEntrega = String(d.horaEntrega).slice(0, 40);
     if (descuento) { order.descuento = descuento; order.descuentos = (d.descuentos || []).map((x) => ({ motivo: 'Promo cliente leal: ' + String(x.titulo || x.motivo || '').slice(0, 80), valor: Math.round(Number(x.valor) || 0) })); }
     if (d.cuenta && d.cuenta.correo) order.cuenta = { usuario: String(d.cuenta.usuario || '').slice(0, 30), correo: String(d.cuenta.correo).toLowerCase().slice(0, 120) };
+    if (Array.isArray(d.canjes) && d.canjes.length) order.canjes = d.canjes.slice(0, 10).map((x) => ({ promo: x.promo || 0, titulo: String(x.titulo || "").slice(0, 80), puntos: Math.max(0, Math.round(Number(x.puntos) || 0)), valor: Math.max(0, Math.round(Number(x.valor) || 0)) }));
+    if (d.canjeRechazado) order.canjeRechazado = String(d.canjeRechazado).slice(0, 160);
     { const dia = diaServicio(order); if (dia !== localDay(order.creado)) order.diaServicio = dia; order.numeroDia = nextDayNumber(orders, dia); }
     orders.push(order);
     wr(K.ORDERS, orders);
@@ -611,7 +647,7 @@ const SmashExt = (function () {
   }
 
   return {
-    getZones, setZoneFees, getZonasCfg, saveZonasCfg, addOrder, localDay, diaServicio, inicioPedido, nextDayNumber, arreglarNumerosHoy, getCupoRaw, setCupo, cupoHoy, buildMenu, loadMenu,
+    getZones, setZoneFees, getZonasCfg, saveZonasCfg, addOrder, localDay, pedidosRepetidos, diaServicio, inicioPedido, nextDayNumber, arreglarNumerosHoy, getCupoRaw, setCupo, cupoHoy, buildMenu, loadMenu,
     setStatus, updateOrder, getRepartidores, rememberRepartidor, soundOn, setSound, unlockAudio, audioReady, chime,
     refreshLedger, getLedger, deleteOrder, getDeletedOrders, DIAS, getPersonal, addPersonal, deletePersonal, antiguedad,
     hashPassword, loginOwner, currentOwner, logoutOwner, changeOwnerPassword, OWNER_DEF,

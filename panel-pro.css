@@ -664,3 +664,14 @@ body:has(#staffAuthSection:not([hidden])) .container{max-width:none;padding:0;ma
   .lb-kick{display:none}
   .lb-head .section-title{margin-top:0;font-size:1.5rem}
 }
+
+/* ---------- Pedido repetido y promociones con puntos ---------- */
+.ol-flag.rep{color:#fff;background:#c2410c;padding:1px 7px;border-radius:999px}
+.ol-flag.pts{color:#7a5600;background:#ffe9a8;padding:1px 7px;border-radius:999px}
+.od-tag.warn,.leal-tag.warn{background:#fff1e6;color:#9a3412;border:1px solid #fdba74}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .od-tag.warn,:root:not([data-theme="light"]) .leal-tag.warn{background:#3b1d0b;color:#fdba74;border-color:#7c2d12}
+  :root:not([data-theme="light"]) .ol-flag.pts{background:#4d3a12;color:#fcd47a}
+}
+:root[data-theme="dark"] .od-tag.warn,:root[data-theme="dark"] .leal-tag.warn{background:#3b1d0b;color:#fdba74;border-color:#7c2d12}
+:root[data-theme="dark"] .ol-flag.pts{background:#4d3a12;color:#fcd47a}

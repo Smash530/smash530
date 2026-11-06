@@ -52,21 +52,102 @@
   }
 
   /* Cliente leal: sesión, promociones y puntos (nube.js). Sin sesión no se ve ni se aplica ninguna promoción. */
-  var yo = null, promos = [], PR = { descuento: 0, usadas: [] };
+  var yo = null, promos = [], PR = { descuento: 0, usadas: [], canjes: [], faltan: [], opcionales: [] };
   var hayNube = typeof SmashNube !== "undefined" && SmashNube.ok;
   function prodDe(id) { return prods.filter(function (x) { return x.id === id; })[0] || null; }
-  // Mejor promoción de un producto, por unidad (para mostrar el precio especial en la tarjeta)
+
+  /* Promociones con precio en puntos: se aplican solas si al cliente le alcanzan los puntos
+     (puede tocar "No usar mis puntos"). Si no le alcanzan, compra normal y al final se le
+     explica cómo juntar los puntos. La nube revisa y descuenta los puntos al recibir el pedido. */
+  var usarPts = {};
+  var cuestaPts = function (p) { return Math.max(0, Number(p && p.puntos) || 0); };
+  function gratis() { return promos.filter(function (p) { return !cuestaPts(p); }); }
+  function calcularPromos(L) {
+    var vacio = { descuento: 0, usadas: [], canjes: [], faltan: [], opcionales: [] };
+    if (!yo || !hayNube) return vacio;
+    var base = gratis(), saldo = Number(yo.puntos) || 0, elegidas = [], faltan = [], opcionales = [];
+    promos.filter(cuestaPts).map(function (p) {
+      var u = SmashNube.aplicarPromos(L, base.concat([p])).usadas.filter(function (x) { return x.id === p.id; })[0];
+      return { p: p, v: u ? u.valor : 0 };
+    }).filter(function (c) { return c.v > 0; }).sort(function (a, b) { return b.v - a.v; }).forEach(function (c) {
+      opcionales.push(c.p);
+      if (usarPts[c.p.id] === false) return;
+      if (cuestaPts(c.p) > saldo) { faltan.push({ p: c.p, faltan: cuestaPts(c.p) - saldo }); return; }
+      var r = SmashNube.aplicarPromos(L, base.concat(elegidas, [c.p]));
+      if (r.usadas.some(function (x) { return x.id === c.p.id; })) { elegidas.push(c.p); saldo -= cuestaPts(c.p); }
+    });
+    var R = SmashNube.aplicarPromos(L, base.concat(elegidas));
+    R.canjes = R.usadas.filter(function (u) { return u.puntos > 0; }).map(function (u) { return { promo: u.id, titulo: u.titulo, puntos: u.puntos, valor: u.valor }; });
+    R.faltan = faltan; R.opcionales = opcionales;
+    return R;
+  }
+  // Etiqueta corta del beneficio de una promoción
+  function beneficio(p) {
+    var pr = p.producto ? prodDe(p.producto) : null;
+    if (p.tipo === "porcentaje") return "−" + p.valor + "%";
+    if (p.tipo === "valor") return "−" + fmt(p.valor);
+    if (p.tipo === "precio") return pr ? fmt(Math.max(0, pr.price - p.valor)) : "Precio especial";
+    return "Beneficio";
+  }
+  // Pedidos enviados desde este navegador (para mostrar los puntos pendientes en el historial)
+  var MIS = "smash_mis_pedidos_web";
+  function misPedidos() { try { return JSON.parse(localStorage.getItem(MIS) || "[]"); } catch (e) { return []; } }
+  function guardarMiPedido(x) {
+    try { var l = misPedidos().filter(function (y) { return y.ref !== x.ref && Date.now() - new Date(y.en).getTime() < 15 * 864e5; }); l.unshift(x); localStorage.setItem(MIS, JSON.stringify(l.slice(0, 30))); } catch (e) { /* sin espacio */ }
+  }
+
+  // Mejor promoción gratuita de un producto, por unidad (para mostrar el precio especial en la tarjeta)
   function promoDe(p) {
     if (!yo || !promos.length) return null;
-    var r = SmashNube.aplicarPromos([{ id: p.id, price: p.price, qty: 1 }], promos.filter(function (x) { return x.producto === p.id; }));
+    var r = SmashNube.aplicarPromos([{ id: p.id, price: p.price, qty: 1 }], gratis().filter(function (x) { return x.producto === p.id; }));
     return r.porProducto[p.id] ? { precio: p.price - r.porProducto[p.id].v, promo: r.porProducto[p.id].p } : null;
   }
   function precioHtml(p) {
     var pr = promoDe(p);
-    if (!pr) return fmt(p.price);
+    var canje = yo && promos.some(function (x) { return cuestaPts(x) && x.producto === p.id; }) ? ' <span class="ptag pts">⭐ Canjeable</span>' : "";
+    if (!pr) return fmt(p.price) + canje;
     var et = pr.promo.tipo === "porcentaje" ? "−" + pr.promo.valor + "%" : "Promo";
-    return '<s class="pold">' + fmt(p.price) + "</s> " + fmt(pr.precio) + ' <span class="ptag">⭐ ' + esc(et) + "</span>";
+    return '<s class="pold">' + fmt(p.price) + "</s> " + fmt(pr.precio) + ' <span class="ptag">⭐ ' + esc(et) + "</span>" + canje;
   }
+
+  /* Zona del Club SMASH: solo la ven los clientes con sesión iniciada */
+  var REGLAS_TXT = "hamburguesa 10 · combo +5 · papas 2 · gaseosa 2 · salsa 1";
+  function pintarClub() {
+    var z = $("club"); if (!z) return;
+    z.hidden = !yo || !hayNube;
+    if (z.hidden) { z.innerHTML = ""; return; }
+    var saldo = Number(yo.puntos) || 0, enPedido = {};
+    PR.usadas.forEach(function (u) { if (u.id != null) enPedido[u.id] = true; });
+    var lista = promos.slice().sort(function (a, b) { return cuestaPts(a) - cuestaPts(b); });
+    var tarjetas = lista.map(function (p) {
+      var c = cuestaPts(p), falta = Math.max(0, c - saldo), pr = p.producto ? prodDe(p.producto) : null, dentro = !!enPedido[p.id];
+      var off = c && usarPts[p.id] === false;
+      var estado = dentro ? '<span class="czc-ok">✓ En tu pedido' + (c ? " · usa " + c + " pts" : "") + "</span>"
+        : falta ? '<div class="czc-bar" aria-hidden="true"><i style="width:' + Math.round(Math.min(100, (saldo / c) * 100)) + '%"></i></div><small class="czc-falta">Te faltan <b>' + falta + " pts</b> · tienes " + saldo + "</small>"
+        : off ? '<small class="czc-falta">No vas a usar tus puntos en esta promo</small>'
+        : "";
+      var btn = pr && !dentro ? '<button type="button" class="czc-btn" data-addpromo="' + esc(pr.id) + '">' + (falta ? "Agregar igual" : "Agregar al pedido") + "</button>"
+        : off ? '<button type="button" class="czc-btn ghost" data-sipts="' + esc(p.id) + '">Usar mis puntos</button>' : "";
+      return '<article class="czc' + (falta ? " lock" : "") + (dentro ? " in" : "") + '">' +
+        '<div class="czc-top"><span class="czc-b">' + esc(beneficio(p)) + '</span><span class="czc-cost' + (c ? "" : " free") + '">' + (c ? "⭐ " + c + " pts" : "Gratis") + "</span></div>" +
+        '<b class="czc-t">' + esc(p.titulo) + "</b>" +
+        (p.descripcion ? '<p class="czc-d">' + esc(p.descripcion) + "</p>" : "") +
+        '<small class="czc-p">' + (pr ? "🍔 " + esc(pr.name) : "🧾 En todo tu pedido") + "</small>" +
+        estado + btn + "</article>";
+    }).join("");
+    z.innerHTML = '<div class="cz-head"><div><span class="eyebrow gold">Club SMASH</span><h3>Tus promos de hoy</h3></div>' +
+      '<div class="cz-pts"><b>' + saldo + "</b><small>tus puntos</small></div></div>" +
+      (tarjetas ? '<div class="cz-list">' + tarjetas + "</div>" : '<p class="cz-empty">Hoy no hay promociones. Sigue sumando puntos: pronto llegan nuevas.</p>') +
+      '<p class="cz-how">Ganas puntos cuando entregamos tu pedido: ' + REGLAS_TXT + '. <button type="button" class="lnk" data-acc="cuenta">Ver mi historial</button></p>';
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest("[data-addpromo],[data-nopts],[data-sipts]") : null;
+    if (!b) return;
+    if (b.hasAttribute("data-nopts")) { usarPts[b.getAttribute("data-nopts")] = false; upd(); return; }
+    if (b.hasAttribute("data-sipts")) { delete usarPts[b.getAttribute("data-sipts")]; upd(); return; }
+    var id = b.getAttribute("data-addpromo"), plus = document.querySelector('.qb.plus[data-id="' + id + '"]');
+    if (plus) { plus.click(); var card = plus.closest(".pcard,.item"); if (card) card.scrollIntoView({ behavior: "smooth", block: "center" }); }
+  });
 
   function item(p) {
     var star = p.id === "toci", big = p.categoria === "hamburguesa";
@@ -227,29 +308,37 @@
       txt.push("- " + it.qty + " x " + it.name + (it.para ? " para " + it.para : "") + (it.sabor ? " (" + it.sabor + ")" : "") + " (" + fmt(it.price * it.qty) + ")");
     });
     // promociones y puntos: solo con sesión de cliente leal
-    PR = yo ? SmashNube.aplicarPromos(L, promos) : { descuento: 0, usadas: [] };
+    PR = calcularPromos(L);
     var desc = PR.descuento, puntos = hayNube ? SmashNube.puntosPedido(L, prodDe) : 0;
     var vz = !!(zone && Z[zone].variable), d = zone && !vz ? Z[zone].fee : 0, T = t - desc + d;
     $("tot").textContent = fmt(T);
     $("lst").innerHTML = L.length ? L.map(function (it) {
       return '<div class="li' + (it.para ? " sub" : "") + '"><span>' + it.qty + "× " + esc(it.para ? "Combo para " + it.para : it.name + (it.sabor ? " · " + it.sabor : "")) + "</span><b>" + fmt(it.price * it.qty) + "</b></div>";
-    }).join("") + PR.usadas.map(function (u) { return '<div class="li promo"><span>⭐ ' + esc(u.titulo) + "</span><b>−" + fmt(u.valor) + "</b></div>"; }).join("")
+    }).join("") + PR.usadas.map(function (u) {
+      return '<div class="li promo"><span>⭐ ' + esc(u.titulo) + (u.puntos ? ' <small class="li-pts">usa ' + u.puntos + ' pts · <button type="button" class="lnk" data-nopts="' + esc(u.id) + '">No usar mis puntos</button></small>' : "") + "</span><b>−" + fmt(u.valor) + "</b></div>";
+    }).join("") + PR.faltan.map(function (f) {
+      return '<div class="li promo lock"><span>🔒 ' + esc(f.p.titulo) + ' <small class="li-pts">te faltan ' + f.faltan + " pts</small></span><b>—</b></div>";
+    }).join("") + PR.opcionales.filter(function (p) { return usarPts[p.id] === false; }).map(function (p) {
+      return '<div class="li promo off"><span>⭐ ' + esc(p.titulo) + ' <small class="li-pts"><button type="button" class="lnk" data-sipts="' + esc(p.id) + '">Usar ' + cuestaPts(p) + " pts</button></small></span><b>—</b></div>";
+    }).join("")
       : '<p class="li-empty">Aún no has agregado productos.</p>';
     $("cnt").textContent = n ? n + (n == 1 ? " producto" : " productos") + " · " + fmt(t) : "Tu pedido está vacío";
     $("desc").hidden = !desc;
     $("desc").textContent = desc ? "⭐ Descuento cliente: −" + fmt(desc) : "";
     $("dl").textContent = !zone ? "Elige tu zona para ver el domicilio" : vz ? "Domicilio por confirmar (se suma al total)" : "Incluye domicilio " + fmt(d);
     $("pts").hidden = !puntos;
-    $("pts").textContent = !puntos ? "" : yo ? "⭐ Con este pedido ganas " + puntos + " puntos" : "Regístrate y gana " + puntos + " puntos con este pedido";
+    var usaPts = PR.canjes.reduce(function (s, c) { return s + c.puntos; }, 0);
+    $("pts").textContent = !puntos ? "" : yo ? "⭐ Ganas " + puntos + " puntos al recibir este pedido" + (usaPts ? " · usas " + usaPts : "") : "Regístrate y gana " + puntos + " puntos con este pedido";
     LM = "*NUEVO PEDIDO - SMASH*\n" + (EH.abierto ? "" : "*RESERVA:* se despacha al abrir cocina, " + reservaTxt() + "\n") + "*Pedido N°:* @@\n" +
       (yo ? "*Cuenta SMASH:* " + (yo.usuario || "") + " (" + yo.correo + ")\n" : "") +
       "\n*Cliente:* " + val("fn") + "\n*Teléfono:* " + val("fp") + (val("fp2") ? "\n*Tel. referencia:* " + val("fp2") : "") + "\n*Zona:* " + (zone ? Z[zone].nombre : "") +
       "\n*Dirección:* " + val("fa") + "\n*Medio de pago:* " + pm + (horaSel() ? "\n*Hora de entrega:* " + horaSel() : "") + "\n\n*Pedido:*\n" + txt.join("\n") + "\n\n*Subtotal:* " + fmt(t) +
-      (desc ? "\n*Descuento cliente leal:* -" + fmt(desc) + " (" + PR.usadas.map(function (u) { return u.titulo; }).join("; ") + ")" : "") +
+      (desc ? "\n*Descuento cliente leal:* -" + fmt(desc) + " (" + PR.usadas.map(function (u) { return u.titulo + (u.puntos ? " con " + u.puntos + " pts" : ""); }).join("; ") + ")" : "") +
       "\n*Domicilio:* " + (vz ? "Por confirmar (agencia)" : fmt(d)) + "\n*TOTAL A PAGAR:* " + fmt(T) + (vz ? " + domicilio" : "") +
       (yo && puntos ? "\n*Puntos a sumar:* " + puntos : "") + (val("fo") ? "\n\n*Notas:* " + val("fo") : "");
     $("go").href = "https://wa.me/" + WA + "?text=" + encodeURIComponent(LM);
     if (!miss().length) $("err").textContent = "";
+    pintarClub();
   }
 
   $("go").addEventListener("click", function (e) {
@@ -263,6 +352,11 @@
     $("go").href = "https://wa.me/" + WA + "?text=" + encodeURIComponent(LM.replace("@@", code));
     var pedido = { cliente: val("fn"), telefono: val("fp"), telefono2: val("fp2"), direccion: val("fa"), zona: Z[zone].nombre, domicilio: Z[zone].variable ? 0 : Z[zone].fee, domicilioPendiente: !!Z[zone].variable, pago: pm, horaEntrega: horaSel(), notas: val("fo"), items: lines(), ref: code, origen: "web", reserva: !EH.abierto,
       descuento: PR.descuento, descuentos: PR.usadas, cuenta: yo ? { usuario: yo.usuario || "", correo: yo.correo } : null };
+    if (yo && PR.canjes.length) pedido.canjes = PR.canjes;
+    var ptsGana = yo && hayNube ? SmashNube.puntosPedido(pedido.items, prodDe) : 0, ptsUsa = PR.canjes.reduce(function (s, c) { return s + c.puntos; }, 0);
+    var faltaron = PR.faltan.slice(), saldoAntes = yo ? Number(yo.puntos) || 0 : 0;
+    if (yo) guardarMiPedido({ ref: code, en: new Date().toISOString(), puntos: ptsGana, usa: ptsUsa });
+    pintarGraciasLeal(ptsGana, PR.canjes.slice(), faltaron, saldoAntes, null);
     try { SmashExt.addOrder(pedido); } catch (x) { /* si falla el guardado local, igual se envía por WhatsApp */ }
     // Pedido directo a caja (en tiempo real). WhatsApp queda como confirmación del cliente.
     var gn = $("graciasNube");
@@ -270,12 +364,40 @@
     gn.textContent = "⏳ Enviando tu pedido a la cocina…";
     var nubeMal = function (x) { console.warn("Pedido web no enviado:", x); gn.textContent = "⚠ No pudimos pasarlo directo a la cocina. Envía el mensaje de WhatsApp para que lo recibamos."; };
     if (typeof SmashNube !== "undefined" && SmashNube.enviarPedido) {
-      try { SmashNube.enviarPedido(code, pedido).then(function (r) { if (r.ok) gn.textContent = "✓ Tu pedido " + code + " ya llegó a la cocina."; else nubeMal(r.error); }, nubeMal); } catch (x) { nubeMal(x); }
+      try {
+        SmashNube.enviarPedido(code, pedido).then(function (r) {
+          if (r.ok) gn.textContent = "✓ Tu pedido " + code + " ya llegó a la cocina."; else nubeMal(r.error);
+          // puntos al día: si había canje, se confirma que la nube los descontó
+          if (r.ok && yo) SmashNube.perfil(true).then(function (p) {
+            if (!p) return;
+            var canjeOk = !ptsUsa || (Number(p.puntos) || 0) <= saldoAntes - ptsUsa;
+            yo = p; pintarCuenta(); upd();
+            pintarGraciasLeal(ptsGana, canjeOk ? pedido.canjes || [] : [], faltaron, saldoAntes, canjeOk ? null : "no");
+          }, function () {});
+        }, nubeMal);
+      } catch (x) { nubeMal(x); }
     } else nubeMal("sin conexión");
     $("graciasSub").textContent = EH.abierto ? "Termina de enviar el mensaje en WhatsApp para confirmar tu pedido."
       : "Tu pedido quedó como reserva: lo despachamos al abrir cocina, " + reservaTxt() + ". Termina de enviar el mensaje en WhatsApp.";
     $("gracias").hidden = false;
   });
+  /* Mensaje de puntos al enviar el pedido (solo clientes con cuenta) */
+  function pintarGraciasLeal(gana, canjes, faltaron, saldoAntes, canjeFallo) {
+    var box = $("graciasLeal");
+    if (!box) { box = document.createElement("div"); box.id = "graciasLeal"; box.className = "gleal"; $("graciasOk").insertAdjacentElement("beforebegin", box); }
+    if (!yo) { box.hidden = true; box.innerHTML = ""; return; }
+    var usa = canjes.reduce(function (s, c) { return s + c.puntos; }, 0), h = "";
+    if (gana) h += '<div class="gl-row"><span class="gl-ico">⭐</span><div><b>+' + gana + " puntos</b> cuando entreguemos tu pedido.<small>Los verás en tu historial de puntos.</small></div></div>";
+    if (usa) h += '<div class="gl-row"><span class="gl-ico">🎟️</span><div><b>Canjeaste ' + usa + " puntos</b> en " + canjes.map(function (c) { return esc(c.titulo); }).join(", ") + ".<small>Te quedan " + Math.max(0, saldoAntes - usa) + " puntos.</small></div></div>";
+    if (canjeFallo) h += '<div class="gl-row warn"><span class="gl-ico">⚠️</span><div><b>No pudimos aplicar tu promo con puntos.</b><small>Tu pedido sigue con el precio normal y tus puntos quedan intactos.</small></div></div>';
+    if (faltaron.length) {
+      var f = faltaron[0], despues = saldoAntes - usa + gana;
+      h += '<div class="gl-how"><b>🔒 Te faltaron ' + f.faltan + " puntos para «" + esc(f.p.titulo) + "»</b>" +
+        "<p>Así funcionan tus puntos: con cada pedido entregado sumas " + REGLAS_TXT + ". Las promos con puntos se aplican solas cuando te alcanzan.</p>" +
+        "<p>Con este pedido llegarás a <b>" + despues + " de " + cuestaPts(f.p) + " puntos</b>" + (despues >= cuestaPts(f.p) ? ": ¡en tu próximo pedido ya la puedes usar!" : ".") + "</p></div>";
+    }
+    box.hidden = !h; box.innerHTML = h;
+  }
   $("graciasOk").addEventListener("click", function () { $("gracias").hidden = true; });
   $("gracias").addEventListener("click", function (e) { if (e.target === this) this.hidden = true; });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") $("gracias").hidden = true; });
@@ -333,7 +455,8 @@
     $("accTabs").hidden = dentro; $("vCuenta").hidden = !dentro;
     $("accT").textContent = dentro ? "Mi cuenta SMASH ⭐" : "Clientes SMASH ⭐";
     $("accSub").hidden = dentro;
-    if (!dentro) verTab(tab === "registro" ? "registro" : "entrar"); else pintarMiCuenta();
+    if (!dentro) verTab(tab === "registro" ? "registro" : "entrar");
+    else { $("fEntrar").hidden = true; $("fRegistro").hidden = true; pintarMiCuenta(); }
     acc.querySelectorAll(".amsg").forEach(function (m) { m.textContent = ""; m.className = "amsg" + (m.classList.contains("wide") ? " wide" : ""); });
   }
   function cerrarAcc() { acc.hidden = true; }
@@ -402,18 +525,41 @@
     $("cCorreo").textContent = (yo.usuario ? "@" + yo.usuario + " · " : "") + yo.correo;
     $("cPuntos").textContent = yo.puntos || 0;
     $("cPromos").innerHTML = promos.length ? promos.map(function (p) {
-      return '<div class="apromo"><b>⭐ ' + esc(p.titulo) + "</b>" + (p.descripcion ? "<span>" + esc(p.descripcion) + "</span>" : "") + "<small>📅 " + esc(SmashNube.textoDias(p)) + " · hasta el " + esc(p.hasta) + "</small></div>";
+      return '<div class="apromo"><b>⭐ ' + esc(p.titulo) + (cuestaPts(p) ? ' <span class="ptag pts">' + cuestaPts(p) + " pts</span>" : "") + "</b>" + (p.descripcion ? "<span>" + esc(p.descripcion) + "</span>" : "") + "<small>📅 " + esc(SmashNube.textoDias(p)) + " · hasta el " + esc(p.hasta) + "</small></div>";
     }).join("") : '<p class="anote">Hoy no hay promociones activas. Sigue sumando puntos.</p>';
+    pintarHistorial();
     var f = $("fDatos");
     f.elements.nombre.value = yo.nombre || ""; f.elements.telefono.value = yo.telefono || "";
     f.elements.telefono2.value = yo.telefono2 || ""; f.elements.direccion.value = yo.direccion || "";
+  }
+  /* Historial de puntos: lo que ya está en la nube + los pedidos enviados que aún no se entregan */
+  function fechaCorta(iso) {
+    try { return new Date(iso).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota" }).replace(/[  ]/g, " "); } catch (e) { return ""; }
+  }
+  function pintarHistorial() {
+    var el = $("cHist"); if (!el || !yo) return;
+    el.innerHTML = '<p class="anote">Cargando tu historial…</p>';
+    var mios = misPedidos();
+    (SmashNube.movimientos ? SmashNube.movimientos(yo.id) : Promise.resolve([])).then(function (movs) {
+      movs = movs || [];
+      var hechos = {}; movs.forEach(function (m) { if (m.pedido && m.puntos > 0) hechos[m.pedido] = true; });
+      var pend = mios.filter(function (x) { return x.puntos > 0 && !hechos[x.ref] && Date.now() - new Date(x.en).getTime() < 3 * 864e5; });
+      var filas = pend.map(function (x) {
+        return '<li class="hp pend"><span class="hp-n">+' + x.puntos + '</span><div><b>Pedido ' + esc(x.ref) + "</b><small>Pendiente · se suman cuando entreguemos tu pedido · " + esc(fechaCorta(x.en)) + "</small></div></li>";
+      }).concat(movs.slice(0, 30).map(function (m) {
+        var mas = m.puntos > 0;
+        return '<li class="hp ' + (mas ? "mas" : "menos") + '"><span class="hp-n">' + (mas ? "+" : "−") + Math.abs(m.puntos) + "</span><div><b>" + esc(m.motivo || (mas ? "Puntos ganados" : "Canje")) + "</b><small>" + esc(fechaCorta(m.creado)) + "</small></div></li>";
+      }));
+      el.innerHTML = filas.length ? '<ul class="hist">' + filas.join("") + "</ul>" : '<p class="anote">Aún no tienes movimientos. Tus puntos aparecen aquí cuando entregamos tu primer pedido.</p>';
+    }, function () { el.innerHTML = '<p class="anote">No pudimos cargar tu historial. Intenta de nuevo en un momento.</p>'; });
   }
   function pintarCuenta() {
     $("tbAcc").hidden = !!yo || !hayNube;
     $("tbYo").hidden = !yo;
     if (yo) $("tbYo").textContent = "⭐ " + String(yo.nombre || yo.usuario || "").split(" ")[0] + " · " + (yo.puntos || 0) + " pts";
     var lb = $("leal");
-    lb.hidden = !hayNube;
+    lb.hidden = !hayNube || !!yo;          // con sesión se ve la zona del Club SMASH en su lugar
+    pintarClub();
     lb.innerHTML = yo
       ? (promos.length ? "⭐ <b>Tus promociones de hoy:</b> " + promos.map(function (p) { return esc(p.titulo); }).join(" · ") + ' <button type="button" class="lnk" data-acc="cuenta">Ver detalles</button>'
         : "⭐ Hola <b>" + esc(String(yo.nombre || "").split(" ")[0]) + "</b>, tienes <b>" + (yo.puntos || 0) + " puntos</b>. Hoy no hay promociones; sigue sumando.")

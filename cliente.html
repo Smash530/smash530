@@ -90,6 +90,9 @@
       <a href="#pedido" class="catnav-cart">🛒 Tu pedido</a>
     </nav>
 
+    <!-- Club SMASH: promociones de hoy y puntos (solo clientes con sesión) -->
+    <section class="club-zona" id="club" hidden aria-label="Club SMASH: tus promociones"></section>
+
     <section id="menu" class="block">
       <div class="block-h">
         <span class="eyebrow">El menú</span>
@@ -249,8 +252,10 @@
 
     <div id="vCuenta" hidden>
       <div class="ahead"><div><b id="cNombre"></b><small id="cCorreo"></small></div><div class="apts"><b id="cPuntos">0</b><small>puntos</small></div></div>
-      <h3>Tus promociones del mes</h3>
+      <h3>Tus promociones de hoy</h3>
       <div id="cPromos" class="apromos"></div>
+      <h3>Tu historial de puntos</h3>
+      <div id="cHist"></div>
       <h3>Tus datos</h3>
       <form id="fDatos" class="aform" novalidate>
         <label>Nombre<input name="nombre" maxlength="80"></label>
@@ -260,7 +265,7 @@
         <p class="amsg wide" role="alert"></p>
         <button type="submit" class="abtn wide">Guardar mis datos</button>
       </form>
-      <p class="anote">Puntos: hamburguesa 10 · hamburguesa en combo 15 · papas 2 · gaseosa 2 · salsa 1. Se suman cuando confirmamos tu pedido.</p>
+      <p class="anote">Puntos: hamburguesa 10 · hamburguesa en combo 15 · papas 2 · gaseosa 2 · salsa 1. Se suman cuando entregamos tu pedido. Las promos con precio en puntos se aplican solas cuando te alcanzan.</p>
       <button type="button" class="alink" id="salir">Cerrar sesión</button>
     </div>
   </div>

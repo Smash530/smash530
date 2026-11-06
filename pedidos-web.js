@@ -38,17 +38,38 @@ const SmashPedidosWeb = (function () {
     if (f.cuenta && d.cuenta && d.cuenta.correo) {
       o.cuenta = { usuario: txt(d.cuenta.usuario, 30), correo: txt(d.cuenta.correo, 120) };
       o.descuento = num(d.descuento);
-      o.descuentos = (Array.isArray(d.descuentos) ? d.descuentos : []).slice(0, 10).map((x) => ({ titulo: txt(x && (x.titulo || x.motivo), 80), valor: num(x && x.valor) }));
+      // Si la nube no aprobó el canje de puntos, esas promociones no van (la nube ya quitó su descuento)
+      o.descuentos = (Array.isArray(d.descuentos) ? d.descuentos : []).slice(0, 10)
+        .filter((x) => !(d.canjeRechazado && x && Number(x.puntos) > 0))
+        .map((x) => ({ titulo: txt(x && (x.titulo || x.motivo), 80), valor: num(x && x.valor) }));
+      // Promociones pagadas con puntos (la nube ya revisó y descontó los puntos)
+      if (Array.isArray(d.canjes) && d.canjes.length) {
+        o.canjes = d.canjes.slice(0, 10).map((x) => ({ promo: num(x && x.promo), titulo: txt(x && x.titulo, 80), puntos: num(x && x.puntos), valor: num(x && x.valor) }));
+      }
     }
+    if (d.canjeRechazado) o.canjeRechazado = txt(d.canjeRechazado, 160);
     return o;
   }
 
-  function alPedido(f) {
+  /* Un pedido web lo toma UN solo equipo (la nube lo marca como recibido al tomarlo).
+     Antes cada panel abierto lo guardaba por su cuenta y, si llegaba a dos equipos en el
+     mismo segundo, quedaba repetido. Los demás equipos lo reciben por la sincronización. */
+  const tomando = new Set();
+  async function alPedido(f) {
     const o = limpiar(f);
-    if (!o) return;
-    const r = SmashExt.addOrder(o);
-    if (r.ok) { recibidos++; ultimo = o.ref; pintar(); }
-    if (r.ok || r.dup) N.marcarRecibido(f.ref).catch(() => {});
+    if (!o || tomando.has(o.ref)) return;
+    if (SmashDB.getOrders().some((x) => x.ref === o.ref)) { if (!f.recibido) N.marcarRecibido(f.ref).catch(() => {}); return; }
+    tomando.add(o.ref);
+    try {
+      if (!f.recibido) {
+        const t = N.tomarPedido ? await N.tomarPedido(f.ref) : null;
+        if (t === false) return;                       // otro equipo lo tomó: llega por la sincronización
+      } else if (Date.now() - new Date(f.recibido).getTime() < 3 * 60000) return;   // lo tomó otro equipo hace poco
+      if (SmashDB.getOrders().some((x) => x.ref === o.ref)) return;
+      const r = SmashExt.addOrder(o);
+      if (r.ok) { recibidos++; ultimo = o.ref; pintar(); }
+      if (r.ok || r.dup) N.marcarRecibido(f.ref).catch(() => {});
+    } finally { tomando.delete(o.ref); }
   }
 
   // Estado visible: conexión + última revisión + error real (para saber dónde se queda un pedido)

@@ -147,7 +147,12 @@ const SmashNube = (function () {
     if ((f.tipo === 'valor' || f.tipo === 'precio') && f.valor <= 0) return { ok: false, error: 'Escribe el valor en pesos.' };
     if (f.tipo === 'precio' && !f.producto) return { ok: false, error: 'El precio especial necesita un producto.' };
     if (!f.desde || !f.hasta || f.hasta < f.desde) return { ok: false, error: 'Revisa las fechas: "hasta" debe ser igual o posterior a "desde".' };
+    // Precio en puntos (0 = gratis para clientes registrados). Solo se manda si la base ya tiene la columna o si se usa.
+    const pts = Math.max(0, Math.min(100000, Math.round(Number(d.puntos) || 0)));
+    if (pts || d.conPuntos) f.puntos = pts;
+    if (pts && f.tipo === 'incentivo') return { ok: false, error: 'Una promoción con precio en puntos debe dar un descuento (porcentaje, valor o precio especial).' };
     const r = d.id ? await sb.from('promociones').update(f).eq('id', d.id) : await sb.from('promociones').insert(f);
+    if (r.error && /puntos/.test(r.error.message || '') && /column|schema cache/i.test(r.error.message || '')) return { ok: false, error: 'Falta ejecutar supabase/puntos-y-canjes.sql en Supabase para poner precio en puntos.' };
     return r.error ? { ok: false, error: errorTxt(r.error) } : { ok: true };
   }
   async function activarPromo(id, activa) {
@@ -191,13 +196,13 @@ const SmashNube = (function () {
       if (v > 0 && (!mejor[p.producto] || v > mejor[p.producto].v)) mejor[p.producto] = { v, p };
     });
     let desc = 0;
-    Object.keys(mejor).forEach((k) => { desc += mejor[k].v; usadas.push({ titulo: mejor[k].p.titulo, valor: mejor[k].v }); });
+    Object.keys(mejor).forEach((k) => { desc += mejor[k].v; usadas.push({ id: mejor[k].p.id, titulo: mejor[k].p.titulo, valor: mejor[k].v, puntos: Number(mejor[k].p.puntos) || 0 }); });
     let gen = null;
     vig.filter((p) => !p.producto && (p.tipo === 'porcentaje' || p.tipo === 'valor')).forEach((p) => {
       const resto = subtotal - desc, v = Math.round(p.tipo === 'porcentaje' ? resto * p.valor / 100 : Math.min(p.valor, resto));
       if (v > 0 && (!gen || v > gen.v)) gen = { v, p };
     });
-    if (gen) { desc += gen.v; usadas.push({ titulo: gen.p.titulo, valor: gen.v }); }
+    if (gen) { desc += gen.v; usadas.push({ id: gen.p.id, titulo: gen.p.titulo, valor: gen.v, puntos: Number(gen.p.puntos) || 0 }); }
     return { descuento: Math.min(desc, subtotal), usadas, incentivos: vig.filter((p) => p.tipo === 'incentivo'), porProducto: mejor };
   }
 
@@ -450,6 +455,27 @@ const SmashNube = (function () {
     try { localStorage.setItem(LS_PANEL, JSON.stringify({ token: data.token, rol: data.rol, usuario: String(usuario).trim().toLowerCase(), nombre: data.nombre, en: new Date().toISOString() })); } catch (e) { /* sin espacio */ }
     return { ok: true, rol: data.rol, nombre: data.nombre };
   }
+  /* ---- Puntos y canjes desde el panel (supabase/puntos-y-canjes.sql) ----
+     Usan la llave del panel, así no hace falta conectar otra cuenta de caja. */
+  const faltaPuntosSql = (e) => /could not find the function|function .* does not exist|schema cache/i.test(String((e && e.message) || ''));
+  async function panelSumarPuntos(correo, puntos, motivo, pedido) {
+    if (!ok) return sinNube();
+    const { data, error } = await sb.rpc('panel_sumar_puntos', { p_token: tok(), p_correo: String(correo || ''), p_puntos: Math.round(puntos), p_motivo: motivo || '', p_pedido: pedido || '' });
+    if (error) return { ok: false, falta: faltaPuntosSql(error), error: faltaPuntosSql(error) ? 'falta ejecutar supabase/puntos-y-canjes.sql en Supabase' : errorTxt(error) };
+    return data || { ok: false, error: 'sin respuesta' };
+  }
+  async function panelDevolverCanje(ref) {
+    if (!ok) return sinNube();
+    const { data, error } = await sb.rpc('panel_devolver_canje', { p_token: tok(), p_ref: String(ref || '') });
+    if (error) return { ok: false, falta: faltaPuntosSql(error), error: errorTxt(error) };
+    return data || { ok: false };
+  }
+  // true = este equipo tomó el pedido web · false = ya lo tomó otro equipo · null = no se pudo saber
+  async function tomarPedido(ref) {
+    if (!ok) return null;
+    const { data, error } = await sb.rpc('panel_tomar_pedido', { p_token: tok(), p_ref: String(ref || '') });
+    return error || data == null ? null : !!data;
+  }
   async function datosAvisos() {
     const { data, error } = await sb.rpc('datos_avisos', { p_token: tok() });
     if (error) return { ok: false, error: errDatos(error) };
@@ -474,7 +500,7 @@ const SmashNube = (function () {
   }
 
   return {
-    panelEntrar, panelSesion, panelSalir, datosAvisos, datosLeer, guardarDato, seguirDatos,
+    panelEntrar, panelSesion, panelSalir, panelSumarPuntos, panelDevolverCanje, tomarPedido, datosAvisos, datosLeer, guardarDato, seguirDatos,
     subirRespaldo, listarRespaldos, leerRespaldo,
     enviarImpresion, estadoImpresion, tomarImpresion, marcarImpresion, seguirImpresiones,
     guardarCupo, leerCupo, seguirCupo,

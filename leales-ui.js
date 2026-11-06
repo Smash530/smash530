@@ -129,6 +129,7 @@ const SmashLealesUI = (function () {
           <label>Producto<select name="producto"><option value="">Todo el pedido</option>${prods.map((p) => `<option value="${esc(p.id)}"${e.producto === p.id ? ' selected' : ''}>${esc(p.name)}${p.categoria === 'combo' ? ' (combo)' : ''}</option>`).join('')}</select></label>
         </div>
         <label class="promo-valor">Valor <small class="hint promo-ayuda"></small><input name="valor" type="number" min="0" step="1" value="${esc(e.valor)}"></label>
+        <label class="promo-pts">Precio en puntos <small class="hint">(0 = gratis para clientes registrados. Si cuesta puntos, al enviar el pedido se le descuentan solos; si no le alcanzan, compra sin la promo)</small><input name="puntos" type="number" min="0" max="100000" step="1" value="${esc(e.puntos || 0)}" data-col="${e.puntos !== undefined ? 1 : 0}"></label>
         <div class="two-col">
           <label>Desde<input name="desde" type="date" required value="${esc(e.desde)}"></label>
           <label>Hasta<input name="hasta" type="date" required value="${esc(e.hasta)}"></label>
@@ -140,14 +141,15 @@ const SmashLealesUI = (function () {
         <label class="chk"><input type="checkbox" name="activa"${e.activa !== false ? ' checked' : ''}> Activa</label>`;
   }
   const leerPromo = (f, id) => ({ id, titulo: f.titulo.value, descripcion: f.descripcion.value, tipo: f.tipo.value, producto: f.producto.value, valor: f.tipo.value === 'incentivo' ? 0 : f.valor.value,
-    desde: f.desde.value, hasta: f.hasta.value, activa: f.activa.checked, dias: [...f.querySelectorAll('input[name=dia]:checked')].map((x) => +x.value) });
+    desde: f.desde.value, hasta: f.hasta.value, activa: f.activa.checked, dias: [...f.querySelectorAll("input[name=dia]:checked")].map((x) => +x.value),
+    puntos: f.puntos ? f.puntos.value : 0, conPuntos: !!(f.puntos && f.puntos.dataset.col === "1") });
 
   function tarjetaPromo(p) {
     const st = estado(p);
     return `<div class="promo-card ${st[1]}" data-l="pedit" data-id="${esc(p.id)}" role="button" tabindex="0" aria-label="Editar promoción ${esc(p.titulo)}">
       <div class="row"><b>${esc(p.titulo)}</b><span class="promo-st ${st[1]}">${st[0]}</span></div>
       ${p.descripcion ? `<div class="promo-desc">${esc(p.descripcion)}</div>` : ''}
-      <div class="promo-det">🏷️ ${esc(detalle(p))}</div>
+      <div class="promo-det">🏷️ ${esc(detalle(p))}${Number(p.puntos) > 0 ? ` · <b class="promo-pts-tag">⭐ ${esc(p.puntos)} pts</b>` : ""}</div>
       <div class="promo-fechas">📅 ${esc(N.textoDias(p))} · del ${esc(p.desde)} al ${esc(p.hasta)}</div>
       <span class="promo-edit">✏️ Toca para editar</span>
     </div>`;
@@ -321,13 +323,26 @@ const SmashLealesUI = (function () {
     if (enCurso.has(o.id) || !N || !N.ok) return;
     enCurso.add(o.id);
     try {
-      if (!staff()) await cargar();
-      if (!staff()) { avisar(o, 'Puntos pendientes: conecta la cuenta de caja o dueño en "⭐ Clientes leales" y se suman solos.'); return; }
       const pts = N.puntosPedido(o.items, SmashDB.getProductById);
       if (!pts) { SmashExt.updateOrder(o.id, { puntosSinAuto: true, puntosAviso: 'Este pedido no tiene productos que sumen puntos.' }); return; }
+      const motivo = 'Pedido #' + (o.numeroDia || o.id), ref = o.ref || 'pedido-' + o.id;
+      // 1) Con la llave del panel (la misma con la que el equipo entra a la nube): no hace falta otra cuenta
+      if (N.panelSesion && N.panelSesion() && N.panelSumarPuntos) {
+        const r = await N.panelSumarPuntos(o.cuenta.correo, pts, motivo, ref);
+        if (r.ok || r.repetido) {
+          SmashExt.updateOrder(o.id, { puntosSumados: pts, puntosEn: new Date().toISOString(), puntosAviso: '' });
+          if (r.ok && typeof SmashUI !== 'undefined' && SmashUI.toast) SmashUI.toast(`⭐ +${pts} puntos para ${r.nombre || '@' + (r.usuario || o.cuenta.correo)}`);
+          return;
+        }
+        if (r.sinCuenta) { SmashExt.updateOrder(o.id, { puntosSinAuto: true, puntosAviso: `No existe ninguna cuenta con el correo ${o.cuenta.correo}: no se sumaron puntos.` }); return; }
+        if (!r.falta && r.error !== 'sin-acceso') { avisar(o, 'No se pudieron sumar los puntos: ' + r.error + '. Se reintenta solo.'); return; }
+        // si falta el SQL nuevo o la llave venció, se intenta con la cuenta de caja (forma anterior)
+      }
+      if (!staff()) await cargar();
+      if (!staff()) { avisar(o, 'Puntos pendientes: falta ejecutar supabase/puntos-y-canjes.sql en Supabase (o conectar la cuenta de caja en "⭐ Clientes leales"). Se suman solos después.'); return; }
       const c = await N.buscarPorCorreo(o.cuenta.correo);
       if (!c) { SmashExt.updateOrder(o.id, { puntosSinAuto: true, puntosAviso: `No existe ninguna cuenta con el correo ${o.cuenta.correo}: no se sumaron puntos.` }); return; }
-      const r = await N.sumarPuntos(c.id, pts, 'Pedido #' + (o.numeroDia || o.id), o.ref || 'pedido-' + o.id);
+      const r = await N.sumarPuntos(c.id, pts, motivo, ref);
       if (!r.ok && !/ya se habían sumado/.test(r.error)) { avisar(o, 'No se pudieron sumar los puntos: ' + r.error); return; }
       SmashExt.updateOrder(o.id, { puntosSumados: pts, puntosEn: new Date().toISOString(), puntosAviso: '' });
       if (typeof SmashUI !== 'undefined' && SmashUI.toast) SmashUI.toast(`⭐ +${pts} puntos para ${c.nombre || '@' + (c.usuario || c.correo)}`);
@@ -336,11 +351,30 @@ const SmashLealesUI = (function () {
       avisar(o, 'No se pudieron sumar los puntos (sin internet). Se reintenta solo.');
     } finally { enCurso.delete(o.id); }
   }
-  // Revisa los pedidos entregados de los últimos 2 días que aún no tienen puntos
+  /* Pedido cancelado que había pagado una promoción con puntos: se le devuelven
+     los puntos al cliente (la nube no los devuelve dos veces). */
+  async function devolverCanje(o) {
+    if (!o || o.status !== 'cancelado' || !o.canjes || !o.canjes.length || o.puntosDevueltos != null || !o.ref) return;
+    if (enCurso.has('dev' + o.id) || !N || !N.ok || !N.panelDevolverCanje || !(N.panelSesion && N.panelSesion())) return;
+    enCurso.add('dev' + o.id);
+    try {
+      const r = await N.panelDevolverCanje(o.ref);
+      if (r.ok) {
+        const pts = o.canjes.reduce((s, c) => s + (Number(c.puntos) || 0), 0);
+        SmashExt.updateOrder(o.id, { puntosDevueltos: r.devueltos || pts });
+        if (r.devueltos && typeof SmashUI !== 'undefined' && SmashUI.toast) SmashUI.toast(`↩ ${r.devueltos} puntos devueltos por el pedido cancelado`);
+      }
+    } catch (e) { /* se reintenta en la próxima revisión */ } finally { enCurso.delete('dev' + o.id); }
+  }
+  // Revisa los pedidos entregados de los últimos 7 días que aún no tienen puntos
+  // (y los cancelados que habían pagado con puntos)
   function revisarEntregados() {
-    const desde = Date.now() - 2 * 864e5;
-    SmashDB.getOrders().filter((o) => o.status === 'entregado' && o.cuenta && !o.puntosSumados && !o.puntosSinAuto &&
-      new Date(o.entregadoEn || o.creado).getTime() >= desde).forEach((o) => { autoPuntos(o); });
+    const desde = Date.now() - 7 * 864e5;
+    SmashDB.getOrders().forEach((o) => {
+      if (new Date(o.entregadoEn || o.canceladoEn || o.creado).getTime() < desde) return;
+      if (o.status === 'entregado' && o.cuenta && !o.puntosSumados && !o.puntosSinAuto) autoPuntos(o);
+      else if (o.status === 'cancelado') devolverCanje(o);
+    });
   }
   const _setStatus = SmashExt.setStatus;
   SmashExt.setStatus = function (id, status) {

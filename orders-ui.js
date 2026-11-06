@@ -33,6 +33,26 @@ const SmashUI = (function () {
   }
   setInterval(tick, 1000);
 
+  /* ---------- pedido repetido y promociones pagadas con puntos ---------- */
+  let repCache = { t: 0, g: [] };
+  function repetidos(o) {
+    if (!o || !o.ref || !SmashExt.pedidosRepetidos) return [];
+    if (Date.now() - repCache.t > 1500) repCache = { t: Date.now(), g: SmashExt.pedidosRepetidos() };
+    const g = repCache.g.find((x) => x[0].ref === o.ref);
+    return g ? g.filter((x) => x.id !== o.id) : [];
+  }
+  function repetidoHtml(o, cl) {
+    const otros = repetidos(o);
+    return otros.length ? `<div class="${cl} warn">⚠ Pedido repetido: es el mismo pedido web que ${otros.map((x) => '#' + esc(num(x))).join(', ')}. Cancela uno de los dos.</div>` : '';
+  }
+  function canjeHtml(o, cl) {
+    let h = '';
+    if (o.canjes && o.canjes.length) h += `<div class="${cl} gold">⭐ Pagó con puntos: ${o.canjes.map((c) => esc(c.titulo) + ' (−' + esc(c.puntos) + ' pts · −' + fmt(c.valor) + ')').join(', ')}</div>`;
+    if (o.canjeRechazado) h += `<div class="${cl} warn">⚠ La promoción con puntos no se aplicó (${esc(o.canjeRechazado)}). El total ya está sin ese descuento.</div>`;
+    if (o.puntosDevueltos) h += `<div class="${cl}">↩ Se devolvieron ${esc(o.puntosDevueltos)} puntos del canje al cliente.</div>`;
+    return h;
+  }
+
   /* ---------- tarjeta de pedido ---------- */
   function card(o) {
     const status = o.status;
@@ -56,6 +76,7 @@ const SmashUI = (function () {
         ${o.telefono2 ? `<div class="meta">📞 Ref. domicilio: <a class="otel" href="tel:${esc(String(o.telefono2).replace(/[^\d+]/g, ''))}">${esc(o.telefono2)}</a></div>` : ''}
         ${o.cuenta ? `<div class="leal-tag">⭐ Cliente leal: @${esc(o.cuenta.usuario || '-')} · ${esc(o.cuenta.correo)}${o.puntosSumados ? ` · <b>+${esc(o.puntosSumados)} pts sumados</b>` : ''}</div>` : ''}
         ${o.cuenta && !o.puntosSumados && o.puntosAviso ? `<div class="leal-tag">⚠ ${esc(o.puntosAviso)}</div>` : ''}
+        ${canjeHtml(o, "leal-tag")}${repetidoHtml(o, "leal-tag")}
         <div class="oaddr">📍 ${esc(o.direccion || 'sin dirección')}${o.zona ? ` <span class="meta">(${esc(o.zona)})</span>` : ''}</div>
         <div class="items">${items}</div>
         ${o.notas ? `<div class="meta">📝 ${esc(o.notas)}</div>` : ''}
@@ -96,7 +117,7 @@ const SmashUI = (function () {
     const cuando = fin ? (st === 'entregado' ? o.entregadoEn : o.canceladoEn) : o.creado;
     return `<div class="ol-row st-${esc(st)}${opt.activo ? ' sel' : ''}" data-open="${id}" tabindex="0" role="button" aria-label="Abrir pedido ${esc(num(o))}">
       <div class="ol-num"><b>#${esc(num(o))}</b><small>${esc(hora(o.creado))}</small></div>
-      <div class="ol-st"><span class="st-badge st-${esc(st)}">${esc(C.NOMBRE[st] || st)}</span>${o.reserva ? '<span class="ol-flag">📅 Reserva</span>' : ''}${o.origen === 'web' ? '<span class="ol-flag web">🌐 Web</span>' : ''}</div>
+      <div class="ol-st"><span class="st-badge st-${esc(st)}">${esc(C.NOMBRE[st] || st)}</span>${o.reserva ? '<span class="ol-flag">📅 Reserva</span>' : ''}${o.origen === 'web' ? '<span class="ol-flag web">🌐 Web</span>' : ''}${repetidos(o).length ? '<span class="ol-flag rep">⚠ Repetido</span>' : ''}${o.canjes && o.canjes.length ? '<span class="ol-flag pts">⭐ Puntos</span>' : ''}</div>
       <div class="ol-cli"><b>${esc(o.cliente || 'Sin nombre')}</b><small>📍 ${esc(o.zona || o.direccion || 'sin dirección')}${o.horaEntrega ? ' · 🕒 ' + esc(o.horaEntrega) : ''}</small></div>
       <div class="ol-items" title="${resumenItems(o)}">${resumenItems(o)}</div>
       <div class="ol-tot"><b>${fmt(o.total)}</b><small>${pagoCorto(o)}</small></div>
@@ -147,6 +168,7 @@ const SmashUI = (function () {
         ${o.horaEntrega ? `<div class="od-tag">🕒 Entregar: <b>${esc(o.horaEntrega)}</b></div>` : ''}
         ${o.cuenta ? `<div class="od-tag gold">⭐ Cliente leal @${esc(o.cuenta.usuario || '-')} · ${esc(o.cuenta.correo)}${o.puntosSumados ? ` · +${esc(o.puntosSumados)} pts` : ''}</div>` : ''}
         ${o.cuenta && !o.puntosSumados && o.puntosAviso ? `<div class="od-tag">⚠ ${esc(o.puntosAviso)}</div>` : ''}
+        ${canjeHtml(o, "od-tag")}${repetidoHtml(o, "od-tag")}
         ${o.repartidor ? `<div class="od-tag">🛵 Repartidor: <b>${esc(o.repartidor)}</b>${o.salioEn ? ' · salió ' + esc(hora(o.salioEn)) : ''}</div>` : ''}
       </section>
 
