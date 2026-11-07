@@ -79,6 +79,10 @@ const SmashCrear = (function () {
   const fotoProd = (p) => imgsMenu[p.id] || p.img || '';
   const nombreProd = (id) => { const p = SmashDB.getProductById(id); return p ? p.name : ''; };
   const nombres = (ids, y) => { const l = ids.map(nombreProd).filter(Boolean); return l.length < 2 ? l.join('') : l.slice(0, -1).join(', ') + (y || ' y ') + l[l.length - 1]; };
+  const esCombo = (id) => { const p = SmashDB.getProductById(id); return !!p && p.categoria === 'combo'; };
+  // "Combo (papas + gaseosa)" · "1 a elegir: Papas o Gaseosa"
+  const regaloTxt = (x) => { const ids = N.regalosDe(x); return (ids.length > 1 ? '1 a elegir: ' : '') + nombres(ids, ' o '); };
+  const sinComboTxt = (x) => (x.sin_combo !== false && !N.regalosDe(x).some(esCombo) ? ' (sin combo)' : '');
   // Promos de hoy encima de cada producto
   function tagsPromo(p) {
     const l = promosHoy().filter((x) => N.tocaProducto(x, p.id));
@@ -86,7 +90,7 @@ const SmashCrear = (function () {
     return `<div class="cr-promos">${l.map((x) => {
       const cada = Math.max(1, Number(x.valor) || 1), esRegalo = x.tipo === 'regalo' && !N.prodsDe(x).includes(p.id);
       const txt = x.tipo === 'regalo'
-        ? (esRegalo ? `Gratis por cada ${cada > 1 ? cada + ' burgers' : 'burger'}` : `Regala ${nombres(N.regalosDe(x), ' o ')}${cada > 1 ? ' por cada ' + cada + ' burgers' : ' por cada burger'}${x.sin_combo !== false ? ' (sin combo)' : ''}`)
+        ? (esRegalo ? `Gratis por cada ${cada > 1 ? cada + ' burgers' : 'burger'}` : `Regala ${regaloTxt(x)}${cada > 1 ? ' por cada ' + cada + ' burgers' : ' por cada burger'}${sinComboTxt(x)}`)
         : (x.descripcion || '');
       return `<div class="cr-promo${x.tipo === 'regalo' ? ' gift' : ''}"><b>${x.tipo === 'regalo' ? '🎁' : '⭐'} ${esc(x.titulo)}</b>${txt ? `<span>${esc(txt)}</span>` : ''}</div>`;
     }).join('')}${cr.cuenta ? '' : '<small class="cr-promo-nota">Solo clientes del club: busca al cliente para aplicarla</small>'}</div>`;
@@ -133,7 +137,7 @@ const SmashCrear = (function () {
       const activos = SmashDB.getProducts({ soloActivos: true }).map((p) => p.id);
       const ops = N.regalosDe(g.p).filter((id) => activos.includes(id));
       return g.faltan > 0
-        ? `<div class="cr-li cr-gift"><span>🎁 <b>${esc(g.p.titulo)}:</b> le toca${g.faltan > 1 ? 'n ' + g.faltan : ' 1'} gratis. ${ops.length ? 'Agrega: ' + ops.map((id) => `<button type="button" class="btn-sm" data-crgift="${esc(id)}">+ ${esc(nombreProd(id))}</button>`).join(' ') : `(${esc(nombres(N.regalosDe(g.p), ' o ') || 'el regalo')} no está activo en Productos)`}</span><span>Gratis</span></div>`
+        ? `<div class="cr-li cr-gift"><span>🎁 <b>${esc(g.p.titulo)}:</b> le toca${g.faltan > 1 ? 'n ' + g.faltan : ' 1'} gratis. ${ops.length ? (ops.length > 1 ? (g.faltan > 1 ? 'Que elija: ' : 'Que elija solo 1: ') : 'Agrega: ') + ops.map((id) => `<button type="button" class="btn-sm" data-crgift="${esc(id)}">+ ${esc(nombreProd(id))}</button>`).join(' ') : `(${esc(nombres(N.regalosDe(g.p), ' o ') || 'el regalo')} no está activo en Productos)`}</span><span>Gratis</span></div>`
         : `<div class="cr-li cr-gift off"><span>🎁 <b>${esc(g.p.titulo)}:</b> con ${g.siguiente} burger${g.siguiente > 1 ? 's' : ''} más le regalas ${esc(nombres(ops, ' o '))}</span><span>—</span></div>`;
     }).join('');
     $('crResumen').innerHTML = items.length
@@ -144,7 +148,13 @@ const SmashCrear = (function () {
   }
   $('crResumen').addEventListener('click', (e) => {
     const b = e.target.closest('[data-crgift]'); if (!b) return;
-    const id = b.dataset.crgift; cr.qty[id] = Math.min(50, (cr.qty[id] || 0) + 1);
+    const id = b.dataset.crgift;
+    if (esCombo(id)) {
+      // el combo de regalo va a una burger del pedido que aún no tenga combo
+      const bid = Object.keys(cr.qty).find((k) => { const p = SmashDB.getProductById(k); return p && p.categoria === 'hamburguesa' && cr.qty[k] > crEnCombo(k); });
+      if (!bid) return;
+      cr.combo[bid + '|' + id] = (cr.combo[bid + '|' + id] || 0) + 1;
+    } else cr.qty[id] = Math.min(50, (cr.qty[id] || 0) + 1);
     render();
   });
 

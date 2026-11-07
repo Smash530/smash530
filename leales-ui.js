@@ -22,6 +22,8 @@ const SmashLealesUI = (function () {
   let yo = null, lista = [], promos = [], filtro = '', abierto = null, editando = null, cargando = false;
   const staff = () => !!yo && (yo.rol === 'caja' || yo.rol === 'dueno');
   const prodNombre = (id) => { const p = id && SmashDB.getProductById(id); return id ? (p ? p.name : id) : 'Todo el pedido'; };
+  // ¿Entre los regalos está el combo (papas + gaseosa)?
+  const regalaCombo = (p) => N.regalosDe(p).some((id) => { const x = SmashDB.getProductById(id); return x && x.categoria === 'combo'; });
   // "smash,toci" → "Smash y Smash Toci" (vacío = Todo el pedido)
   const prodsNombre = (v, y) => { const l = N.listaIds(v).map(prodNombre); return !l.length ? 'Todo el pedido' : l.length === 1 ? l[0] : l.slice(0, -1).join(', ') + (y || ' y ') + l[l.length - 1]; };
 
@@ -118,7 +120,8 @@ const SmashLealesUI = (function () {
   function detalle(p) {
     if (p.tipo === 'regalo') {
       const c = Math.max(1, Number(p.valor) || 1);
-      return `🎁 ${prodsNombre(p.regalo, ' o ')} gratis por cada ${c > 1 ? c + ' de ' : ''}${prodsNombre(p.producto, ' o ')}${p.sin_combo !== false ? ' (sin contar combos)' : ''}`;
+      const n = N.listaIds(p.regalo).length;
+      return `🎁 ${n > 1 ? '1 a elegir entre ' : ''}${prodsNombre(p.regalo, ' o ')} gratis por cada ${c > 1 ? c + ' de ' : ''}${prodsNombre(p.producto, ' o ')}${p.sin_combo !== false && !regalaCombo(p) ? ' (sin contar combos)' : ''}`;
     }
     const v = p.tipo === 'porcentaje' ? p.valor + '% de descuento' : p.tipo === 'valor' ? fmt(p.valor) + ' de descuento' : p.tipo === 'precio' ? 'precio especial ' + fmt(p.valor) : 'incentivo';
     return v + (p.tipo === 'incentivo' ? (p.producto ? ' · ' + prodsNombre(p.producto) : '') : ' · ' + prodsNombre(p.producto)) + (p.tipo === 'valor' && !p.producto ? ' (una vez por pedido)' : p.producto && p.tipo !== 'incentivo' ? ' (por unidad)' : '');
@@ -126,9 +129,11 @@ const SmashLealesUI = (function () {
   // Campos de una promoción (se usan en "Nueva promoción" y en la ventana de editar)
   function camposPromo(e) {
     const dsel = (e.dias || []).map(Number);
-    const prods = SmashDB.getProducts().filter((p) => p.categoria !== 'combo');
+    const todos = SmashDB.getProducts(), prods = todos.filter((p) => p.categoria !== 'combo');
+    // en los regalos el combo (papas + gaseosa juntas) va primero
+    const regs = todos.filter((p) => p.categoria === 'combo').concat(prods);
     const psel = N.listaIds(e.producto), rsel = N.listaIds(e.regalo);
-    const chips = (name, sel) => prods.map((p) => `<label class="dia-chip prod-chip"><input type="checkbox" name="${name}" value="${esc(p.id)}"${sel.includes(p.id) ? ' checked' : ''}><span>${esc(p.name)}</span></label>`).join('');
+    const chips = (name, sel, lista) => (lista || prods).map((p) => `<label class="dia-chip prod-chip"><input type="checkbox" name="${name}" value="${esc(p.id)}"${sel.includes(p.id) ? ' checked' : ''}><span>${p.categoria === 'combo' ? '🍟 ' : ''}${esc(p.name)}</span></label>`).join('');
     return `
         <label>Nombre<input name="titulo" maxlength="80" required value="${esc(e.titulo)}" placeholder="Ej: Martes de Smash Toci"></label>
         <label>Descripción para el cliente<input name="descripcion" maxlength="300" value="${esc(e.descripcion)}" placeholder="Ej: 20% en tu Smash Toci todos los martes"></label>
@@ -137,9 +142,9 @@ const SmashLealesUI = (function () {
           <div class="dias-chips">${chips('producto', psel)}</div>
           <div class="pp-btns"><button type="button" class="btn-sm" data-pp="burgers">🍔 Marcar todas las burgers</button><button type="button" class="btn-sm" data-pp="ninguno">Quitar todos</button></div>
         </fieldset>
-        <fieldset class="promo-dias promo-regalo"><legend>Producto de regalo <small class="hint">(si marcas varios, el cliente elige cuál)</small></legend>
-          <div class="dias-chips">${chips('regalo', rsel)}</div>
-          <label class="chk"><input type="checkbox" name="sin_combo"${e.sin_combo !== false ? ' checked' : ''}> Las burgers pedidas en combo no cuentan</label>
+        <fieldset class="promo-dias promo-regalo"><legend>Producto de regalo <small class="hint">(si marcas varios, el cliente elige solo UNO. Para regalar papas y gaseosa juntas, marca el Combo)</small></legend>
+          <div class="dias-chips">${chips('regalo', rsel, regs)}</div>
+          <label class="chk"><input type="checkbox" name="sin_combo"${e.sin_combo !== false ? ' checked' : ''}> Las burgers pedidas en combo no cuentan <small class="hint">(si el regalo es el Combo, la burger que recibe su combo gratis sí cuenta)</small></label>
         </fieldset>
         <label class="promo-valor"><span><span class="pv-leg">Valor</span> <small class="hint promo-ayuda"></small></span><input name="valor" type="number" min="0" step="1" value="${esc(e.tipo === 'regalo' ? Math.max(1, Number(e.valor) || 1) : e.valor)}"></label>
         <label class="promo-pts">Precio en puntos <small class="hint">(0 = gratis para clientes registrados. Si cuesta puntos, al enviar el pedido se le descuentan solos; si no le alcanzan, compra sin la promo)</small><input name="puntos" type="number" min="0" max="100000" step="1" value="${esc(e.puntos || 0)}" data-col="${e.puntos !== undefined ? 1 : 0}"></label>

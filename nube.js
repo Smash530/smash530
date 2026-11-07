@@ -208,7 +208,7 @@ const SmashNube = (function () {
     (items || []).forEach((it) => {
       subtotal += it.price * it.qty;
       const x = porId[it.id] = porId[it.id] || { qty: 0, price: it.price }; x.qty += it.qty;
-      if (it.paraId) enCombo[it.paraId] = (enCombo[it.paraId] || 0) + it.qty;
+      if (it.paraId) { const m = enCombo[it.paraId] = enCombo[it.paraId] || {}; m[it.id] = (m[it.id] || 0) + it.qty; }
     });
     const usadas = [], mejor = {}, porPromo = {};
     const usar = (p, v) => {
@@ -226,11 +226,13 @@ const SmashNube = (function () {
     const libres = {}, regalos = [];
     Object.keys(porId).forEach((id) => { libres[id] = porId[id].qty; });
     vig.filter((p) => p.tipo === 'regalo').forEach((p) => {
-      const cada = Math.max(1, Math.round(Number(p.valor) || 1)), sinCombo = p.sin_combo !== false;
-      const cuentan = prodsDe(p).reduce((s, id) => s + Math.max(0, (porId[id] ? porId[id].qty : 0) - (sinCombo ? enCombo[id] || 0 : 0)), 0);
+      const cada = Math.max(1, Math.round(Number(p.valor) || 1)), sinCombo = p.sin_combo !== false, regs = regalosDe(p);
+      // con "sin combo" no cuentan las burgers en combo, salvo si ese combo es justamente el regalo
+      const pagados = (id) => Object.keys(enCombo[id] || {}).reduce((s, c) => s + (regs.includes(c) ? 0 : enCombo[id][c]), 0);
+      const cuentan = prodsDe(p).reduce((s, id) => s + Math.max(0, (porId[id] ? porId[id].qty : 0) - (sinCombo ? pagados(id) : 0)), 0);
       const gana = Math.floor(cuentan / cada);
       let usados = 0, v = 0;
-      regalosDe(p).filter((id) => libres[id] > 0).sort((a, b) => porId[b].price - porId[a].price).forEach((id) => {
+      regs.filter((id) => libres[id] > 0).sort((a, b) => porId[b].price - porId[a].price).forEach((id) => {
         const n = Math.min(libres[id], gana - usados); if (n <= 0) return;
         const unidad = porId[id].price - (mejor[id] ? mejor[id].v / porId[id].qty : 0);
         libres[id] -= n; usados += n; v += Math.round(Math.max(0, unidad) * n);

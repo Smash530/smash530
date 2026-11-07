@@ -108,6 +108,13 @@
     var l = ids.map(function (id) { var x = prodDe(id); return x ? x.name : ""; }).filter(Boolean);
     return l.length < 2 ? l.join("") : l.slice(0, -1).join(", ") + (y || " y ") + l[l.length - 1];
   }
+  function esCombo(id) { var x = prodDe(id); return !!x && x.categoria === "combo"; }
+  // Texto del regalo: "Combo (papas + gaseosa)" · "1 a elegir: Papas o Gaseosa"
+  function regaloTxt(p) {
+    var ids = SmashNube.regalosDe(p);
+    return (ids.length > 1 ? "1 a elegir: " : "") + nombres(ids, " o ");
+  }
+  function sinComboTxt(p) { return p.sin_combo !== false && !SmashNube.regalosDe(p).some(esCombo) ? " (sin combo)" : ""; }
   /* Promos de hoy encima de cada producto (solo clientes con sesión): la burger que entra
      en la promo y el producto que se regala muestran la promo con su descripción. */
   function promoTags(p) {
@@ -117,7 +124,7 @@
       var cada = Math.max(1, Number(x.valor) || 1);
       var txt = x.tipo === "regalo"
         ? (esRegalo ? "Gratis por cada " + (cada > 1 ? cada + " burgers" : "burger") + " que pidas"
-          : "Te regalamos " + nombres(SmashNube.regalosDe(x), " o ") + (cada > 1 ? " por cada " + cada + " burgers" : " por cada burger") + (x.sin_combo !== false ? " (sin combo)" : ""))
+          : "Te regalamos " + regaloTxt(x) + (cada > 1 ? " por cada " + cada + " burgers" : " por cada burger") + sinComboTxt(x))
         : (x.descripcion || "");
       return '<div class="ppromo' + (x.tipo === "regalo" ? " gift" : "") + '"><b>' + (x.tipo === "regalo" ? "🎁 " : "⭐ ") + esc(x.titulo) + (cuestaPts(x) ? " · " + cuestaPts(x) + " pts" : "") + "</b>" +
         (txt ? "<span>" + esc(txt) + "</span>" : "") + "</div>";
@@ -154,7 +161,7 @@
         '<div class="czc-top"><span class="czc-b">' + esc(beneficio(p)) + '</span><span class="czc-cost' + (c ? "" : " free") + '">' + (c ? "⭐ " + c + " pts" : "Gratis") + "</span></div>" +
         '<b class="czc-t">' + esc(p.titulo) + "</b>" +
         (p.descripcion ? '<p class="czc-d">' + esc(p.descripcion) + "</p>" : "") +
-        '<small class="czc-p">' + (p.tipo === "regalo" ? "🎁 " + esc(nombres(SmashNube.regalosDe(p), " o ")) + " gratis con " + esc(nombres(ids, ", ")) : ids.length ? "🍔 " + esc(nombres(ids)) : "🧾 En todo tu pedido") + "</small>" +
+        '<small class="czc-p">' + (p.tipo === "regalo" ? "🎁 " + esc(regaloTxt(p)) + " gratis con " + esc(nombres(ids, ", ")) : ids.length ? "🍔 " + esc(nombres(ids)) : "🧾 En todo tu pedido") + "</small>" +
         estado + btn + "</article>";
     }).join("");
     z.innerHTML = '<div class="cz-head"><div><span class="eyebrow gold">Club SMASH</span><h3>Tus promos de hoy</h3></div>' +
@@ -167,7 +174,17 @@
     if (!b) return;
     if (b.hasAttribute("data-nopts")) { usarPts[b.getAttribute("data-nopts")] = false; upd(); return; }
     if (b.hasAttribute("data-sipts")) { delete usarPts[b.getAttribute("data-sipts")]; upd(); return; }
-    var id = b.getAttribute("data-addpromo"), plus = document.querySelector('.qb.plus[data-id="' + id + '"]');
+    var id = b.getAttribute("data-addpromo");
+    if (esCombo(id)) {
+      // el combo de regalo va a una burger del pedido que aún no tenga combo
+      var bid = Object.keys(qty).filter(function (k) { var x = prodDe(k); return x && x.categoria === "hamburguesa" && qty[k] > enCombo(k); })[0];
+      if (!bid) return;
+      cq[bid] = cq[bid] || {}; cq[bid][id] = (cq[bid][id] || 0) + 1;
+      pintarCombo(bid); upd();
+      var cb = $("cb_" + bid); if (cb) cb.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    var plus = document.querySelector('.qb.plus[data-id="' + id + '"]');
     if (plus) { plus.click(); var card = plus.closest(".pcard,.item"); if (card) card.scrollIntoView({ behavior: "smooth", block: "center" }); }
   });
 
@@ -345,7 +362,7 @@
     }).join("") + PR.regalos.filter(function (g) { return g.faltan > 0 || g.siguiente > 0; }).map(function (g) {
       // Regalo ganado que aún no está en el pedido: botones para agregarlo (el cliente elige cuál)
       var ops = SmashNube.regalosDe(g.p).filter(prodDe);
-      if (g.faltan > 0) return '<div class="li promo gift"><span>🎁 <b>' + esc(g.p.titulo) + ":</b> te " + (g.faltan > 1 ? "regalamos " + g.faltan : "regalamos 1") + ". Elige: " +
+      if (g.faltan > 0) return '<div class="li promo gift"><span>🎁 <b>' + esc(g.p.titulo) + ":</b> te " + (g.faltan > 1 ? "regalamos " + g.faltan : "regalamos 1") + (ops.length > 1 ? ". Elige " + (g.faltan > 1 ? "" : "solo 1") + ": " : ". Agrégalo: ") +
         ops.map(function (id) { return '<button type="button" class="lnk gift-add" data-addpromo="' + esc(id) + '">+ ' + esc(prodDe(id).name) + "</button>"; }).join(" ") + "</span><b>Gratis</b></div>";
       return '<div class="li promo gift off"><span>🎁 <b>' + esc(g.p.titulo) + ":</b> agrega " + g.siguiente + " burger" + (g.siguiente > 1 ? "s" : "") + " más y te regalamos " + esc(nombres(ops, " o ")) + "</span><b>—</b></div>";
     }).join("")
