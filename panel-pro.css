@@ -703,3 +703,10 @@ body:has(#staffAuthSection:not([hidden])) .container{max-width:none;padding:0;ma
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .cr-promo b{color:#ffb627}:root:not([data-theme="light"]) .cr-promo.gift b,:root:not([data-theme="light"]) .cr-li.cr-desc,:root:not([data-theme="light"]) .cr-total .cr-desc,:root:not([data-theme="light"]) .cr-total .cr-desc b,:root:not([data-theme="light"]) .cr-li.cr-gift{color:#4fd98e}}
 :root[data-theme="dark"] .cr-promo b{color:#ffb627}
 :root[data-theme="dark"] .cr-promo.gift b,:root[data-theme="dark"] .cr-li.cr-desc,:root[data-theme="dark"] .cr-total .cr-desc,:root[data-theme="dark"] .cr-total .cr-desc b,:root[data-theme="dark"] .cr-li.cr-gift{color:#4fd98e}
+
+/* Paquete del club en Crear pedido (promo tipo "paquete") */
+.cr-card.cr-paq{border-color:rgba(255,182,39,.6)}
+.cr-card.cr-paq.sel{border-color:#d99a00;box-shadow:0 0 0 3px rgba(255,182,39,.22)}
+.cr-card.cr-paq .cr-ph{display:grid;place-items:center;font-size:2rem}
+.cr-price s{opacity:.55;font-weight:400;margin-right:4px}
+.qty-mini button:disabled{opacity:.4;cursor:not-allowed}

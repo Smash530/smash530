@@ -16,7 +16,7 @@ const SmashLealesUI = (function () {
   const esc = SmashUI.esc, fmt = SmashUI.fmt;
   const esDueno = !!document.getElementById('section-costos');
   const ROL = { cliente: 'Cliente', caja: 'Caja', dueno: 'Dueño' };
-  const TIPO = { porcentaje: '% de descuento', valor: '$ de descuento', precio: 'Precio especial', regalo: '🎁 Regalo (lleva gratis)', incentivo: 'Incentivo (sin descuento automático)' };
+  const TIPO = { porcentaje: '% de descuento', valor: '$ de descuento', precio: 'Precio especial', regalo: '🎁 Regalo (lleva gratis)', paquete: '🏆 Paquete (se ve como una burger más, a precio fijo)', incentivo: 'Incentivo (sin descuento automático)' };
   const fecha = (iso) => (iso ? new Date(iso).toLocaleDateString('es-CO') : '-');
   const fechaH = (iso) => (iso ? new Date(iso).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) : '-');
   let yo = null, lista = [], promos = [], filtro = '', abierto = null, editando = null, cargando = false;
@@ -118,6 +118,7 @@ const SmashLealesUI = (function () {
     return ['Vigente', 'on'];
   }
   function detalle(p) {
+    if (p.tipo === 'paquete') return `🏆 ${prodsNombre(p.producto, ' + ')}${regalaCombo(p) ? ', cada una en combo' : ''} por ${fmt(p.valor)}`;
     if (p.tipo === 'regalo') {
       const c = Math.max(1, Number(p.valor) || 1);
       const n = N.listaIds(p.regalo).length;
@@ -146,6 +147,10 @@ const SmashLealesUI = (function () {
           <div class="dias-chips">${chips('regalo', rsel, regs)}</div>
           <label class="chk"><input type="checkbox" name="sin_combo"${e.sin_combo !== false ? ' checked' : ''}> Las burgers pedidas en combo no cuentan <small class="hint">(si el regalo es el Combo, la burger que recibe su combo gratis sí cuenta)</small></label>
         </fieldset>
+        <fieldset class="promo-dias promo-paq"><legend>Qué trae el paquete</legend>
+          <label class="chk"><input type="checkbox" name="paq_combo"${e.tipo !== 'paquete' || regalaCombo(e) ? ' checked' : ''}> Cada burger del paquete va en combo (papas + gaseosa)</label>
+          <p class="hint">El paquete aparece en la página de clientes como una burger más, solo los días de la promo y solo a clientes registrados. También sale en Crear pedido. Usa la descripción para contarle al cliente qué trae.</p>
+        </fieldset>
         <label class="promo-valor"><span><span class="pv-leg">Valor</span> <small class="hint promo-ayuda"></small></span><input name="valor" type="number" min="0" step="1" value="${esc(e.tipo === 'regalo' ? Math.max(1, Number(e.valor) || 1) : e.valor)}"></label>
         <label class="promo-pts">Precio en puntos <small class="hint">(0 = gratis para clientes registrados. Si cuesta puntos, al enviar el pedido se le descuentan solos; si no le alcanzan, compra sin la promo)</small><input name="puntos" type="number" min="0" max="100000" step="1" value="${esc(e.puntos || 0)}" data-col="${e.puntos !== undefined ? 1 : 0}"></label>
         <div class="two-col">
@@ -160,7 +165,7 @@ const SmashLealesUI = (function () {
   }
   const marcados = (f, n) => [...f.querySelectorAll(`input[name=${n}]:checked`)].map((x) => x.value);
   const leerPromo = (f, id) => ({ id, titulo: f.titulo.value, descripcion: f.descripcion.value, tipo: f.tipo.value, producto: marcados(f, 'producto'), valor: f.tipo.value === 'incentivo' ? 0 : f.valor.value,
-    regalo: marcados(f, 'regalo'), sin_combo: !!(f.sin_combo && f.sin_combo.checked),
+    regalo: f.tipo.value === 'paquete' ? (f.paq_combo && f.paq_combo.checked ? SmashDB.getProducts().filter((p) => p.categoria === 'combo').slice(0, 1).map((p) => p.id) : []) : marcados(f, 'regalo'), sin_combo: !!(f.sin_combo && f.sin_combo.checked),
     desde: f.desde.value, hasta: f.hasta.value, activa: f.activa.checked, dias: [...f.querySelectorAll("input[name=dia]:checked")].map((x) => +x.value),
     puntos: f.puntos ? f.puntos.value : 0, conPuntos: !!(f.puntos && f.puntos.dataset.col === "1") });
 
@@ -205,12 +210,15 @@ const SmashLealesUI = (function () {
   function ayudaValor(f) {
     if (!f || !f.tipo) return;
     const t = f.tipo.value;
-    f.querySelector('.promo-ayuda').textContent = t === 'porcentaje' ? '(porcentaje, de 1 a 100)' : t === 'valor' ? '(pesos que se descuentan)' : t === 'precio' ? '(precio final en pesos, marca uno o varios productos)' : t === 'regalo' ? 'productos marcados (1 = uno por cada burger · 2 = uno por cada 2 burgers)' : '(no se usa: el incentivo solo se muestra al cliente)';
-    f.querySelector('.pv-leg').textContent = t === 'regalo' ? '1 regalo por cada' : 'Valor';
+    f.querySelector('.promo-ayuda').textContent = t === 'porcentaje' ? '(porcentaje, de 1 a 100)' : t === 'valor' ? '(pesos que se descuentan)' : t === 'precio' ? '(precio final en pesos, marca uno o varios productos)' : t === 'regalo' ? 'productos marcados (1 = uno por cada burger · 2 = uno por cada 2 burgers)' : t === 'paquete' ? '(lo que paga el cliente por todo el paquete, en pesos)' : '(no se usa: el incentivo solo se muestra al cliente)';
+    f.querySelector('.pv-leg').textContent = t === 'regalo' ? '1 regalo por cada' : t === 'paquete' ? 'Precio del paquete' : 'Valor';
     f.querySelector('.promo-valor').hidden = t === 'incentivo';
     f.querySelector('.promo-regalo').hidden = t !== 'regalo';
-    f.querySelector('.pp-leg').textContent = t === 'regalo' ? 'Productos que dan el regalo' : 'Productos de la promo';
-    f.querySelector('.pp-ayuda').textContent = t === 'regalo' ? '(marca las burgers que cuentan)' : t === 'incentivo' ? '(la promo se muestra encima de estos productos)' : '(sin marcar = todo el pedido)';
+    f.querySelector('.promo-paq').hidden = t !== 'paquete';
+    const pts = f.querySelector('.promo-pts'); if (pts) pts.hidden = t === 'paquete';
+    if (t === 'paquete' && f.puntos) f.puntos.value = 0;
+    f.querySelector('.pp-leg').textContent = t === 'regalo' ? 'Productos que dan el regalo' : t === 'paquete' ? 'Burgers del paquete' : 'Productos de la promo';
+    f.querySelector('.pp-ayuda').textContent = t === 'regalo' ? '(marca las burgers que cuentan)' : t === 'paquete' ? '(va una de cada burger marcada)' : t === 'incentivo' ? '(la promo se muestra encima de estos productos)' : '(sin marcar = todo el pedido)';
     if (t === 'regalo' && !(Number(f.valor.value) >= 1)) f.valor.value = 1;
   }
 

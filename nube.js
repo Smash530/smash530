@@ -142,7 +142,15 @@ const SmashNube = (function () {
       dias: leerDias(d.dias),
     };
     if (!f.titulo) return { ok: false, error: 'Ponle un nombre a la promoción.' };
-    if (!['porcentaje', 'valor', 'precio', 'incentivo', 'regalo'].includes(f.tipo)) return { ok: false, error: 'Elige el tipo de promoción.' };
+    if (!['porcentaje', 'valor', 'precio', 'incentivo', 'regalo', 'paquete'].includes(f.tipo)) return { ok: false, error: 'Elige el tipo de promoción.' };
+    // Paquete: las burgers marcadas (una de cada una, con combo si regalo trae el combo) a un precio fijo.
+    // Se muestra como una burger más, solo el día de la promo y solo a clientes registrados.
+    if (f.tipo === 'paquete') {
+      f.regalo = listaIds(d.regalo).join(','); f.valor = Math.round(f.valor);
+      if (!f.producto) return { ok: false, error: 'Marca las burgers que trae el paquete.' };
+      if (f.valor <= 0) return { ok: false, error: 'Escribe el precio del paquete.' };
+      if (Number(d.puntos) > 0) return { ok: false, error: 'El paquete no puede costar puntos: deja el precio en puntos en 0.' };
+    }
     // Regalo: por cada "valor" productos marcados, uno de los productos de regalo va gratis
     if (f.tipo === 'regalo') {
       f.regalo = listaIds(d.regalo).join(','); f.sin_combo = d.sin_combo !== false; f.valor = Math.max(1, Math.round(f.valor || 1));
@@ -159,6 +167,7 @@ const SmashNube = (function () {
     if (pts && f.tipo === 'incentivo') return { ok: false, error: 'Una promoción con precio en puntos debe dar un descuento (porcentaje, valor o precio especial).' };
     const r = d.id ? await sb.from('promociones').update(f).eq('id', d.id) : await sb.from('promociones').insert(f);
     if (r.error && /puntos/.test(r.error.message || '') && /column|schema cache/i.test(r.error.message || '')) return { ok: false, error: 'Falta ejecutar supabase/puntos-y-canjes.sql en Supabase para poner precio en puntos.' };
+    if (r.error && f.tipo === 'paquete' && /promociones_tipo_check/.test(r.error.message || '')) return { ok: false, error: 'Falta ejecutar supabase/promos-paquete.sql en Supabase para las promos de paquete.' };
     if (r.error && (/regalo|sin_combo|promociones_tipo_check/.test(r.error.message || ''))) return { ok: false, error: 'Falta ejecutar supabase/promos-por-producto.sql en Supabase para las promos de regalo.' };
     return r.error ? { ok: false, error: errorTxt(r.error) } : { ok: true };
   }
@@ -193,7 +202,21 @@ const SmashNube = (function () {
   const prodsDe = (p) => listaIds(p && p.producto);
   const regalosDe = (p) => listaIds(p && p.regalo);
   // ¿La promoción toca este producto? (lo marca, o es el regalo)
-  const tocaProducto = (p, id) => prodsDe(p).includes(id) || (p && p.tipo === 'regalo' && regalosDe(p).includes(id));
+  const tocaProducto = (p, id) => !!p && p.tipo !== 'paquete' && (prodsDe(p).includes(id) || (p.tipo === 'regalo' && regalosDe(p).includes(id)));
+  /* Líneas de pedido de "n" paquetes: cada burger del paquete (una de cada) y, si el paquete
+     trae combo, el combo de cada burger. prodDe(id) da el producto activo (o null). */
+  function lineasPaquete(p, n, prodDe) {
+    const bs = prodsDe(p).map(prodDe), c = regalosDe(p).map(prodDe).filter((x) => x && x.categoria === 'combo')[0];
+    if (!n || !bs.length || bs.some((b) => !b)) return [];
+    const out = [];
+    bs.forEach((b) => {
+      out.push({ id: b.id, name: b.name, price: b.price, qty: n, nota: p.titulo, paq: p.id, paqN: n, paqT: p.titulo });
+      if (c) out.push({ id: c.id, name: c.name, price: c.price, qty: n, cat: 'combo', nota: 'Para ' + b.name + ' · ' + p.titulo, para: b.name, paraId: b.id, paq: p.id, paqN: n, paqT: p.titulo });
+    });
+    return out;
+  }
+  // Precio normal (sin promo) de un paquete, o 0 si algún producto ya no está activo
+  function precioNormalPaquete(p, prodDe) { return lineasPaquete(p, 1, prodDe).reduce((s, it) => s + it.price, 0); }
 
   /* Descuento de las promociones sobre un pedido.
      - Con productos: se aplica a cada unidad de cada producto marcado (si hay varias, la mejor).
@@ -201,12 +224,19 @@ const SmashNube = (function () {
      - Regalo: por cada "valor" unidades de los productos marcados, una unidad de un producto
        de regalo va gratis (si está en el pedido; el cliente elige cuál). Con sin_combo, las
        burgers pedidas en combo no cuentan. "regalos" dice cuántos le faltan por agregar.
-     - "Incentivo" no descuenta: es un beneficio que se muestra al cliente. */
+     - "Incentivo" no descuenta: es un beneficio que se muestra al cliente.
+     - Paquete: las líneas del pedido con "paq" (id de la promo) y "paqN" (cuántos paquetes)
+       quedan al precio del paquete; esas líneas no entran en las demás promociones. */
   function aplicarPromos(items, promos) {
-    const vig = (promos || []).filter(vigente), porId = {}, enCombo = {};
+    const vig = (promos || []).filter(vigente), porId = {}, enCombo = {}, paqs = {};
     let subtotal = 0;
     (items || []).forEach((it) => {
       subtotal += it.price * it.qty;
+      if (it.paq != null) {
+        const k = String(it.paq), g = paqs[k] = paqs[k] || { suma: 0, n: 0 };
+        g.suma += it.price * it.qty; g.n = Math.max(g.n, Number(it.paqN) || 0);
+        return;
+      }
       const x = porId[it.id] = porId[it.id] || { qty: 0, price: it.price }; x.qty += it.qty;
       if (it.paraId) { const m = enCombo[it.paraId] = enCombo[it.paraId] || {}; m[it.id] = (m[it.id] || 0) + it.qty; }
     });
@@ -215,12 +245,18 @@ const SmashNube = (function () {
       if (!porPromo[p.id]) { porPromo[p.id] = { id: p.id, titulo: p.titulo, valor: 0, puntos: Number(p.puntos) || 0 }; usadas.push(porPromo[p.id]); }
       porPromo[p.id].valor += v;
     };
-    vig.filter((p) => p.tipo !== 'regalo').forEach((p) => prodsDe(p).filter((id) => porId[id]).forEach((id) => {
+    let desc = 0;
+    vig.filter((p) => p.tipo === 'paquete' && paqs[String(p.id)]).forEach((p) => {
+      const g = paqs[String(p.id)], v = Math.round(Math.max(0, g.suma - g.n * (Number(p.valor) || 0)));
+      if (v > 0) { desc += v; usar(p, v); }
+    });
+    vig.filter((p) => p.tipo !== 'regalo' && p.tipo !== 'paquete').forEach((p) => prodsDe(p).filter((id) => porId[id]).forEach((id) => {
       const x = porId[id], u = p.tipo === 'porcentaje' ? x.price * p.valor / 100 : p.tipo === 'valor' ? Math.min(p.valor, x.price) : p.tipo === 'precio' ? Math.max(0, x.price - p.valor) : 0;
       const v = Math.round(u * x.qty);
       if (v > 0 && (!mejor[id] || v > mejor[id].v)) mejor[id] = { v, p };
     }));
-    let desc = 0;
+    // lo que queda fuera de los paquetes (los descuentos de todo el pedido no tocan el paquete)
+    const enPaq = Object.keys(paqs).reduce((s, k) => s + paqs[k].suma, 0), descPaq = desc;
     Object.keys(mejor).forEach((k) => { desc += mejor[k].v; usar(mejor[k].p, mejor[k].v); });
     // Regalos: cada unidad de regalo se usa una sola vez; primero las más caras (las eligió el cliente)
     const libres = {}, regalos = [];
@@ -242,7 +278,7 @@ const SmashNube = (function () {
     });
     let gen = null;
     vig.filter((p) => !p.producto && (p.tipo === 'porcentaje' || p.tipo === 'valor')).forEach((p) => {
-      const resto = subtotal - desc, v = Math.round(p.tipo === 'porcentaje' ? resto * p.valor / 100 : Math.min(p.valor, resto));
+      const resto = subtotal - enPaq - (desc - descPaq), v = Math.round(p.tipo === 'porcentaje' ? resto * p.valor / 100 : Math.min(p.valor, resto));
       if (v > 0 && (!gen || v > gen.v)) gen = { v, p };
     });
     if (gen) { desc += gen.v; usadas.push({ id: gen.p.id, titulo: gen.p.titulo, valor: gen.v, puntos: Number(gen.p.puntos) || 0 }); }
@@ -575,7 +611,7 @@ const SmashNube = (function () {
     enviarImpresion, estadoImpresion, tomarImpresion, marcarImpresion, seguirImpresiones,
     guardarCupo, leerCupo, seguirCupo,
     ok, perfil, alCambiar, enRecuperacion, registrar, entrar, salir, recuperarClave, nuevaClave, guardarPerfil, usuarioLibre,
-    promociones, guardarPromo, activarPromo, borrarPromo, aplicarPromos, vigente, listaIds, prodsDe, regalosDe, tocaProducto, hoyCO, diaCO, tocaHoy, textoDias, DIAS,
+    promociones, guardarPromo, activarPromo, borrarPromo, aplicarPromos, vigente, listaIds, prodsDe, regalosDe, tocaProducto, lineasPaquete, precioNormalPaquete, hoyCO, diaCO, tocaHoy, textoDias, DIAS,
     puntosPedido, REGLAS, clientes, movimientos, sumarPuntos, cambiarRol, buscarPorCorreo,
     enviarPedido, recibirPedidos, marcarRecibido,
   };

@@ -59,7 +59,11 @@ const SmashCrear = (function () {
 
   // combo: { 'hamburguesa|combo': unidades }. El combo es una opción de cada hamburguesa, no un producto suelto.
   // sab: { 'adicional|sabor': unidades } para adicionales con sabores (ej. gaseosas)
-  const cr = { qty: {}, nota: {}, combo: {}, sab: {}, cuenta: null };
+  // paq: { idPromo: cuántos paquetes } (promos tipo "paquete", solo con un cliente del club elegido)
+  const cr = { qty: {}, nota: {}, combo: {}, sab: {}, paq: {}, cuenta: null };
+  const prodActivo = (id) => { const p = SmashDB.getProductById(id); return p && p.activo !== false ? p : null; };
+  const paquetesHoy = () => promosHoy().filter((p) => p.tipo === 'paquete' && N.precioNormalPaquete(p, prodActivo) > 0);
+  const paqQueTrae = (p) => nombres(N.prodsDe(p), ' + ') + (N.regalosDe(p).some(esCombo) ? (N.prodsDe(p).length > 1 ? ', cada una en combo' : ' en combo') : '');
   const crSabs = (id) => Object.keys(cr.sab).filter((k) => k.split('|')[0] === id);
   const crElegidas = (id) => crSabs(id).reduce((s, k) => s + cr.sab[k], 0);
   const crCombos = () => SmashDB.getProducts({ soloActivos: true }).filter((p) => p.categoria === 'combo');
@@ -104,7 +108,21 @@ const SmashCrear = (function () {
     // no redibujar si el usuario está escribiendo una nota
     if (box.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') { crTotal(); return; }
     const cs = prods.filter((p) => p.categoria === 'combo');
-    box.innerHTML = prods.filter((p) => p.categoria !== 'combo').map((p) => {
+    // paquetes del club de hoy: primero, como si fueran una burger más
+    const pqs = N ? paquetesHoy() : [];
+    if (!cr.cuenta) cr.paq = {};
+    Object.keys(cr.paq).forEach((k) => { if (!pqs.some((p) => String(p.id) === k)) delete cr.paq[k]; });
+    const paqHtml = pqs.map((p) => {
+      const n = cr.paq[p.id] || 0, normal = N.precioNormalPaquete(p, prodActivo), b = prodActivo(N.prodsDe(p)[0]);
+      return `<div class="cr-card cr-paq${n ? ' sel' : ''}">
+        ${b && fotoProd(b) ? `<img src="${esc(fotoProd(b))}" alt="${esc(p.titulo)}" loading="lazy" onerror="smashImgFallback(this)">` : '<div class="cr-ph" aria-hidden="true">🏆</div>'}
+        <div class="cr-info"><div class="cr-promos"><div class="cr-promo"><b>🏆 Paquete del club · solo hoy</b></div></div><b>${esc(p.titulo)}</b><small>${esc(paqQueTrae(p))}</small>
+          <span class="cr-price">${normal > p.valor ? `<s>${fmt(normal)}</s> ` : ''}${fmt(p.valor)}</span>
+          <div class="qty-mini"><button type="button" data-cr="pqminus" data-id="${esc(p.id)}" aria-label="Menos">−</button><b>${n}</b><button type="button" data-cr="pqplus" data-id="${esc(p.id)}" aria-label="Más"${cr.cuenta ? '' : ' disabled'}>+</button></div>
+          ${cr.cuenta ? '' : '<small class="cr-promo-nota">Solo clientes del club: busca al cliente para agregarlo</small>'}
+        </div></div>`;
+    }).join('');
+    box.innerHTML = paqHtml + prods.filter((p) => p.categoria !== 'combo').map((p) => {
       const q = cr.qty[p.id] || 0;
       const combo = q && p.categoria === 'hamburguesa' ? cs.map((c) => { const n = cr.combo[p.id + '|' + c.id] || 0; return `<div class="cr-combo">🍟 En combo (+${fmt(c.price)}): <b>${n} de ${q}</b>
           <div class="qty-mini"><button type="button" data-cr="cminus" data-id="${esc(p.id)}" data-c="${esc(c.id)}" aria-label="Menos combos">−</button><b>${n}</b><button type="button" data-cr="cplus" data-id="${esc(p.id)}" data-c="${esc(c.id)}" aria-label="Más combos">+</button></div></div>`; }).join('') : '';
@@ -141,7 +159,13 @@ const SmashCrear = (function () {
         : `<div class="cr-li cr-gift off"><span>🎁 <b>${esc(g.p.titulo)}:</b> con ${g.siguiente} burger${g.siguiente > 1 ? 's' : ''} más le regalas ${esc(nombres(ops, ' o '))}</span><span>—</span></div>`;
     }).join('');
     $('crResumen').innerHTML = items.length
-      ? items.map((i) => `<div class="cr-li"><span><b>${esc(i.qty)}×</b> ${esc(i.name)}${i.nota ? `<small>${esc(i.nota)}</small>` : ''}</span><span>${fmt(i.qty * i.price)}</span></div>`).join('') +
+      ? items.map((i) => {
+        if (i.paq == null) return `<div class="cr-li"><span><b>${esc(i.qty)}×</b> ${esc(i.name)}${i.nota ? `<small>${esc(i.nota)}</small>` : ''}</span><span>${fmt(i.qty * i.price)}</span></div>`;
+        if (items.find((x) => String(x.paq) === String(i.paq)) !== i) return '';   // un paquete = una sola línea
+        const s = items.filter((x) => String(x.paq) === String(i.paq)).reduce((a, x) => a + x.qty * x.price, 0);
+        const p = paquetesHoy().find((x) => String(x.id) === String(i.paq));
+        return `<div class="cr-li cr-paq-li"><span><b>${esc(i.paqN)}×</b> 🏆 ${esc(i.paqT)}${p ? `<small>${esc(paqQueTrae(p))}</small>` : ''}</span><span>${fmt(s)}</span></div>`;
+      }).join('') +
         R.usadas.map((u) => `<div class="cr-li cr-desc"><span>⭐ ${esc(u.titulo)}</span><span>−${fmt(u.valor)}</span></div>`).join('') + regalos
       : '<p class="cr-vacio">Aún no has elegido productos.</p>';
     $('crTotal').innerHTML = `<div><span>Subtotal</span><b>${fmt(sub)}</b></div>${desc ? `<div class="cr-desc"><span>Descuento club</span><b>−${fmt(desc)}</b></div>` : ''}<div><span>Domicilio</span><b>${z.variable && $('crDom').value === '' ? 'por definir' : fmt(dom)}</b></div><div class="tot"><span>Total</span><b>${fmt(sub - desc + dom)}</b></div>`;
@@ -203,6 +227,13 @@ const SmashCrear = (function () {
   $('crProducts').addEventListener('click', (e) => {
     const b = e.target.closest('[data-cr]'); if (!b) return;
     const id = b.dataset.id, q = cr.qty[id] || 0, act = b.dataset.cr;
+    if (act === 'pqplus' || act === 'pqminus') {
+      if (!cr.cuenta) return;
+      const n = cr.paq[id] || 0;
+      cr.paq[id] = act === 'pqplus' ? Math.min(20, n + 1) : Math.max(0, n - 1);
+      if (!cr.paq[id]) delete cr.paq[id];
+      render(); return;
+    }
     if (act === 'cplus' || act === 'cminus') {
       const k = id + '|' + b.dataset.c, n = cr.combo[k] || 0;
       if (act === 'cplus' && crEnCombo(id) < q) cr.combo[k] = n + 1;
@@ -240,6 +271,8 @@ const SmashCrear = (function () {
       out.push({ id: p.id, name: p.name, price: p.price, qty: cr.qty[p.id], cat: p.categoria, nota: (cr.nota[p.id] || '').trim() });
       if (p.categoria === 'hamburguesa') cs.forEach((c) => { const n = cr.combo[p.id + '|' + c.id] || 0; if (n) out.push({ id: c.id, name: c.name, price: c.price, qty: n, cat: 'combo', nota: 'Para ' + p.name, paraId: p.id }); });
     });
+    // paquetes: sus burgers y combos reales (cocina, cupo y puntos los cuentan normal)
+    if (N && cr.cuenta) paquetesHoy().forEach((p) => { if (cr.paq[p.id]) N.lineasPaquete(p, cr.paq[p.id], prodActivo).forEach((it) => out.push(Object.assign(it, { cat: it.cat || 'hamburguesa' }))); });
     return out;
   }
   $('crProducts').addEventListener('input', (e) => { if (e.target.classList.contains('cr-note')) { cr.nota[e.target.dataset.id] = e.target.value; crTotal(); } });
@@ -258,7 +291,7 @@ const SmashCrear = (function () {
       zona: z.nombre, domicilio: dom, domicilioPendiente: false, pago: $('crPago').value, origen: 'cocina',
       descuento: R.descuento, descuentos: R.usadas, cuenta: cr.cuenta ? { usuario: cr.cuenta.usuario || '', correo: cr.cuenta.correo } : null });
     if (!res.ok) { msg.textContent = 'No se creó: era igual al pedido #' + num(res.order) + ' de hace unos minutos.'; return; }
-    cr.qty = {}; cr.nota = {}; cr.combo = {}; cr.sab = {}; cr.cuenta = null; pintarClub();
+    cr.qty = {}; cr.nota = {}; cr.combo = {}; cr.sab = {}; cr.paq = {}; cr.cuenta = null; pintarClub();
     ['crCliente', 'crTel', 'crDir', 'crNotas', 'crDom', 'crClubQ'].forEach((i) => ($(i).value = ''));
     msg.className = 'ok-msg';
     msg.innerHTML = '✓ Pedido #' + esc(num(res.order)) + ' creado. Ya está en Pedidos. <button type="button" class="cr-ver" data-ver="' + esc(res.order.id) + '">Ver pedido</button>';

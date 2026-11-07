@@ -508,3 +508,9 @@ button,input,select{font:inherit;color:inherit}
 .li.promo.gift span{line-height:1.45}
 .li.promo.gift b{color:var(--green)}
 .lnk.gift-add{display:inline-block;margin:2px 4px 0 0;padding:3px 9px;border-radius:999px;border:1px solid rgba(47,212,122,.6);color:var(--green);text-decoration:none;font-weight:700}
+
+/* Paquete del club (tipo "paquete"): se ve como una burger más */
+.pcard.paq{border-color:rgba(255,182,39,.55);box-shadow:0 0 0 1px rgba(255,182,39,.18),0 18px 40px -24px rgba(255,182,39,.35)}
+.pcard.paq .ph{font-size:3rem}
+.paq-trae{margin:-4px 0 10px;color:var(--gold);font-size:.82rem;font-weight:700}
+.li.paq span{color:var(--gold);font-weight:700}
