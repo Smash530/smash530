@@ -216,7 +216,7 @@
     var tira = $("semDias"), sl = tira.scrollLeft;
     tira.innerHTML = dias.map(function (x) {
       var on = x.d === SEM.sel;
-      return '<button type="button" role="tab" aria-selected="' + on + '" class="sem-dia' + (on ? " on" : "") + (x.cierre ? " cerr" : "") + (x.promos.length ? " con" : "") + '" data-semdia="' + x.d + '">' +
+      return '<button type="button" role="tab" aria-selected="' + on + '" class="sem-dia' + (on ? " on" : "") + (x.cierre ? " cerr" : x.promos.length ? " con" : "") + '" data-semdia="' + x.d + '">' +
         "<b>" + x.corto + "</b><small>" + (x.cierre ? "Descanso" : x.promos.length ? x.promos.length + (x.promos.length > 1 ? " promos" : " promo") : "—") + "</small></button>";
     }).join("");
     // la tira conserva su posición al redibujar y siempre deja a la vista el día elegido
