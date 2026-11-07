@@ -710,3 +710,27 @@ body:has(#staffAuthSection:not([hidden])) .container{max-width:none;padding:0;ma
 .cr-card.cr-paq .cr-ph{display:grid;place-items:center;font-size:2rem}
 .cr-price s{opacity:.55;font-weight:400;margin-right:4px}
 .qty-mini button:disabled{opacity:.4;cursor:not-allowed}
+
+/* Reparto de socios: anotar gastos ahí mismo */
+.soc-gastos .soc-gseg{margin-bottom:12px;flex-wrap:wrap}
+.soc-gform{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 12px;margin-bottom:14px}
+.soc-gform label{display:flex;flex-direction:column;gap:5px;font-size:.8rem;font-weight:600;color:var(--muted);min-width:0}
+.soc-gform .wide{grid-column:1/-1}
+.soc-gact{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.soc-gact .error,.soc-gact .ok-msg{margin:0}
+#socGasLista{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;border-top:1px solid var(--border);padding-top:12px}
+.soc-gdet{min-width:0}
+.soc-gdet h4{margin:0 0 6px;font-size:.85rem;font-weight:700}
+.soc-glist{list-style:none;margin:0;padding:0}
+.soc-glist li{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--border);font-size:.86rem}
+.soc-glist li>div{flex:1;min-width:0}
+.soc-glist li small{display:block;color:var(--muted);font-size:.75rem}
+.soc-glist li>span{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600}
+.soc-glist li.off{opacity:.55}
+.soc-glist li.off>span{text-decoration:line-through}
+.soc-x{border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:8px;padding:4px 9px;font-size:.75rem;cursor:pointer}
+.soc-x:hover{color:var(--red);border-color:var(--red)}
+.soc-flow li.add{border-bottom:0;padding:6px 0 2px}
+.soc-lnk{border:0;background:none;padding:0;color:var(--red);font-weight:700;font-size:.82rem;cursor:pointer}
+@media (max-width:820px){.soc-gform{grid-template-columns:1fr 1fr}#socGasLista{grid-template-columns:1fr}}
+@media (max-width:520px){.soc-gform{grid-template-columns:1fr}}
