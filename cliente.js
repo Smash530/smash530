@@ -7,6 +7,8 @@
   function hoyLocal() { return SmashExt.localDay(new Date().toISOString()); }
 
   var prods = [], Z = {}, zone = "", pm = "", qty = {}, LM = "", cupo = null;
+  // Cada hamburguesa gasta 2 del cupo del día
+  var POR_BURGER = (window.SmashExt && SmashExt.CUPO_POR_BURGER) || 2;
   // Horario de atención (menu.json o local). Fuera de horario el pedido se envía como reserva.
   var H = null, EH = { abierto: true };
   function reservaTxt() { return (EH.abreHoy ? "hoy" : "mañana") + " a las " + EH.abre; }
@@ -223,6 +225,7 @@
   function pintarCupo() {
     if (cupo) {
       var rest = Math.max(0, cupo.total - cupo.vendidas), el = $("cupo");
+      if (rest < POR_BURGER) rest = 0;   // lo que sobra no alcanza para otra hamburguesa
       el.hidden = false;
       var pct = cupo.total > 0 ? Math.round((rest / cupo.total) * 100) : 0, poco = rest > 0 && pct <= 25;
       el.className = "cupo" + (rest <= 0 ? " out" : poco ? " low" : "");
@@ -248,11 +251,14 @@
   }
 
   function restantes() { return cupo ? Math.max(0, cupo.total - cupo.vendidas) : Infinity; }
+  // Lo que gasta del cupo lo que hay en el carrito: cada hamburguesa gasta POR_BURGER
   function burgersEnCarrito() {
     var n = 0;
     prods.forEach(function (p) { if (p.categoria === "hamburguesa") n += qty[p.id] || 0; });
-    return n;
+    return n * POR_BURGER;
   }
+  // Cuántas hamburguesas más alcanzan con lo que queda del cupo
+  function alcanzan() { return Math.max(0, Math.floor((restantes() - burgersEnCarrito()) / POR_BURGER)); }
 
   document.addEventListener("click", function (e) {
     var b = e.target.closest ? e.target.closest("button") : null;
@@ -280,8 +286,8 @@
     } else if (b.classList.contains("qb")) {
       var id = b.getAttribute("data-id"), d = Number(b.getAttribute("data-d"));
       var p = prods.filter(function (x) { return x.id === id; })[0];
-      if (d > 0 && p && p.categoria === "hamburguesa" && burgersEnCarrito() >= restantes()) {
-        $("err").textContent = restantes() <= 0 ? "⚠ Hoy se agotaron las hamburguesas" : "⚠ Solo quedan " + restantes() + " hamburguesas hoy";
+      if (d > 0 && p && p.categoria === "hamburguesa" && alcanzan() < 1) {
+        $("err").textContent = restantes() < POR_BURGER ? "⚠ Hoy se agotaron las hamburguesas" : "⚠ Ya tienes en tu pedido todas las hamburguesas que quedan hoy";
         return;
       }
       qty[id] = Math.max(0, (qty[id] || 0) + d);
@@ -387,7 +393,7 @@
   }
 
   $("go").addEventListener("click", function (e) {
-    if (cupo && restantes() <= 0 && burgersEnCarrito() > 0) { e.preventDefault(); $("err").textContent = "⚠ Hoy se agotaron las hamburguesas"; return; }
+    if (cupo && burgersEnCarrito() > restantes()) { e.preventDefault(); var cab = Math.floor(restantes() / POR_BURGER); $("err").textContent = cab < 1 ? "⚠ Hoy se agotaron las hamburguesas" : "⚠ Hoy solo alcanzan " + cab + " hamburguesa" + (cab > 1 ? "s" : "") + " más: quita algunas de tu pedido"; return; }
     var m = miss();
     if (m.length) { e.preventDefault(); $("err").textContent = "⚠ Falta: " + m.join(", "); return; }
     $("err").textContent = "";

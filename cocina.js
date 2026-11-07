@@ -84,8 +84,8 @@
     if (!c) { el.className = 'cupo-bar'; el.innerHTML = '🍔 Cupo de hoy sin definir. Defínelo en Configuración.'; return; }
     const rest = c.total - c.vendidas;
     el.className = 'cupo-bar' + (rest <= 0 ? ' out' : rest <= 10 ? ' low' : '');
-    el.innerHTML = (rest <= 0 ? `🍔 <b>AGOTADO</b>: vendidas ${c.vendidas} de ${c.total}`
-      : `🍔 Hoy: <b>${c.vendidas}</b> vendidas · quedan <b>${rest}</b> de ${c.total}`)
+    el.innerHTML = (rest <= 0 ? `🍔 <b>AGOTADO</b>: ${c.burgers} burgers vendidas (gastan ${c.vendidas} de ${c.total})`
+      : `🍔 Hoy: <b>${c.burgers}</b> burgers vendidas (cada una gasta ${SmashExt.CUPO_POR_BURGER}) · quedan <b>${rest}</b> de ${c.total}`)
       + (CN.error ? ` <small title="${SmashUI.esc(CN.error)}">· ⚠ la página de clientes NO lo ve (${SmashUI.esc(CN.error)})</small>`
         : CN.enviado === c.total + ':' + c.vendidas ? ' <small>· 🌐 visible en la página de clientes</small>' : '');
     subirCupo(c);

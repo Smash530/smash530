@@ -397,7 +397,9 @@ const SmashExt = (function () {
   const hoy = () => localDay(new Date().toISOString());
   const getCupoRaw = () => rd(CK, null);
   function setCupo(total) { wr(CK, { dia: hoy(), total: Math.max(0, parseInt(total, 10) || 0) }); }
-  function vendidasHoy() {
+  // Cada hamburguesa vendida gasta 2 del cupo (con cupo 100 se venden 50)
+  const CUPO_POR_BURGER = 2;
+  function burgersHoy() {
     const d = hoy();
     let n = 0;
     rd(SmashDB.KEYS.ORDERS, []).forEach((o) => {
@@ -406,10 +408,12 @@ const SmashExt = (function () {
     });
     return n;
   }
+  // "vendidas" = lo que se ha gastado del cupo · "burgers" = hamburguesas reales vendidas
   function cupoHoy() {
     const c = getCupoRaw();
     if (!c || c.dia !== hoy()) return null;
-    return { total: c.total, vendidas: vendidasHoy() };
+    const b = burgersHoy();
+    return { total: c.total, vendidas: b * CUPO_POR_BURGER, burgers: b };
   }
 
   /* ---- Horario de atención (lo cambian los dueños) ----
@@ -714,7 +718,7 @@ const SmashExt = (function () {
   }
 
   return {
-    getZones, setZoneFees, getZonasCfg, saveZonasCfg, addOrder, localDay, pedidosRepetidos, diaServicio, inicioPedido, nextDayNumber, arreglarNumerosHoy, getCupoRaw, setCupo, cupoHoy, buildMenu, loadMenu,
+    getZones, setZoneFees, getZonasCfg, saveZonasCfg, addOrder, localDay, pedidosRepetidos, diaServicio, inicioPedido, nextDayNumber, arreglarNumerosHoy, getCupoRaw, setCupo, cupoHoy, CUPO_POR_BURGER,buildMenu, loadMenu,
     setStatus, updateOrder, getRepartidores, rememberRepartidor, soundOn, setSound, unlockAudio, audioReady, chime,
     refreshLedger, getLedger, deleteOrder, getDeletedOrders, DIAS, getPersonal, addPersonal, deletePersonal, antiguedad,
     hashPassword, loginOwner, currentOwner, logoutOwner, changeOwnerPassword, OWNER_DEF,
