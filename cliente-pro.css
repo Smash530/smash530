@@ -496,3 +496,15 @@ button,input,select{font:inherit;color:inherit}
   .cz-list{grid-auto-columns:78%}
   .cz-pts b{font-size:2rem}
 }
+
+/* Promos de hoy encima de cada producto (clientes con sesión) */
+.ppromos{display:flex;flex-direction:column;gap:6px;margin:0 0 10px}
+.ppromo{display:flex;flex-direction:column;gap:2px;padding:7px 10px;border-radius:10px;border:1px solid rgba(255,182,39,.45);background:rgba(255,182,39,.1);font-size:.8rem;line-height:1.3}
+.ppromo b{color:var(--gold);font-weight:800}
+.ppromo span{color:rgba(255,255,255,.78)}
+.ppromo.gift{border-color:rgba(47,212,122,.45);background:rgba(47,212,122,.1)}
+.ppromo.gift b{color:var(--green)}
+.item .ppromos{margin:0 0 6px}
+.li.promo.gift span{line-height:1.45}
+.li.promo.gift b{color:var(--green)}
+.lnk.gift-add{display:inline-block;margin:2px 4px 0 0;padding:3px 9px;border-radius:999px;border:1px solid rgba(47,212,122,.6);color:var(--green);text-decoration:none;font-weight:700}

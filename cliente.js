@@ -63,7 +63,7 @@
   var cuestaPts = function (p) { return Math.max(0, Number(p && p.puntos) || 0); };
   function gratis() { return promos.filter(function (p) { return !cuestaPts(p); }); }
   function calcularPromos(L) {
-    var vacio = { descuento: 0, usadas: [], canjes: [], faltan: [], opcionales: [] };
+    var vacio = { descuento: 0, usadas: [], canjes: [], faltan: [], opcionales: [], regalos: [] };
     if (!yo || !hayNube) return vacio;
     var base = gratis(), saldo = Number(yo.puntos) || 0, elegidas = [], faltan = [], opcionales = [];
     promos.filter(cuestaPts).map(function (p) {
@@ -83,7 +83,8 @@
   }
   // Etiqueta corta del beneficio de una promoción
   function beneficio(p) {
-    var pr = p.producto ? prodDe(p.producto) : null;
+    var ids = SmashNube.prodsDe(p), pr = ids.length === 1 ? prodDe(ids[0]) : null;
+    if (p.tipo === "regalo") return "🎁 Regalo";
     if (p.tipo === "porcentaje") return "−" + p.valor + "%";
     if (p.tipo === "valor") return "−" + fmt(p.valor);
     if (p.tipo === "precio") return pr ? fmt(Math.max(0, pr.price - p.valor)) : "Precio especial";
@@ -99,12 +100,33 @@
   // Mejor promoción gratuita de un producto, por unidad (para mostrar el precio especial en la tarjeta)
   function promoDe(p) {
     if (!yo || !promos.length) return null;
-    var r = SmashNube.aplicarPromos([{ id: p.id, price: p.price, qty: 1 }], gratis().filter(function (x) { return x.producto === p.id; }));
+    var r = SmashNube.aplicarPromos([{ id: p.id, price: p.price, qty: 1 }], gratis().filter(function (x) { return x.tipo !== "regalo" && SmashNube.prodsDe(x).indexOf(p.id) > -1; }));
     return r.porProducto[p.id] ? { precio: p.price - r.porProducto[p.id].v, promo: r.porProducto[p.id].p } : null;
+  }
+  // Nombres de una lista de productos: "Smash, Toci o Bacon Royal"
+  function nombres(ids, y) {
+    var l = ids.map(function (id) { var x = prodDe(id); return x ? x.name : ""; }).filter(Boolean);
+    return l.length < 2 ? l.join("") : l.slice(0, -1).join(", ") + (y || " y ") + l[l.length - 1];
+  }
+  /* Promos de hoy encima de cada producto (solo clientes con sesión): la burger que entra
+     en la promo y el producto que se regala muestran la promo con su descripción. */
+  function promoTags(p) {
+    if (!yo || !promos.length) return "";
+    var h = promos.filter(function (x) { return SmashNube.tocaProducto(x, p.id); }).map(function (x) {
+      var esRegalo = x.tipo === "regalo" && SmashNube.prodsDe(x).indexOf(p.id) < 0;
+      var cada = Math.max(1, Number(x.valor) || 1);
+      var txt = x.tipo === "regalo"
+        ? (esRegalo ? "Gratis por cada " + (cada > 1 ? cada + " burgers" : "burger") + " que pidas"
+          : "Te regalamos " + nombres(SmashNube.regalosDe(x), " o ") + (cada > 1 ? " por cada " + cada + " burgers" : " por cada burger") + (x.sin_combo !== false ? " (sin combo)" : ""))
+        : (x.descripcion || "");
+      return '<div class="ppromo' + (x.tipo === "regalo" ? " gift" : "") + '"><b>' + (x.tipo === "regalo" ? "🎁 " : "⭐ ") + esc(x.titulo) + (cuestaPts(x) ? " · " + cuestaPts(x) + " pts" : "") + "</b>" +
+        (txt ? "<span>" + esc(txt) + "</span>" : "") + "</div>";
+    }).join("");
+    return h ? '<div class="ppromos">' + h + "</div>" : "";
   }
   function precioHtml(p) {
     var pr = promoDe(p);
-    var canje = yo && promos.some(function (x) { return cuestaPts(x) && x.producto === p.id; }) ? ' <span class="ptag pts">⭐ Canjeable</span>' : "";
+    var canje = yo && promos.some(function (x) { return cuestaPts(x) && x.tipo !== "regalo" && SmashNube.prodsDe(x).indexOf(p.id) > -1; }) ? ' <span class="ptag pts">⭐ Canjeable</span>' : "";
     if (!pr) return fmt(p.price) + canje;
     var et = pr.promo.tipo === "porcentaje" ? "−" + pr.promo.valor + "%" : "Promo";
     return '<s class="pold">' + fmt(p.price) + "</s> " + fmt(pr.precio) + ' <span class="ptag">⭐ ' + esc(et) + "</span>" + canje;
@@ -120,7 +142,7 @@
     PR.usadas.forEach(function (u) { if (u.id != null) enPedido[u.id] = true; });
     var lista = promos.slice().sort(function (a, b) { return cuestaPts(a) - cuestaPts(b); });
     var tarjetas = lista.map(function (p) {
-      var c = cuestaPts(p), falta = Math.max(0, c - saldo), pr = p.producto ? prodDe(p.producto) : null, dentro = !!enPedido[p.id];
+      var ids = SmashNube.prodsDe(p), c = cuestaPts(p), falta = Math.max(0, c - saldo), pr = ids.length === 1 ? prodDe(ids[0]) : null, dentro = !!enPedido[p.id];
       var off = c && usarPts[p.id] === false;
       var estado = dentro ? '<span class="czc-ok">✓ En tu pedido' + (c ? " · usa " + c + " pts" : "") + "</span>"
         : falta ? '<div class="czc-bar" aria-hidden="true"><i style="width:' + Math.round(Math.min(100, (saldo / c) * 100)) + '%"></i></div><small class="czc-falta">Te faltan <b>' + falta + " pts</b> · tienes " + saldo + "</small>"
@@ -132,7 +154,7 @@
         '<div class="czc-top"><span class="czc-b">' + esc(beneficio(p)) + '</span><span class="czc-cost' + (c ? "" : " free") + '">' + (c ? "⭐ " + c + " pts" : "Gratis") + "</span></div>" +
         '<b class="czc-t">' + esc(p.titulo) + "</b>" +
         (p.descripcion ? '<p class="czc-d">' + esc(p.descripcion) + "</p>" : "") +
-        '<small class="czc-p">' + (pr ? "🍔 " + esc(pr.name) : "🧾 En todo tu pedido") + "</small>" +
+        '<small class="czc-p">' + (p.tipo === "regalo" ? "🎁 " + esc(nombres(SmashNube.regalosDe(p), " o ")) + " gratis con " + esc(nombres(ids, ", ")) : ids.length ? "🍔 " + esc(nombres(ids)) : "🧾 En todo tu pedido") + "</small>" +
         estado + btn + "</article>";
     }).join("");
     z.innerHTML = '<div class="cz-head"><div><span class="eyebrow gold">Club SMASH</span><h3>Tus promos de hoy</h3></div>' +
@@ -159,12 +181,12 @@
         '<div class="pmedia"><span class="ph" aria-hidden="true">🍔</span>' +
         (p.img ? '<img class="pimg" src="' + esc(p.img) + '" alt="' + esc(p.name) + '" loading="lazy" onload="this.dataset.ok=1" onerror="smashImgFallback(this)">' : "") +
         (star ? '<span class="tag">La insignia</span>' : "") + "</div>" +
-        '<div class="pbody"><h3 class="nm">' + esc(p.name) + "</h3>" +
+        '<div class="pbody">' + promoTags(p) + '<h3 class="nm">' + esc(p.name) + "</h3>" +
         (p.desc ? '<p class="ing">' + esc(p.desc) + "</p>" : "") +
         '<div class="pfoot"><span class="pr">' + precioHtml(p) + "</span>" + btns + "</div></div>" +
         '<div class="pcombo" id="cb_' + esc(p.id) + '">' + comboBox(p) + "</div></article>";
     }
-    return '<div class="item"><div class="bd"><div class="nm">' + esc(p.name) + '</div>' + (p.desc ? '<p class="ds">' + esc(p.desc) + "</p>" : "") +
+    return '<div class="item"><div class="bd">' + promoTags(p) + '<div class="nm">' + esc(p.name) + '</div>' + (p.desc ? '<p class="ds">' + esc(p.desc) + "</p>" : "") +
       '<div class="pr">' + precioHtml(p) + "</div></div>" + btns +
       (sabores(p).length ? '<div class="psab" id="sb_' + esc(p.id) + '">' + sabBox(p) + "</div>" : "") + "</div>";
   }
@@ -285,7 +307,7 @@
       out.push({ id: p.id, name: p.name, price: p.price, qty: qty[p.id] });
       if (p.categoria === "hamburguesa") combos().forEach(function (c) {
         var n = (cq[p.id] || {})[c.id] || 0;
-        if (n) out.push({ id: c.id, name: c.name, price: c.price, qty: n, nota: "Para " + p.name, para: p.name });
+        if (n) out.push({ id: c.id, name: c.name, price: c.price, qty: n, nota: "Para " + p.name, para: p.name, paraId: p.id });
       });
     });
     return out;
@@ -320,6 +342,12 @@
       return '<div class="li promo lock"><span>🔒 ' + esc(f.p.titulo) + ' <small class="li-pts">te faltan ' + f.faltan + " pts</small></span><b>—</b></div>";
     }).join("") + PR.opcionales.filter(function (p) { return usarPts[p.id] === false; }).map(function (p) {
       return '<div class="li promo off"><span>⭐ ' + esc(p.titulo) + ' <small class="li-pts"><button type="button" class="lnk" data-sipts="' + esc(p.id) + '">Usar ' + cuestaPts(p) + " pts</button></small></span><b>—</b></div>";
+    }).join("") + PR.regalos.filter(function (g) { return g.faltan > 0 || g.siguiente > 0; }).map(function (g) {
+      // Regalo ganado que aún no está en el pedido: botones para agregarlo (el cliente elige cuál)
+      var ops = SmashNube.regalosDe(g.p).filter(prodDe);
+      if (g.faltan > 0) return '<div class="li promo gift"><span>🎁 <b>' + esc(g.p.titulo) + ":</b> te " + (g.faltan > 1 ? "regalamos " + g.faltan : "regalamos 1") + ". Elige: " +
+        ops.map(function (id) { return '<button type="button" class="lnk gift-add" data-addpromo="' + esc(id) + '">+ ' + esc(prodDe(id).name) + "</button>"; }).join(" ") + "</span><b>Gratis</b></div>";
+      return '<div class="li promo gift off"><span>🎁 <b>' + esc(g.p.titulo) + ":</b> agrega " + g.siguiente + " burger" + (g.siguiente > 1 ? "s" : "") + " más y te regalamos " + esc(nombres(ops, " o ")) + "</span><b>—</b></div>";
     }).join("")
       : '<p class="li-empty">Aún no has agregado productos.</p>';
     $("cnt").textContent = n ? n + (n == 1 ? " producto" : " productos") + " · " + fmt(t) : "Tu pedido está vacío";

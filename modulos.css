@@ -249,3 +249,8 @@ details.mod-box[open]>summary{margin-bottom:8px}
   #printArea .tk-r span:last-child{white-space:nowrap}
   #printArea .tk-moti{text-align:center;font-weight:900;font-size:14pt;line-height:1.25;margin:1mm 0}
 }
+
+/* Promos: productos marcados y regalo */
+.pp-btns{display:flex;gap:6px;flex-wrap:wrap}
+.promo-form fieldset[hidden]{display:none}
+.promo-form label.prod-chip span{min-width:0}

@@ -137,12 +137,18 @@ const SmashNube = (function () {
     if (!ok) return sinNube();
     const f = {
       titulo: String(d.titulo || '').trim().slice(0, 80), descripcion: String(d.descripcion || '').trim().slice(0, 300),
-      tipo: d.tipo, producto: d.producto || '', valor: Math.max(0, Number(d.valor) || 0),
+      tipo: d.tipo, producto: listaIds(d.producto).join(','), valor: Math.max(0, Number(d.valor) || 0),
       desde: d.desde, hasta: d.hasta, activa: d.activa !== false,
       dias: leerDias(d.dias),
     };
     if (!f.titulo) return { ok: false, error: 'Ponle un nombre a la promoción.' };
-    if (!['porcentaje', 'valor', 'precio', 'incentivo'].includes(f.tipo)) return { ok: false, error: 'Elige el tipo de promoción.' };
+    if (!['porcentaje', 'valor', 'precio', 'incentivo', 'regalo'].includes(f.tipo)) return { ok: false, error: 'Elige el tipo de promoción.' };
+    // Regalo: por cada "valor" productos marcados, uno de los productos de regalo va gratis
+    if (f.tipo === 'regalo') {
+      f.regalo = listaIds(d.regalo).join(','); f.sin_combo = d.sin_combo !== false; f.valor = Math.max(1, Math.round(f.valor || 1));
+      if (!f.producto) return { ok: false, error: 'Marca las burgers (o productos) que dan el regalo.' };
+      if (!f.regalo) return { ok: false, error: 'Marca qué producto se regala.' };
+    }
     if (f.tipo === 'porcentaje' && (f.valor <= 0 || f.valor > 100)) return { ok: false, error: 'El porcentaje debe estar entre 1 y 100.' };
     if ((f.tipo === 'valor' || f.tipo === 'precio') && f.valor <= 0) return { ok: false, error: 'Escribe el valor en pesos.' };
     if (f.tipo === 'precio' && !f.producto) return { ok: false, error: 'El precio especial necesita un producto.' };
@@ -153,6 +159,7 @@ const SmashNube = (function () {
     if (pts && f.tipo === 'incentivo') return { ok: false, error: 'Una promoción con precio en puntos debe dar un descuento (porcentaje, valor o precio especial).' };
     const r = d.id ? await sb.from('promociones').update(f).eq('id', d.id) : await sb.from('promociones').insert(f);
     if (r.error && /puntos/.test(r.error.message || '') && /column|schema cache/i.test(r.error.message || '')) return { ok: false, error: 'Falta ejecutar supabase/puntos-y-canjes.sql en Supabase para poner precio en puntos.' };
+    if (r.error && (/regalo|sin_combo|promociones_tipo_check/.test(r.error.message || ''))) return { ok: false, error: 'Falta ejecutar supabase/promos-por-producto.sql en Supabase para las promos de regalo.' };
     return r.error ? { ok: false, error: errorTxt(r.error) } : { ok: true };
   }
   async function activarPromo(id, activa) {
@@ -181,29 +188,63 @@ const SmashNube = (function () {
   }
   const vigente = (p) => p.activa && p.desde <= hoyCO() && hoyCO() <= p.hasta && tocaHoy(p);
 
+  // "smash,toci" o ["smash","toci"] → ["smash","toci"]. Una promo puede marcar varios productos.
+  const listaIds = (v) => [...new Set((Array.isArray(v) ? v : String(v || '').split(',')).map((x) => String(x || '').trim()).filter(Boolean))].slice(0, 40);
+  const prodsDe = (p) => listaIds(p && p.producto);
+  const regalosDe = (p) => listaIds(p && p.regalo);
+  // ¿La promoción toca este producto? (lo marca, o es el regalo)
+  const tocaProducto = (p, id) => prodsDe(p).includes(id) || (p && p.tipo === 'regalo' && regalosDe(p).includes(id));
+
   /* Descuento de las promociones sobre un pedido.
-     - Con producto: se aplica a cada unidad de ese producto (si hay varias, la mejor).
+     - Con productos: se aplica a cada unidad de cada producto marcado (si hay varias, la mejor).
      - Sin producto (todo el pedido): % o valor sobre el resto del subtotal (la mejor).
+     - Regalo: por cada "valor" unidades de los productos marcados, una unidad de un producto
+       de regalo va gratis (si está en el pedido; el cliente elige cuál). Con sin_combo, las
+       burgers pedidas en combo no cuentan. "regalos" dice cuántos le faltan por agregar.
      - "Incentivo" no descuenta: es un beneficio que se muestra al cliente. */
   function aplicarPromos(items, promos) {
-    const vig = (promos || []).filter(vigente), porId = {};
+    const vig = (promos || []).filter(vigente), porId = {}, enCombo = {};
     let subtotal = 0;
-    (items || []).forEach((it) => { subtotal += it.price * it.qty; const x = porId[it.id] = porId[it.id] || { qty: 0, price: it.price }; x.qty += it.qty; });
-    const usadas = [], mejor = {};
-    vig.filter((p) => p.producto && porId[p.producto]).forEach((p) => {
-      const x = porId[p.producto], u = p.tipo === 'porcentaje' ? x.price * p.valor / 100 : p.tipo === 'valor' ? Math.min(p.valor, x.price) : p.tipo === 'precio' ? Math.max(0, x.price - p.valor) : 0;
-      const v = Math.round(u * x.qty);
-      if (v > 0 && (!mejor[p.producto] || v > mejor[p.producto].v)) mejor[p.producto] = { v, p };
+    (items || []).forEach((it) => {
+      subtotal += it.price * it.qty;
+      const x = porId[it.id] = porId[it.id] || { qty: 0, price: it.price }; x.qty += it.qty;
+      if (it.paraId) enCombo[it.paraId] = (enCombo[it.paraId] || 0) + it.qty;
     });
+    const usadas = [], mejor = {}, porPromo = {};
+    const usar = (p, v) => {
+      if (!porPromo[p.id]) { porPromo[p.id] = { id: p.id, titulo: p.titulo, valor: 0, puntos: Number(p.puntos) || 0 }; usadas.push(porPromo[p.id]); }
+      porPromo[p.id].valor += v;
+    };
+    vig.filter((p) => p.tipo !== 'regalo').forEach((p) => prodsDe(p).filter((id) => porId[id]).forEach((id) => {
+      const x = porId[id], u = p.tipo === 'porcentaje' ? x.price * p.valor / 100 : p.tipo === 'valor' ? Math.min(p.valor, x.price) : p.tipo === 'precio' ? Math.max(0, x.price - p.valor) : 0;
+      const v = Math.round(u * x.qty);
+      if (v > 0 && (!mejor[id] || v > mejor[id].v)) mejor[id] = { v, p };
+    }));
     let desc = 0;
-    Object.keys(mejor).forEach((k) => { desc += mejor[k].v; usadas.push({ id: mejor[k].p.id, titulo: mejor[k].p.titulo, valor: mejor[k].v, puntos: Number(mejor[k].p.puntos) || 0 }); });
+    Object.keys(mejor).forEach((k) => { desc += mejor[k].v; usar(mejor[k].p, mejor[k].v); });
+    // Regalos: cada unidad de regalo se usa una sola vez; primero las más caras (las eligió el cliente)
+    const libres = {}, regalos = [];
+    Object.keys(porId).forEach((id) => { libres[id] = porId[id].qty; });
+    vig.filter((p) => p.tipo === 'regalo').forEach((p) => {
+      const cada = Math.max(1, Math.round(Number(p.valor) || 1)), sinCombo = p.sin_combo !== false;
+      const cuentan = prodsDe(p).reduce((s, id) => s + Math.max(0, (porId[id] ? porId[id].qty : 0) - (sinCombo ? enCombo[id] || 0 : 0)), 0);
+      const gana = Math.floor(cuentan / cada);
+      let usados = 0, v = 0;
+      regalosDe(p).filter((id) => libres[id] > 0).sort((a, b) => porId[b].price - porId[a].price).forEach((id) => {
+        const n = Math.min(libres[id], gana - usados); if (n <= 0) return;
+        const unidad = porId[id].price - (mejor[id] ? mejor[id].v / porId[id].qty : 0);
+        libres[id] -= n; usados += n; v += Math.round(Math.max(0, unidad) * n);
+      });
+      if (v > 0) { desc += v; usar(p, v); }
+      if (cuentan > 0) regalos.push({ p, gana, usados, faltan: gana - usados, cuentan, cada, siguiente: gana ? 0 : cada - cuentan });
+    });
     let gen = null;
     vig.filter((p) => !p.producto && (p.tipo === 'porcentaje' || p.tipo === 'valor')).forEach((p) => {
       const resto = subtotal - desc, v = Math.round(p.tipo === 'porcentaje' ? resto * p.valor / 100 : Math.min(p.valor, resto));
       if (v > 0 && (!gen || v > gen.v)) gen = { v, p };
     });
     if (gen) { desc += gen.v; usadas.push({ id: gen.p.id, titulo: gen.p.titulo, valor: gen.v, puntos: Number(gen.p.puntos) || 0 }); }
-    return { descuento: Math.min(desc, subtotal), usadas, incentivos: vig.filter((p) => p.tipo === 'incentivo'), porProducto: mejor };
+    return { descuento: Math.min(desc, subtotal), usadas, incentivos: vig.filter((p) => p.tipo === 'incentivo'), porProducto: mejor, regalos };
   }
 
   /* Puntos de un pedido: burger 10 · burger en combo 15 (el combo suma 5 más) ·
@@ -464,6 +505,33 @@ const SmashNube = (function () {
     if (error) return { ok: false, falta: faltaPuntosSql(error), error: faltaPuntosSql(error) ? 'falta ejecutar supabase/puntos-y-canjes.sql en Supabase' : errorTxt(error) };
     return data || { ok: false, error: 'sin respuesta' };
   }
+  /* ---- Promociones y clientes del club desde "Crear pedido" (supabase/promos-por-producto.sql) ----
+     Con la llave del panel; si falta el SQL, se usa la cuenta de caja/dueño conectada en "⭐ Clientes leales". */
+  async function panelPromos() {
+    if (!ok) return { ok: false, lista: [] };
+    if (tok()) {
+      const { data, error } = await sb.rpc('panel_promos', { p_token: tok() });
+      if (!error) return { ok: true, lista: data || [] };
+    }
+    const p = await perfil();
+    if (p && (p.rol === 'caja' || p.rol === 'dueno')) return { ok: true, lista: await promociones(true) };
+    return { ok: false, lista: [], error: 'Para ver las promociones conecta el panel a la nube (o ejecuta supabase/promos-por-producto.sql).' };
+  }
+  async function panelBuscarCliente(texto) {
+    if (!ok) return sinNube();
+    if (tok()) {
+      const { data, error } = await sb.rpc('panel_buscar_cliente', { p_token: tok(), p_texto: String(texto || '') });
+      if (!error && data && data.ok) return { ok: true, lista: data.lista || [] };
+    }
+    // Forma anterior: cuenta de caja o dueño conectada
+    const p = await perfil();
+    if (p && (p.rol === 'caja' || p.rol === 'dueno')) {
+      const r = await clientes(); if (!r.ok) return r;
+      const t = String(texto || '').trim().toLowerCase(), d = limpioTel(texto).slice(-10);
+      return { ok: true, lista: r.lista.filter((c) => (d.length >= 7 && [c.telefono, c.telefono2].some((x) => limpioTel(x).slice(-10) === d)) || c.correo === t || String(c.usuario || '').toLowerCase() === t.replace(/^@/, '')).slice(0, 6) };
+    }
+    return { ok: false, error: 'No se pudo buscar: falta ejecutar supabase/promos-por-producto.sql en Supabase (o conectar la cuenta de caja en "⭐ Clientes leales").' };
+  }
   async function panelDevolverCanje(ref) {
     if (!ok) return sinNube();
     const { data, error } = await sb.rpc('panel_devolver_canje', { p_token: tok(), p_ref: String(ref || '') });
@@ -499,14 +567,15 @@ const SmashNube = (function () {
     return () => sb.removeChannel(canal);
   }
 
-  return {
-    panelEntrar, panelSesion, panelSalir, panelSumarPuntos, panelDevolverCanje, tomarPedido, datosAvisos, datosLeer, guardarDato, seguirDatos,
+  const API = {
+    panelEntrar, panelSesion, panelSalir, panelSumarPuntos, panelDevolverCanje, panelPromos, panelBuscarCliente, tomarPedido, datosAvisos, datosLeer, guardarDato, seguirDatos,
     subirRespaldo, listarRespaldos, leerRespaldo,
     enviarImpresion, estadoImpresion, tomarImpresion, marcarImpresion, seguirImpresiones,
     guardarCupo, leerCupo, seguirCupo,
     ok, perfil, alCambiar, enRecuperacion, registrar, entrar, salir, recuperarClave, nuevaClave, guardarPerfil, usuarioLibre,
-    promociones, guardarPromo, activarPromo, borrarPromo, aplicarPromos, vigente, hoyCO, diaCO, tocaHoy, textoDias, DIAS,
+    promociones, guardarPromo, activarPromo, borrarPromo, aplicarPromos, vigente, listaIds, prodsDe, regalosDe, tocaProducto, hoyCO, diaCO, tocaHoy, textoDias, DIAS,
     puntosPedido, REGLAS, clientes, movimientos, sumarPuntos, cambiarRol, buscarPorCorreo,
     enviarPedido, recibirPedidos, marcarRecibido,
   };
+  return API;
 })();

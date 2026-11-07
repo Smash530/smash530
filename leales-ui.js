@@ -16,12 +16,14 @@ const SmashLealesUI = (function () {
   const esc = SmashUI.esc, fmt = SmashUI.fmt;
   const esDueno = !!document.getElementById('section-costos');
   const ROL = { cliente: 'Cliente', caja: 'Caja', dueno: 'Dueño' };
-  const TIPO = { porcentaje: '% de descuento', valor: '$ de descuento', precio: 'Precio especial', incentivo: 'Incentivo (sin descuento automático)' };
+  const TIPO = { porcentaje: '% de descuento', valor: '$ de descuento', precio: 'Precio especial', regalo: '🎁 Regalo (lleva gratis)', incentivo: 'Incentivo (sin descuento automático)' };
   const fecha = (iso) => (iso ? new Date(iso).toLocaleDateString('es-CO') : '-');
   const fechaH = (iso) => (iso ? new Date(iso).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) : '-');
   let yo = null, lista = [], promos = [], filtro = '', abierto = null, editando = null, cargando = false;
   const staff = () => !!yo && (yo.rol === 'caja' || yo.rol === 'dueno');
   const prodNombre = (id) => { const p = id && SmashDB.getProductById(id); return id ? (p ? p.name : id) : 'Todo el pedido'; };
+  // "smash,toci" → "Smash y Smash Toci" (vacío = Todo el pedido)
+  const prodsNombre = (v, y) => { const l = N.listaIds(v).map(prodNombre); return !l.length ? 'Todo el pedido' : l.length === 1 ? l[0] : l.slice(0, -1).join(', ') + (y || ' y ') + l[l.length - 1]; };
 
   /* ---------------- Conexión ---------------- */
   function loginHtml() {
@@ -114,21 +116,32 @@ const SmashLealesUI = (function () {
     return ['Vigente', 'on'];
   }
   function detalle(p) {
+    if (p.tipo === 'regalo') {
+      const c = Math.max(1, Number(p.valor) || 1);
+      return `🎁 ${prodsNombre(p.regalo, ' o ')} gratis por cada ${c > 1 ? c + ' de ' : ''}${prodsNombre(p.producto, ' o ')}${p.sin_combo !== false ? ' (sin contar combos)' : ''}`;
+    }
     const v = p.tipo === 'porcentaje' ? p.valor + '% de descuento' : p.tipo === 'valor' ? fmt(p.valor) + ' de descuento' : p.tipo === 'precio' ? 'precio especial ' + fmt(p.valor) : 'incentivo';
-    return v + (p.tipo === 'incentivo' ? '' : ' · ' + prodNombre(p.producto)) + (p.tipo === 'valor' && !p.producto ? ' (una vez por pedido)' : p.producto && p.tipo !== 'incentivo' ? ' (por unidad)' : '');
+    return v + (p.tipo === 'incentivo' ? (p.producto ? ' · ' + prodsNombre(p.producto) : '') : ' · ' + prodsNombre(p.producto)) + (p.tipo === 'valor' && !p.producto ? ' (una vez por pedido)' : p.producto && p.tipo !== 'incentivo' ? ' (por unidad)' : '');
   }
   // Campos de una promoción (se usan en "Nueva promoción" y en la ventana de editar)
   function camposPromo(e) {
     const dsel = (e.dias || []).map(Number);
-    const prods = SmashDB.getProducts();
+    const prods = SmashDB.getProducts().filter((p) => p.categoria !== 'combo');
+    const psel = N.listaIds(e.producto), rsel = N.listaIds(e.regalo);
+    const chips = (name, sel) => prods.map((p) => `<label class="dia-chip prod-chip"><input type="checkbox" name="${name}" value="${esc(p.id)}"${sel.includes(p.id) ? ' checked' : ''}><span>${esc(p.name)}</span></label>`).join('');
     return `
         <label>Nombre<input name="titulo" maxlength="80" required value="${esc(e.titulo)}" placeholder="Ej: Martes de Smash Toci"></label>
         <label>Descripción para el cliente<input name="descripcion" maxlength="300" value="${esc(e.descripcion)}" placeholder="Ej: 20% en tu Smash Toci todos los martes"></label>
-        <div class="two-col">
-          <label>Tipo<select name="tipo">${Object.keys(TIPO).map((k) => `<option value="${k}"${e.tipo === k ? ' selected' : ''}>${TIPO[k]}</option>`).join('')}</select></label>
-          <label>Producto<select name="producto"><option value="">Todo el pedido</option>${prods.map((p) => `<option value="${esc(p.id)}"${e.producto === p.id ? ' selected' : ''}>${esc(p.name)}${p.categoria === 'combo' ? ' (combo)' : ''}</option>`).join('')}</select></label>
-        </div>
-        <label class="promo-valor">Valor <small class="hint promo-ayuda"></small><input name="valor" type="number" min="0" step="1" value="${esc(e.valor)}"></label>
+        <label>Tipo<select name="tipo">${Object.keys(TIPO).map((k) => `<option value="${k}"${e.tipo === k ? ' selected' : ''}>${TIPO[k]}</option>`).join('')}</select></label>
+        <fieldset class="promo-dias promo-prods"><legend><span class="pp-leg">Productos de la promo</span> <small class="hint pp-ayuda"></small></legend>
+          <div class="dias-chips">${chips('producto', psel)}</div>
+          <div class="pp-btns"><button type="button" class="btn-sm" data-pp="burgers">🍔 Marcar todas las burgers</button><button type="button" class="btn-sm" data-pp="ninguno">Quitar todos</button></div>
+        </fieldset>
+        <fieldset class="promo-dias promo-regalo"><legend>Producto de regalo <small class="hint">(si marcas varios, el cliente elige cuál)</small></legend>
+          <div class="dias-chips">${chips('regalo', rsel)}</div>
+          <label class="chk"><input type="checkbox" name="sin_combo"${e.sin_combo !== false ? ' checked' : ''}> Las burgers pedidas en combo no cuentan</label>
+        </fieldset>
+        <label class="promo-valor"><span><span class="pv-leg">Valor</span> <small class="hint promo-ayuda"></small></span><input name="valor" type="number" min="0" step="1" value="${esc(e.tipo === 'regalo' ? Math.max(1, Number(e.valor) || 1) : e.valor)}"></label>
         <label class="promo-pts">Precio en puntos <small class="hint">(0 = gratis para clientes registrados. Si cuesta puntos, al enviar el pedido se le descuentan solos; si no le alcanzan, compra sin la promo)</small><input name="puntos" type="number" min="0" max="100000" step="1" value="${esc(e.puntos || 0)}" data-col="${e.puntos !== undefined ? 1 : 0}"></label>
         <div class="two-col">
           <label>Desde<input name="desde" type="date" required value="${esc(e.desde)}"></label>
@@ -140,7 +153,9 @@ const SmashLealesUI = (function () {
         </fieldset>
         <label class="chk"><input type="checkbox" name="activa"${e.activa !== false ? ' checked' : ''}> Activa</label>`;
   }
-  const leerPromo = (f, id) => ({ id, titulo: f.titulo.value, descripcion: f.descripcion.value, tipo: f.tipo.value, producto: f.producto.value, valor: f.tipo.value === 'incentivo' ? 0 : f.valor.value,
+  const marcados = (f, n) => [...f.querySelectorAll(`input[name=${n}]:checked`)].map((x) => x.value);
+  const leerPromo = (f, id) => ({ id, titulo: f.titulo.value, descripcion: f.descripcion.value, tipo: f.tipo.value, producto: marcados(f, 'producto'), valor: f.tipo.value === 'incentivo' ? 0 : f.valor.value,
+    regalo: marcados(f, 'regalo'), sin_combo: !!(f.sin_combo && f.sin_combo.checked),
     desde: f.desde.value, hasta: f.hasta.value, activa: f.activa.checked, dias: [...f.querySelectorAll("input[name=dia]:checked")].map((x) => +x.value),
     puntos: f.puntos ? f.puntos.value : 0, conPuntos: !!(f.puntos && f.puntos.dataset.col === "1") });
 
@@ -185,8 +200,13 @@ const SmashLealesUI = (function () {
   function ayudaValor(f) {
     if (!f || !f.tipo) return;
     const t = f.tipo.value;
-    f.querySelector('.promo-ayuda').textContent = t === 'porcentaje' ? '(porcentaje, de 1 a 100)' : t === 'valor' ? '(pesos que se descuentan)' : t === 'precio' ? '(precio final en pesos, elige un producto)' : '(no se usa: el incentivo solo se muestra al cliente)';
+    f.querySelector('.promo-ayuda').textContent = t === 'porcentaje' ? '(porcentaje, de 1 a 100)' : t === 'valor' ? '(pesos que se descuentan)' : t === 'precio' ? '(precio final en pesos, marca uno o varios productos)' : t === 'regalo' ? 'productos marcados (1 = uno por cada burger · 2 = uno por cada 2 burgers)' : '(no se usa: el incentivo solo se muestra al cliente)';
+    f.querySelector('.pv-leg').textContent = t === 'regalo' ? '1 regalo por cada' : 'Valor';
     f.querySelector('.promo-valor').hidden = t === 'incentivo';
+    f.querySelector('.promo-regalo').hidden = t !== 'regalo';
+    f.querySelector('.pp-leg').textContent = t === 'regalo' ? 'Productos que dan el regalo' : 'Productos de la promo';
+    f.querySelector('.pp-ayuda').textContent = t === 'regalo' ? '(marca las burgers que cuentan)' : t === 'incentivo' ? '(la promo se muestra encima de estos productos)' : '(sin marcar = todo el pedido)';
+    if (t === 'regalo' && !(Number(f.valor.value) >= 1)) f.valor.value = 1;
   }
 
   // Ventana para editar una promoción: guardar, pausar/activar o borrar. Se cierra sola al guardar.
@@ -204,6 +224,7 @@ const SmashLealesUI = (function () {
     const f = m.querySelector('#promoEditForm'), msg = m.querySelector('#promoEditMsg');
     ayudaValor(f);
     f.addEventListener('change', (ev) => { if (ev.target.name === 'tipo') ayudaValor(f); });
+    f.addEventListener('click', marcarProds);
     f.addEventListener('submit', (ev) => { ev.preventDefault(); guardarEdicion(); });
     let ocupado = false;
     async function hecho(r2) {
@@ -228,6 +249,11 @@ const SmashLealesUI = (function () {
     setTimeout(() => f.titulo.focus(), 50);
   }
 
+  // Botones "Marcar todas las burgers" / "Quitar todos"
+  function marcarProds(ev) {
+    const b = ev.target.closest && ev.target.closest('[data-pp]'); if (!b) return;
+    b.closest('.promo-prods').querySelectorAll('input[name=producto]').forEach((x) => { const p = SmashDB.getProductById(x.value); x.checked = b.dataset.pp === 'burgers' && !!p && p.categoria === 'hamburguesa'; });
+  }
   function render() { renderLeales(); renderPromos(); }
 
   /* ---------------- Eventos ---------------- */
@@ -246,6 +272,7 @@ const SmashLealesUI = (function () {
         const ok = document.getElementById('promoMsg'); if (ok) { ok.className = 'ok-msg'; ok.textContent = '✓ Promoción creada.'; }
       }
     });
+    if (r === proot) r.addEventListener('click', marcarProds);
     r.addEventListener('keydown', (e) => {
       if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('promo-card')) { e.preventDefault(); e.target.click(); }
     });
