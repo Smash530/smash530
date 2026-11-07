@@ -92,7 +92,7 @@
         if (en.isIntersecting) links.forEach(function (a) { a.classList.toggle("on", a.getAttribute("href") === "#" + en.target.id); });
       });
     }, { rootMargin: "-40% 0px -55% 0px" });
-    ["menu", "adicionales"].forEach(function (id) { if ($(id)) io.observe($(id)); });
+    ["promos", "menu", "adicionales"].forEach(function (id) { if ($(id)) io.observe($(id)); });
     // Aparición suave
     var rv = new IntersectionObserver(function (es) { es.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add("vis"); rv.unobserve(en.target); } }); }, { rootMargin: "0px 0px -8% 0px" });
     document.querySelectorAll(".block-h, .why-card, .steps li, .club-in, .foot-in").forEach(function (el) { el.classList.add("rv"); rv.observe(el); });

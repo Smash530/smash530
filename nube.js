@@ -133,6 +133,15 @@ const SmashNube = (function () {
     const { data, error } = await q;
     return error ? [] : data || [];
   }
+  // Promos activas de los próximos 7 días, para todos (supabase/promos-semana.sql).
+  // Si esa función aún no existe y hay sesión, se usan las promociones normales.
+  async function promosSemana() {
+    if (!ok) return [];
+    const { data, error } = await sb.rpc('promos_semana');
+    if (!error && Array.isArray(data)) return data;
+    const l = await promociones();
+    return Array.isArray(l) ? l : [];
+  }
   async function guardarPromo(d) {
     if (!ok) return sinNube();
     const f = {
@@ -196,6 +205,8 @@ const SmashNube = (function () {
     return (n.slice(0, -1).join(', ') + ' y ' + n[n.length - 1]).replace(/^./, (c) => c.toUpperCase());
   }
   const vigente = (p) => p.activa && p.desde <= hoyCO() && hoyCO() <= p.hasta && tocaHoy(p);
+  // ¿La promo aplica ese día (YYYY-MM-DD)? Para la vitrina de la semana
+  const aplicaEl = (p, ymd) => { if (!p || !p.activa || p.desde > ymd || ymd > p.hasta) return false; const d = leerDias(p.dias); return !d.length || d.includes(new Date(ymd + 'T12:00:00Z').getUTCDay()); };
 
   // "smash,toci" o ["smash","toci"] → ["smash","toci"]. Una promo puede marcar varios productos.
   const listaIds = (v) => [...new Set((Array.isArray(v) ? v : String(v || '').split(',')).map((x) => String(x || '').trim()).filter(Boolean))].slice(0, 40);
@@ -627,7 +638,7 @@ const SmashNube = (function () {
     enviarImpresion, estadoImpresion, tomarImpresion, marcarImpresion, seguirImpresiones,
     guardarCupo, leerCupo, seguirCupo, guardarHorario, leerHorario,
     ok, perfil, alCambiar, enRecuperacion, registrar, entrar, salir, recuperarClave, nuevaClave, guardarPerfil, usuarioLibre,
-    promociones, guardarPromo, activarPromo, borrarPromo, aplicarPromos, vigente, listaIds, prodsDe, regalosDe, tocaProducto, lineasPaquete, precioNormalPaquete, hoyCO, diaCO, tocaHoy, textoDias, DIAS,
+    promociones, promosSemana, aplicaEl, guardarPromo, activarPromo, borrarPromo, aplicarPromos, vigente, listaIds, prodsDe, regalosDe, tocaProducto, lineasPaquete, precioNormalPaquete, hoyCO, diaCO, tocaHoy, textoDias, DIAS,
     puntosPedido, REGLAS, clientes, movimientos, sumarPuntos, cambiarRol, buscarPorCorreo,
     enviarPedido, recibirPedidos, marcarRecibido,
   };

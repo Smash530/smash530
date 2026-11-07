@@ -164,6 +164,89 @@
     }).join("");
     return h ? '<div class="ppromos">' + h + "</div>" : "";
   }
+  /* ---------------- Promos de la semana (vitrina para todos) ----------------
+     Muestra las promos de hoy y de los próximos 6 días. Sin cuenta invita a registrarse;
+     con cuenta, las de hoy se agregan al pedido (las de otros días dicen cuándo aplican). */
+  var SEM = { lista: [], sel: "", cargada: false };
+  var DIA_CORTO = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  function ymdMas(ymd, n) { var d = new Date(ymd + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+  function semDias() {
+    var hoy = SmashNube.hoyCO(), out = [];
+    for (var i = 0; i < 7; i++) {
+      var d = ymdMas(hoy, i), dw = new Date(d + "T12:00:00Z").getUTCDay();
+      out.push({ d: d, i: i, dw: dw, corto: i === 0 ? "Hoy" : i === 1 ? "Mañana" : DIA_CORTO[dw], largo: i === 0 ? "hoy" : i === 1 ? "mañana" : "el " + SmashExt.DIA_LARGO[dw],
+        cierre: SmashExt.cierreDe ? SmashExt.cierreDe(H, d) : null,
+        promos: SEM.lista.filter(function (p) { return SmashNube.aplicaEl(p, d); }) });
+    }
+    return out;
+  }
+  function semTexto(p) {
+    var ids = SmashNube.prodsDe(p), cada = Math.max(1, Number(p.valor) || 1);
+    if (p.descripcion) return p.descripcion;
+    if (p.tipo === "regalo") return regaloTxt(p) + " gratis por cada " + (cada > 1 ? cada + " burgers" : "burger") + sinComboTxt(p) + ".";
+    if (p.tipo === "paquete") return paqQueTrae(p) + ".";
+    if (p.tipo === "incentivo") return "Beneficio para clientes del club.";
+    return ids.length ? "En " + nombres(ids, " y ") + "." : "En todo tu pedido.";
+  }
+  function semBeneficio(p) {
+    if (p.tipo === "incentivo") return "⭐ Beneficio";
+    if (p.tipo === "valor") return "−" + fmt(p.valor);
+    return beneficio(p);
+  }
+  function semCta(p, dia) {
+    if (!yo) return '<button type="button" class="sem-btn" data-acc="registro">Únete gratis y úsala</button>';
+    if (dia.i > 0) return '<span class="sem-cuando">Disponible ' + esc(dia.largo) + "</span>";
+    var ids = SmashNube.prodsDe(p), dentro = PR.usadas.some(function (u) { return String(u.id) === String(p.id); });
+    if (dentro) return '<span class="sem-ok">✓ Ya está en tu pedido</span>';
+    if (p.tipo === "paquete" && paqDe(p.id)) return '<button type="button" class="sem-btn" data-addpaq="' + esc(p.id) + '">Agregar al pedido</button>';
+    if (p.tipo !== "regalo" && ids.length === 1 && prodDe(ids[0])) return '<button type="button" class="sem-btn" data-addpromo="' + esc(ids[0]) + '">Agregar ' + esc(prodDe(ids[0]).name) + "</button>";
+    return '<span class="sem-cuando">Se aplica sola en tu pedido</span>';
+  }
+  function pintarSemana() {
+    var sec = $("promos"); if (!sec) return;
+    var dias = semDias(), hay = dias.some(function (x) { return x.promos.length; });
+    sec.hidden = !hay; if ($("catPromos")) $("catPromos").hidden = !hay;
+    if (!hay) return;
+    if (!dias.some(function (x) { return x.d === SEM.sel; })) {
+      var primero = dias.filter(function (x) { return x.promos.length && !x.cierre; })[0];
+      SEM.sel = (dias[0].promos.length && !dias[0].cierre ? dias[0] : primero || dias[0]).d;
+    }
+    $("semSub").textContent = yo ? "Las de hoy se aplican solas al agregar los productos. Elige un día para ver qué viene."
+      : "Exclusivas para clientes registrados. Regístrate gratis para usarlas y sumar puntos.";
+    var tira = $("semDias"), sl = tira.scrollLeft;
+    tira.innerHTML = dias.map(function (x) {
+      var on = x.d === SEM.sel;
+      return '<button type="button" role="tab" aria-selected="' + on + '" class="sem-dia' + (on ? " on" : "") + (x.cierre ? " cerr" : "") + (x.promos.length ? " con" : "") + '" data-semdia="' + x.d + '">' +
+        "<b>" + x.corto + "</b><small>" + (x.cierre ? "Descanso" : x.promos.length ? x.promos.length + (x.promos.length > 1 ? " promos" : " promo") : "—") + "</small></button>";
+    }).join("");
+    // la tira conserva su posición al redibujar y siempre deja a la vista el día elegido
+    tira.scrollLeft = sl;
+    var on = tira.querySelector(".on");
+    if (on && tira.scrollWidth > tira.clientWidth && (on.offsetLeft < tira.scrollLeft || on.offsetLeft + on.offsetWidth > tira.scrollLeft + tira.clientWidth)) tira.scrollLeft = on.offsetLeft - 16;
+    var dia = dias.filter(function (x) { return x.d === SEM.sel; })[0];
+    if (dia.cierre) { $("semList").innerHTML = '<p class="sem-vacio">🛠️ ' + esc(dia.largo.charAt(0).toUpperCase() + dia.largo.slice(1)) + " no abrimos (" + esc(dia.cierre.toLowerCase()) + "). ¡Te esperamos el día siguiente!</p>"; return; }
+    if (!dia.promos.length) { $("semList").innerHTML = '<p class="sem-vacio">Ese día no hay promos. Mira los otros días de la semana.</p>'; return; }
+    $("semList").innerHTML = dia.promos.map(function (p) {
+      var c = cuestaPts(p);
+      return '<article class="sem-card t-' + esc(p.tipo) + '">' +
+        '<div class="sem-top"><span class="sem-ben">' + esc(semBeneficio(p)) + "</span>" +
+        '<span class="sem-cost' + (c ? "" : " free") + '">' + (c ? "⭐ " + c + " pts" : "Gratis con tu cuenta") + "</span></div>" +
+        "<h3>" + esc(p.titulo) + "</h3>" +
+        '<p class="sem-d">' + esc(semTexto(p)) + "</p>" +
+        '<small class="sem-dias-txt">📅 ' + esc(SmashNube.textoDias(p)) + "</small>" +
+        '<div class="sem-foot">' + semCta(p, dia) + "</div></article>";
+    }).join("");
+  }
+  function cargarSemana() {
+    if (!hayNube || !SmashNube.promosSemana) return;
+    SmashNube.promosSemana().then(function (l) { SEM.lista = (l || []).filter(function (p) { return p && p.activa !== false; }); SEM.cargada = true; pintarSemana(); }, function () {});
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest("[data-semdia]") : null;
+    if (!b) return;
+    SEM.sel = b.getAttribute("data-semdia"); pintarSemana();
+  });
+
   function precioHtml(p) {
     var pr = promoDe(p);
     var canje = yo && promos.some(function (x) { return cuestaPts(x) && x.tipo !== "regalo" && SmashNube.prodsDe(x).indexOf(p.id) > -1; }) ? ' <span class="ptag pts">⭐ Canjeable</span>' : "";
@@ -448,6 +531,7 @@
     $("go").href = "https://wa.me/" + WA + "?text=" + encodeURIComponent(LM);
     if (!miss().length) $("err").textContent = "";
     pintarClub();
+    if (SEM.cargada) pintarSemana();
   }
 
   $("go").addEventListener("click", function (e) {
@@ -732,10 +816,11 @@
     render(); est(); setInterval(est, 60000); upd();
     // Horario y días cerrados en línea (lo guarda el dueño en el panel); manda sobre el de menu.json
     if (hayNube && SmashNube.leerHorario) {
-      var horNube = function () { SmashNube.leerHorario().then(function (v) { if (v && v.abre && v.cierra) { H = v; est(); } }, function () {}); };
+      var horNube = function () { SmashNube.leerHorario().then(function (v) { if (v && v.abre && v.cierra) { H = v; est(); if (SEM.cargada) pintarSemana(); } }, function () {}); };
       horNube(); setInterval(horNube, 300000);
       document.addEventListener("visibilitychange", function () { if (document.visibilityState !== "hidden") horNube(); });
     }
+    cargarSemana(); setInterval(cargarSemana, 600000);
     seguirCupoNube();
     pintarCuenta();
     if (hayNube) SmashNube.perfil().then(function (p) { if (p) entro(p, false); }, function () {});

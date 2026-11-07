@@ -514,3 +514,44 @@ button,input,select{font:inherit;color:inherit}
 .pcard.paq .ph{font-size:3rem}
 .paq-trae{margin:-4px 0 10px;color:var(--gold);font-size:.82rem;font-weight:700}
 .li.paq span{color:var(--gold);font-weight:700}
+
+/* ---------- Promos de la semana (vitrina para todos) ---------- */
+.semana .sub{max-width:52ch}
+.sem-dias{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin:0 0 14px}
+.sem-dia{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;border-radius:var(--r-sm);background:var(--card);border:1px solid var(--line);cursor:pointer;transition:border-color .2s,background .2s,transform .15s;position:relative}
+.sem-dia b{font-family:var(--display);font-weight:400;font-size:1.15rem;line-height:1.1;text-transform:uppercase;letter-spacing:.02em}
+.sem-dia small{font-size:.7rem;color:var(--dim);white-space:nowrap}
+.sem-dia.con small{color:var(--gold)}
+.sem-dia.con::after{content:"";position:absolute;top:7px;right:8px;width:6px;height:6px;border-radius:50%;background:var(--gold)}
+.sem-dia.cerr{opacity:.55}
+.sem-dia.cerr small{color:var(--dim)}
+.sem-dia:hover{border-color:var(--line-2)}
+.sem-dia:active{transform:scale(.97)}
+.sem-dia.on{background:var(--card-2);border-color:rgba(255,182,39,.6);box-shadow:inset 0 -2px 0 var(--gold)}
+.sem-dia.on b{color:var(--gold)}
+.sem-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.sem-card{display:flex;flex-direction:column;gap:6px;padding:16px 16px 14px;border-radius:14px;background:var(--card);border:1px solid var(--line-2);transition:border-color .2s,transform .2s}
+.sem-card:hover{border-color:rgba(255,182,39,.45);transform:translateY(-2px)}
+.sem-card.t-paquete{border-color:rgba(255,182,39,.4)}
+.sem-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sem-ben{font-family:var(--display);font-weight:400;font-size:1.7rem;line-height:1;color:var(--red-2)}
+.sem-card.t-paquete .sem-ben,.sem-card.t-regalo .sem-ben{color:var(--gold)}
+.sem-cost{font-size:.72rem;font-weight:800;padding:4px 10px;border-radius:999px;background:rgba(255,182,39,.15);color:var(--gold);white-space:nowrap}
+.sem-cost.free{background:rgba(47,212,122,.12);color:var(--green)}
+.sem-card h3{margin:2px 0 0;font-size:1.02rem;line-height:1.25}
+.sem-d{margin:0;color:var(--muted);font-size:.86rem;line-height:1.45}
+.sem-dias-txt{color:var(--dim);font-size:.76rem}
+.sem-foot{margin-top:auto;padding-top:8px}
+.sem-btn{border:0;border-radius:999px;padding:9px 16px;font-weight:800;font-size:.84rem;cursor:pointer;background:var(--red);color:#fff;transition:background .2s,transform .15s}
+.sem-btn:hover{background:var(--red-2)}
+.sem-btn:active{transform:scale(.97)}
+.sem-cuando{font-size:.8rem;font-weight:700;color:var(--gold)}
+.sem-ok{font-size:.82rem;font-weight:700;color:var(--green)}
+.sem-vacio{margin:0;padding:18px;border-radius:14px;border:1px dashed var(--line-2);color:var(--muted);text-align:center;font-size:.9rem}
+@media (max-width:640px){
+  .sem-dias{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:16px;margin:0 -16px 12px;padding:0 16px 4px;scrollbar-width:none}
+  .semana .block-h .sub{display:block;font-size:.84rem;margin-top:6px}
+  .sem-dias::-webkit-scrollbar{display:none}
+  .sem-dia{flex:0 0 76px;scroll-snap-align:start}
+  .sem-list{grid-template-columns:1fr}
+}

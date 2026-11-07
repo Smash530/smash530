@@ -88,6 +88,7 @@
     <div class="volver" id="volver" hidden></div>
 
     <nav class="catnav" id="catnav" aria-label="Categorías">
+      <a href="#promos" id="catPromos" hidden>⭐ Promos</a>
       <a href="#menu" class="on">🍔 Hamburguesas</a>
       <a href="#adicionales">🍟 Adicionales</a>
       <a href="#pedido" class="catnav-cart">🛒 Tu pedido</a>
@@ -95,6 +96,19 @@
 
     <!-- Club SMASH: promociones de hoy y puntos (solo clientes con sesión) -->
     <section class="club-zona" id="club" hidden aria-label="Club SMASH: tus promociones"></section>
+
+    <!-- Promos de la semana: vitrina para todos; usarlas es para clientes registrados -->
+    <section id="promos" class="block semana" hidden aria-labelledby="semT">
+      <div class="block-h sem-h">
+        <div>
+          <span class="eyebrow gold">Club SMASH</span>
+          <h2 id="semT">Promos de la semana</h2>
+          <p class="sub" id="semSub">Exclusivas para clientes registrados. Elige un día para ver qué hay.</p>
+        </div>
+      </div>
+      <div class="sem-dias" id="semDias" role="tablist" aria-label="Días de la semana"></div>
+      <div class="sem-list" id="semList" role="tabpanel" aria-live="polite"></div>
+    </section>
 
     <section id="menu" class="block">
       <div class="block-h">
