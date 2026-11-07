@@ -304,7 +304,13 @@ const SmashExt = (function () {
     if (d.cuenta && d.cuenta.correo) order.cuenta = { usuario: String(d.cuenta.usuario || '').slice(0, 30), correo: String(d.cuenta.correo).toLowerCase().slice(0, 120) };
     if (Array.isArray(d.canjes) && d.canjes.length) order.canjes = d.canjes.slice(0, 10).map((x) => ({ promo: x.promo || 0, titulo: String(x.titulo || "").slice(0, 80), puntos: Math.max(0, Math.round(Number(x.puntos) || 0)), valor: Math.max(0, Math.round(Number(x.valor) || 0)) }));
     if (d.canjeRechazado) order.canjeRechazado = String(d.canjeRechazado).slice(0, 160);
-    { const dia = diaServicio(order); if (dia !== localDay(order.creado)) order.diaServicio = dia; order.numeroDia = nextDayNumber(orders, dia); }
+    {
+      let dia = diaServicio(order);
+      // una reserva hecha un día cerrado (descanso, mantenimiento) es del próximo día que abre
+      if (order.reserva) dia = proximoAbierto(getHorario(), dia) || dia;
+      if (dia !== localDay(order.creado)) order.diaServicio = dia;
+      order.numeroDia = nextDayNumber(orders, dia);
+    }
     orders.push(order);
     wr(K.ORDERS, orders);
     return { ok: true, order };
@@ -419,26 +425,77 @@ const SmashExt = (function () {
   /* ---- Horario de atención (lo cambian los dueños) ----
      Hora de Colombia. Si cierra antes de abrir (ej. 18:00 a 02:00) se entiende que cierra al día siguiente.
      Fuera del horario los pedidos de la página quedan como reserva. */
-  const HK = 'smash_horario', HDEF = { abre: '17:30', cierra: '22:00' };
+  /* Días cerrados: "cerrados" = días de la semana sin servicio (0 domingo … 6 sábado, ej. [2] = martes
+     de descanso) y "fechas" = días puntuales cerrados con su motivo (mantenimiento, limpieza…). */
+  const HK = 'smash_horario', HDEF = { abre: '17:30', cierra: '22:00', cerrados: [], fechas: [] };
   const esHora = (s) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(s));
-  function getHorario() { const h = rd(HK, null); return h && esHora(h.abre) && esHora(h.cierra) ? { abre: h.abre, cierra: h.cierra } : Object.assign({}, HDEF); }
-  function setHorario(abre, cierra) {
+  const esFecha = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s));
+  function normHorario(h) {
+    if (!h || !esHora(h.abre) || !esHora(h.cierra)) return { abre: HDEF.abre, cierra: HDEF.cierra, cerrados: [], fechas: [] };
+    const cerrados = [...new Set((Array.isArray(h.cerrados) ? h.cerrados : []).map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))].sort();
+    const vistas = {};
+    const fechas = (Array.isArray(h.fechas) ? h.fechas : []).filter((x) => x && esFecha(x.f) && !vistas[x.f] && (vistas[x.f] = true))
+      .map((x) => ({ f: x.f, m: String(x.m || '').trim().slice(0, 60) })).sort((a, b) => a.f.localeCompare(b.f)).slice(-60);
+    return { abre: h.abre, cierra: h.cierra, cerrados, fechas };
+  }
+  function getHorario() { return normHorario(rd(HK, null)); }
+  // cerrados / fechas son opcionales: si no se mandan, se conservan los que había
+  function setHorario(abre, cierra, cerrados, fechas) {
     if (!esHora(abre) || !esHora(cierra)) return { ok: false, error: 'Escribe la hora de apertura y la de cierre.' };
     if (abre === cierra) return { ok: false, error: 'La hora de apertura y la de cierre no pueden ser iguales.' };
-    wr(HK, { abre, cierra }); return { ok: true };
+    const prev = getHorario();
+    const h = normHorario({ abre, cierra, cerrados: cerrados || prev.cerrados, fechas: fechas || prev.fechas });
+    if (h.cerrados.length >= 7) return { ok: false, error: 'Deja al menos un día de la semana abierto.' };
+    wr(HK, h); return { ok: true, horario: h };
+  }
+  const DIA_LARGO = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const MES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  const ymdMas = (ymd, n) => { const d = new Date(ymd + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const diaSemana = (ymd) => new Date(ymd + 'T12:00:00Z').getUTCDay();
+  // Si ese día está cerrado, el motivo ("Día de descanso", "Mantenimiento"…); si abre, null
+  function cierreDe(h, ymd) {
+    h = normHorario(h);
+    const f = h.fechas.find((x) => x.f === ymd);
+    if (f) return f.m || 'Cerrado';
+    return h.cerrados.indexOf(diaSemana(ymd)) > -1 ? 'Día de descanso' : null;
+  }
+  // Primer día abierto desde ymd (incluido)
+  function proximoAbierto(h, ymd) { for (let i = 0; i < 60; i++) { const d = ymdMas(ymd, i); if (!cierreDe(h, d)) return d; } return null; }
+  // "hoy" · "mañana" · "el miércoles" · "el miércoles 19 de nov"
+  function textoDia(ymd, hoyYmd) {
+    if (!ymd) return '';
+    if (ymd === hoyYmd) return 'hoy';
+    if (ymd === ymdMas(hoyYmd, 1)) return 'mañana';
+    const t = 'el ' + DIA_LARGO[diaSemana(ymd)];
+    return ymd <= ymdMas(hoyYmd, 6) ? t : t + ' ' + (+ymd.slice(8)) + ' de ' + MES_CORTO[+ymd.slice(5, 7) - 1];
+  }
+  // "Abrimos de miércoles a lunes · martes cerrado"
+  function textoDias(h) {
+    h = normHorario(h);
+    if (!h.cerrados.length) return 'Todos los días';
+    const orden = [1, 2, 3, 4, 5, 6, 0], cer = h.cerrados.map((n) => DIA_LARGO[n]);
+    return (cer.length === 1 ? cer[0].charAt(0).toUpperCase() + cer[0].slice(1) + ' cerrado' : 'Cerrado: ' + orden.filter((n) => h.cerrados.indexOf(n) > -1).map((n) => DIA_LARGO[n]).join(', '));
   }
   function horaTexto(hhmm) {
     const p = String(hhmm).split(':'), h = +p[0], m = p[1];
     return (h % 12 || 12) + ':' + m + (h < 12 ? ' am' : ' pm');
   }
   function estadoHorario(h, fecha) {
-    h = h && esHora(h.abre) && esHora(h.cierra) ? h : HDEF;
-    const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: false }).format(fecha || new Date()).split(':');
+    h = normHorario(h);
+    const cuando = fecha || new Date();
+    const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: false }).format(cuando).split(':');
+    const hoyYmd = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(cuando);
     const ahora = (+p[0] % 24) * 60 + +p[1], min = (s) => +s.slice(0, 2) * 60 + +s.slice(3);
-    const a = min(h.abre), c = min(h.cierra);
-    const abierto = a < c ? ahora >= a && ahora < c : ahora >= a || ahora < c;
-    // fuera de horario: abre hoy si aún no llega la hora de apertura; si no, mañana
-    return { abierto, abreHoy: !abierto && ahora < a, abre: horaTexto(h.abre), cierra: horaTexto(h.cierra) };
+    const a = min(h.abre), c = min(h.cierra), motivoHoy = cierreDe(h, hoyYmd);
+    // Si cierra después de medianoche, la madrugada es del turno de ayer (cuenta si ayer abrió)
+    const abierto = a < c ? !motivoHoy && ahora >= a && ahora < c
+      : (!motivoHoy && ahora >= a) || (ahora < c && !cierreDe(h, ymdMas(hoyYmd, -1)));
+    // fuera de horario: abre hoy si hoy abre y aún no llega la hora; si no, el próximo día abierto
+    const prox = abierto ? null : !motivoHoy && ahora < a ? hoyYmd : proximoAbierto(h, ymdMas(hoyYmd, 1));
+    return {
+      abierto, abreHoy: !abierto && prox === hoyYmd, abre: horaTexto(h.abre), cierra: horaTexto(h.cierra),
+      cerradoHoy: !!motivoHoy, motivoHoy: motivoHoy || '', proxFecha: prox, proxTexto: textoDia(prox, hoyYmd), dias: textoDias(h),
+    };
   }
 
   /* ---- Menú publicable para clientes (menu.json) ---- */
@@ -722,7 +779,7 @@ const SmashExt = (function () {
     setStatus, updateOrder, getRepartidores, rememberRepartidor, soundOn, setSound, unlockAudio, audioReady, chime,
     refreshLedger, getLedger, deleteOrder, getDeletedOrders, DIAS, getPersonal, addPersonal, deletePersonal, antiguedad,
     hashPassword, loginOwner, currentOwner, logoutOwner, changeOwnerPassword, OWNER_DEF,
-    getUsuarios, crearUsuario, eliminarUsuario, leerItems, leerLeal, leerSabores, getHorario, setHorario, horaTexto, estadoHorario,
+    getUsuarios, crearUsuario, eliminarUsuario, leerItems, leerLeal, leerSabores, getHorario, setHorario, horaTexto, estadoHorario, cierreDe, proximoAbierto, textoDias, DIA_LARGO,
   };
 })();
 

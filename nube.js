@@ -423,6 +423,22 @@ const SmashNube = (function () {
     return () => { clearInterval(reloj); sb.removeChannel(canal); document.removeEventListener('visibilitychange', alVolver); window.removeEventListener('online', alVolver); };
   }
 
+  /* ---------------- Horario y días cerrados en línea ----------------
+     Tabla ajustes_publicos (supabase/horario-en-linea.sql): la página de clientes
+     lo lee sin sesión; solo el dueño lo guarda (token del panel o cuenta de dueño). */
+  async function guardarHorario(h) {
+    if (!ok) return sinNube();
+    const { data, error } = await sb.rpc('panel_guardar_horario', { p_token: tok() || '', p_horario: h });
+    if (error) return { ok: false, error: /does not exist|schema cache|function/i.test(error.message) ? 'falta ejecutar supabase/horario-en-linea.sql en Supabase' : errorTxt(error) };
+    if (!data || !data.ok) return { ok: false, error: data && data.error === 'sin-acceso' ? 'el panel no está conectado a la nube como dueño' : 'no se pudo guardar' };
+    return { ok: true };
+  }
+  async function leerHorario() {
+    if (!ok) return null;
+    const { data, error } = await sb.from('ajustes_publicos').select('valor').eq('clave', 'horario').maybeSingle();
+    return error || !data ? null : data.valor;
+  }
+
   /* ---------------- Impresión de comandas a distancia ----------------
      Cola en la tabla impresiones (supabase/impresion-remota.sql). Cualquier
      equipo de caja/dueño manda; el "equipo impresor" la toma y la imprime. */
@@ -609,7 +625,7 @@ const SmashNube = (function () {
     panelEntrar, panelSesion, panelSalir, panelSumarPuntos, panelDevolverCanje, panelPromos, panelBuscarCliente, tomarPedido, datosAvisos, datosLeer, guardarDato, seguirDatos,
     subirRespaldo, listarRespaldos, leerRespaldo,
     enviarImpresion, estadoImpresion, tomarImpresion, marcarImpresion, seguirImpresiones,
-    guardarCupo, leerCupo, seguirCupo,
+    guardarCupo, leerCupo, seguirCupo, guardarHorario, leerHorario,
     ok, perfil, alCambiar, enRecuperacion, registrar, entrar, salir, recuperarClave, nuevaClave, guardarPerfil, usuarioLibre,
     promociones, guardarPromo, activarPromo, borrarPromo, aplicarPromos, vigente, listaIds, prodsDe, regalosDe, tocaProducto, lineasPaquete, precioNormalPaquete, hoyCO, diaCO, tocaHoy, textoDias, DIAS,
     puntosPedido, REGLAS, clientes, movimientos, sumarPuntos, cambiarRol, buscarPorCorreo,

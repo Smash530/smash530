@@ -386,19 +386,60 @@
   });
 
   /* ============== HORARIO DE ATENCIÓN ============== */
+  // Borrador de días (lo que el dueño marca antes de guardar)
+  let horDraft = null;
+  const DIAS_ORDEN = [1, 2, 3, 4, 5, 6, 0];
+  const fechaCorta = (f) => new Date(f + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+  function pintarHorDias() {
+    $('horDias').innerHTML = DIAS_ORDEN.map((n) => `<label class="dia-chip"><input type="checkbox" data-hdia="${n}"${horDraft.cerrados.indexOf(n) < 0 ? ' checked' : ''}><span>${SmashExt.DIA_LARGO[n].slice(0, 3)}</span></label>`).join('');
+    const hoy = todayISO(), proximas = horDraft.fechas.filter((x) => x.f >= hoy);
+    $('horFechas').innerHTML = proximas.length
+      ? `<ul class="hor-fechas">${proximas.map((x) => `<li><span><b>${esc(fechaCorta(x.f))}</b>${x.m ? ' · ' + esc(x.m) : ''}</span><button type="button" class="btn-sm" data-hquitar="${esc(x.f)}">Quitar</button></li>`).join('')}</ul>`
+      : '<p class="hint" style="margin:6px 0 0">No hay días cerrados programados.</p>';
+  }
   function renderHorario() {
     const h = SmashExt.getHorario(), e = SmashExt.estadoHorario(h);
-    if (!$('horForm').contains(document.activeElement)) { $('horAbre').value = h.abre; $('horCierra').value = h.cierra; }
+    const editando = $('horForm').contains(document.activeElement) || (horDraft && horDraft.sucio);
+    if (!editando) { $('horAbre').value = h.abre; $('horCierra').value = h.cierra; horDraft = { cerrados: h.cerrados.slice(), fechas: h.fechas.slice(), sucio: false }; pintarHorDias(); }
     $('horEstado').innerHTML = `
-      <div class="summary-box"><div class="label">Horario visible</div><div class="value">${esc(e.abre)} a ${esc(e.cierra)}</div></div>
-      <div class="summary-box"><div class="label">Ahora</div><div class="value ${e.abierto ? '' : 'neg'}">${e.abierto ? 'Abierto' : 'Cerrado'}</div><div class="sub">${e.abierto ? 'Los pedidos entran normal' : 'Los pedidos entran como reserva'}</div></div>`;
+      <div class="summary-box"><div class="label">Horario visible</div><div class="value">${esc(e.abre)} a ${esc(e.cierra)}</div><div class="sub">${esc(e.dias)}</div></div>
+      <div class="summary-box"><div class="label">Ahora</div><div class="value ${e.abierto ? '' : 'neg'}">${e.abierto ? 'Abierto' : 'Cerrado'}</div><div class="sub">${e.abierto ? 'Los pedidos entran normal' : (e.cerradoHoy ? 'Hoy: ' + esc(e.motivoHoy) + '. ' : '') + 'Los pedidos entran como reserva para ' + esc(e.proxTexto) + ' a las ' + esc(e.abre)}</div></div>`;
   }
-  $('horForm').addEventListener('submit', (ev) => {
+  $('horForm').addEventListener('change', (e) => {
+    const n = e.target.dataset.hdia; if (n == null) return;
+    const d = +n, i = horDraft.cerrados.indexOf(d);
+    if (e.target.checked && i > -1) horDraft.cerrados.splice(i, 1);
+    if (!e.target.checked && i < 0) horDraft.cerrados.push(d);
+    horDraft.sucio = true;
+  });
+  $('horForm').addEventListener('click', (e) => {
+    if (e.target.id === 'horFechaAdd') {
+      const f = $('horFecha').value, m = $('horMotivo').value.trim();
+      if (!f) { $('horMsg').className = 'error'; $('horMsg').textContent = 'Elige la fecha que no abren.'; return; }
+      if (f < todayISO()) { $('horMsg').className = 'error'; $('horMsg').textContent = 'Esa fecha ya pasó.'; return; }
+      horDraft.fechas = horDraft.fechas.filter((x) => x.f !== f).concat([{ f, m: m || 'Mantenimiento' }]).sort((a, b) => a.f.localeCompare(b.f));
+      horDraft.sucio = true; $('horFecha').value = ''; $('horMotivo').value = '';
+      $('horMsg').className = 'hint'; $('horMsg').textContent = 'Día agregado. Toca "Guardar horario" para aplicarlo.';
+      pintarHorDias(); return;
+    }
+    const q = e.target.closest('[data-hquitar]');
+    if (q) { horDraft.fechas = horDraft.fechas.filter((x) => x.f !== q.dataset.hquitar); horDraft.sucio = true; pintarHorDias(); }
+  });
+  $('horForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    const r = SmashExt.setHorario($('horAbre').value, $('horCierra').value);
-    $('horMsg').className = r.ok ? 'ok-msg' : 'error';
-    $('horMsg').textContent = r.ok ? '✓ Horario guardado. Recuerda publicar el menú si usas hosting.' : r.error;
+    const ayer = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const r = SmashExt.setHorario($('horAbre').value, $('horCierra').value, horDraft.cerrados, horDraft.fechas.filter((x) => x.f >= ayer));
+    const msg = $('horMsg');
+    msg.className = r.ok ? 'ok-msg' : 'error';
+    if (!r.ok) { msg.textContent = r.error; return; }
+    horDraft.sucio = false;
     $('horAbre').blur(); $('horCierra').blur(); renderHorario();
+    if (typeof SmashNube === 'undefined' || !SmashNube.guardarHorario) { msg.textContent = '✓ Horario guardado en este equipo.'; return; }
+    msg.textContent = '✓ Horario guardado. Publicándolo en la página de clientes…';
+    let n;
+    try { n = await SmashNube.guardarHorario(r.horario); } catch (x) { n = { ok: false, error: String(x && x.message || x) }; }
+    msg.className = n.ok ? 'ok-msg' : 'error';
+    msg.textContent = n.ok ? '✓ Horario guardado y visible en la página de clientes.' : '⚠ Guardado en este equipo, pero la página de clientes NO lo ve: ' + String(n.error || '').replace(/\.+$/, '') + '.';
   });
   document.querySelectorAll('.nav-btn').forEach((b) => b.addEventListener('click', renderHorario));
   renderHorario();

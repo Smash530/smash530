@@ -254,3 +254,12 @@ details.mod-box[open]>summary{margin-bottom:8px}
 .pp-btns{display:flex;gap:6px;flex-wrap:wrap}
 .promo-form fieldset[hidden]{display:none}
 .promo-form label.prod-chip span{min-width:0}
+
+/* Horario: días que abren y días cerrados puntuales */
+.hor-box{grid-column:1/-1}
+.hor-fecha-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.hor-fecha-row input[type=date]{flex:0 0 170px}
+.hor-fecha-row input:not([type=date]){flex:1 1 200px;min-width:0}
+.hor-fechas{list-style:none;margin:8px 0 0;padding:0}
+.hor-fechas li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px dashed var(--border);font-size:.88rem}
+.hor-fechas li b{text-transform:capitalize}

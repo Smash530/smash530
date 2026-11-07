@@ -11,7 +11,7 @@
   var POR_BURGER = (window.SmashExt && SmashExt.CUPO_POR_BURGER) || 2;
   // Horario de atención (menu.json o local). Fuera de horario el pedido se envía como reserva.
   var H = null, EH = { abierto: true };
-  function reservaTxt() { return (EH.abreHoy ? "hoy" : "mañana") + " a las " + EH.abre; }
+  function reservaTxt() { return (EH.proxTexto || (EH.abreHoy ? "hoy" : "mañana")) + " a las " + EH.abre; }
   // Los combos ya no se piden sueltos: son una opción dentro de cada hamburguesa (máximo uno por hamburguesa)
   var cq = {};
   function combos() { return prods.filter(function (p) { return p.categoria === "combo"; }); }
@@ -524,7 +524,7 @@
     var a = mm(h.abre), c = mm(h.cierra), ahora = minCO(), dia, desde;
     if (c <= a) c += 1440;                       // horario que pasa de medianoche
     if (EH.abierto) { dia = "Hoy"; desde = (ahora < a ? ahora + 1440 : ahora) + H_MARGEN; }
-    else { dia = EH.abreHoy ? "Hoy" : "Mañana"; desde = a + H_MARGEN; }
+    else { dia = EH.abreHoy ? "Hoy" : EH.proxTexto ? EH.proxTexto.replace(/^el /, "").replace(/^./, function (x) { return x.toUpperCase(); }) : "Mañana"; desde = a + H_MARGEN; }
     desde = Math.ceil(desde / H_PASO) * H_PASO;
     var out = [];
     for (var m = desde; m <= c; m += H_PASO) out.push({ v: dia + " " + hhmm(m), t: dia + " " + SmashExt.horaTexto(hhmm(m)) });
@@ -546,10 +546,16 @@
       var antes = EH.abierto;
       EH = SmashExt.estadoHorario(H);
       $("st").classList.toggle("open", EH.abierto);
-      $("stt").textContent = EH.abierto ? "Abierto ahora · hasta las " + EH.cierra : (EH.abreHoy ? "Abrimos hoy a las " + EH.abre : "Cerrado · abrimos mañana " + EH.abre);
+      $("stt").textContent = EH.abierto ? "Abierto ahora · hasta las " + EH.cierra
+        : EH.abreHoy ? "Abrimos hoy a las " + EH.abre
+        : EH.cerradoHoy ? "Hoy no abrimos · " + EH.motivoHoy.toLowerCase() + " · volvemos " + reservaTxt()
+        : "Cerrado · abrimos " + reservaTxt();
       $("hft").textContent = EH.abre + " a " + EH.cierra;
+      if ($("hfd")) $("hfd").textContent = !EH.dias || EH.dias === "Todos los días" ? "Todos los días " : EH.dias + " · ";
       $("resv").hidden = EH.abierto;
-      $("resv").innerHTML = EH.abierto ? "" : "🕐 <b>Ahora estamos cerrados.</b> Tu pedido quedará como <b>reserva</b> y lo despachamos al abrir cocina, <b>" + esc(reservaTxt()) + "</b>.";
+      $("resv").innerHTML = EH.abierto ? ""
+        : EH.cerradoHoy && !EH.abreHoy ? "🛠️ <b>Hoy no abrimos (" + esc(EH.motivoHoy.toLowerCase()) + ").</b> Tu pedido quedará como <b>reserva</b> y lo despachamos <b>" + esc(reservaTxt()) + "</b>."
+        : "🕐 <b>Ahora estamos cerrados.</b> Tu pedido quedará como <b>reserva</b> y lo despachamos al abrir cocina, <b>" + esc(reservaTxt()) + "</b>.";
       $("go").textContent = EH.abierto ? "Enviar pedido" : "Reservar pedido";
       pintarHoras();
       if (antes !== EH.abierto) upd();
@@ -724,6 +730,12 @@
     }
     cupoMenu = cupo;
     render(); est(); setInterval(est, 60000); upd();
+    // Horario y días cerrados en línea (lo guarda el dueño en el panel); manda sobre el de menu.json
+    if (hayNube && SmashNube.leerHorario) {
+      var horNube = function () { SmashNube.leerHorario().then(function (v) { if (v && v.abre && v.cierra) { H = v; est(); } }, function () {}); };
+      horNube(); setInterval(horNube, 300000);
+      document.addEventListener("visibilitychange", function () { if (document.visibilityState !== "hidden") horNube(); });
+    }
     seguirCupoNube();
     pintarCuenta();
     if (hayNube) SmashNube.perfil().then(function (p) { if (p) entro(p, false); }, function () {});
