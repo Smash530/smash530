@@ -19,7 +19,7 @@ const SmashTicket = (function () {
 
   /* ---------- HTML para imprimir ---------- */
   function html(o) {
-    const items = (o.items || []).map((it) => `<div class="tk-it"><b>${esc(it.qty)} x</b> ${esc(it.name)}${it.nota ? `<div class="tk-n">&gt; ${esc(it.nota)}</div>` : ''}</div>`).join('');
+    const items = (o.items || []).map((it) => `<div class="tk-it"><b>${esc(it.qty)} x</b> ${esc(it.name)}${it.nota ? `<div class="tk-n" style="font-weight:900;font-size:14pt;line-height:1.25;margin-top:.5mm">&gt; ${esc(it.nota)}</div>` : ''}</div>`).join('');
     const P = esTransfer(o) ? '<span class="tk-p" style="position:absolute;left:0;top:50%;transform:translateY(-50%);font:900 15mm/1 Arial,Helvetica,sans-serif;color:#000">P</span>' : '';
     return `
       <div class="tk-logo" style="position:relative${P ? ';min-height:16mm' : ''}">${P}<img src="${LOGO}" alt="" onerror="this.remove()"></div>
@@ -122,7 +122,7 @@ const SmashTicket = (function () {
     text('Tel: ' + (o.telefono || '-'), 10, false);
     text((o.direccion || '-') + (o.zona ? ' (' + o.zona + ')' : ''), 10, false);
     gap(6); rule(); gap(4);
-    (o.items || []).forEach((it) => { text(it.qty + ' x ' + it.name, 10.5, false); if (it.nota) text('   > ' + it.nota, 9, true); });
+    (o.items || []).forEach((it) => { text(it.qty + ' x ' + it.name, 10.5, false); if (it.nota) text('   > ' + it.nota, 12, true); });
     if (o.notas) { gap(5); text('Notas: ' + o.notas, 9.5, true); }
     gap(5); rule();
     row('Subtotal', fmt(o.subtotal), 10, false);
