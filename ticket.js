@@ -20,7 +20,7 @@ const SmashTicket = (function () {
   /* ---------- HTML para imprimir ---------- */
   function html(o) {
     const items = (o.items || []).map((it) => `<div class="tk-it"><b>${esc(it.qty)} x</b> ${esc(it.name)}${it.nota ? `<div class="tk-n" style="font-weight:900;font-size:14pt;line-height:1.25;margin-top:.5mm">&gt; ${esc(it.nota)}</div>` : ''}</div>`).join('');
-    const P = esTransfer(o) ? '<span class="tk-p" style="position:absolute;left:0;top:50%;transform:translateY(-50%);font:900 15mm/1 Arial,Helvetica,sans-serif;color:#000">P</span>' : '';
+    const P = esTransfer(o) ? '<span class="tk-p" style="position:absolute;left:0;top:50%;transform:translateY(-50%) rotate(-45deg);font:900 15mm/1 Courier New,Courier,monospace;color:#000">P</span>' : '';
     return `
       <div class="tk-logo" style="position:relative${P ? ';min-height:16mm' : ''}">${P}<img src="${LOGO}" alt="" onerror="this.remove()"></div>
       <div class="tk-c tk-h">SMASH</div>
@@ -107,9 +107,10 @@ const SmashTicket = (function () {
     if (img) {
       const mw = 110, mh = 60, s = Math.min(mw / img.w, mh / img.h), w = img.w * s, h = img.h * s;
       ops.push({ k: 'img', x: (W - w) / 2, y: y, w, h });
-      if (conP) ops.push({ k: 't', txt: 'P', size: 44, bold: true, x: M, y: y + h / 2 + 44 * 0.36 });
+      // P girada 45° a la izquierda; el giro es sobre la base de la letra, por eso se corre
+      if (conP) ops.push({ k: 't', txt: 'P', size: 44, bold: true, rot: 45, x: M + 19, y: y + h / 2 + 21 });
       y += h + 4;
-    } else if (conP) { ops.push({ k: 't', txt: 'P', size: 44, bold: true, x: M, y: y + 34 }); y += 40; }
+    } else if (conP) { ops.push({ k: 't', txt: 'P', size: 44, bold: true, rot: 45, x: M + 19, y: y + 43 }); y += 46; }
     text('SMASH', 22, true, 'c');
     gap(3);
     text(ahora(), 8, false, 'c');
@@ -181,7 +182,10 @@ const SmashTicket = (function () {
     ops.forEach((p) => {
       if (p.k === 't') {
         const bytes = clean(p.txt).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
-        body.push(`BT /${p.bold ? 'F2' : 'F1'} ${p.size} Tf ${P(p.x)} ${P(H - p.y)} Td (${bytes}) Tj ET`);
+        if (p.rot) {
+          const a = p.rot * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+          body.push(`BT /${p.bold ? 'F2' : 'F1'} ${p.size} Tf ${c.toFixed(4)} ${s.toFixed(4)} ${(-s).toFixed(4)} ${c.toFixed(4)} ${P(p.x)} ${P(H - p.y)} Tm (${bytes}) Tj ET`);
+        } else body.push(`BT /${p.bold ? 'F2' : 'F1'} ${p.size} Tf ${P(p.x)} ${P(H - p.y)} Td (${bytes}) Tj ET`);
       } else if (p.k === 'rule') {
         body.push(`q [2 2] 0 d 0.6 w ${P(M)} ${P(H - p.y)} m ${P(W - M)} ${P(H - p.y)} l S Q`);
       } else if (p.k === 'img') {
