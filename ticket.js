@@ -14,11 +14,15 @@ const SmashTicket = (function () {
   const num = (o) => o.numeroDia || o.id;
   const ahora = () => new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(/[\u00a0\u202f\u2009]/g, ' ');
 
+  // Pedido pagado por transferencia -> lleva una "P" grande a la izquierda del logo
+  const esTransfer = (o) => /transfer/i.test(String((o && o.pago) || ''));
+
   /* ---------- HTML para imprimir ---------- */
   function html(o) {
     const items = (o.items || []).map((it) => `<div class="tk-it"><b>${esc(it.qty)} x</b> ${esc(it.name)}${it.nota ? `<div class="tk-n">&gt; ${esc(it.nota)}</div>` : ''}</div>`).join('');
+    const P = esTransfer(o) ? '<span class="tk-p" style="position:absolute;left:0;top:50%;transform:translateY(-50%);font:900 15mm/1 Arial,Helvetica,sans-serif;color:#000">P</span>' : '';
     return `
-      <div class="tk-logo"><img src="${LOGO}" alt="" onerror="this.remove()"></div>
+      <div class="tk-logo" style="position:relative${P ? ';min-height:16mm' : ''}">${P}<img src="${LOGO}" alt="" onerror="this.remove()"></div>
       <div class="tk-c tk-h">SMASH</div>
       <div class="tk-s">${esc(ahora())}</div>
       <div class="tk-c tk-big">Comanda #${esc(num(o))}</div>
@@ -99,10 +103,13 @@ const SmashTicket = (function () {
 
     let img = null;
     if (logoBytes) { const inf = jpegInfo(logoBytes); if (inf && (inf.c === 1 || inf.c === 3)) img = inf; }
+    const conP = esTransfer(o);
     if (img) {
       const mw = 110, mh = 60, s = Math.min(mw / img.w, mh / img.h), w = img.w * s, h = img.h * s;
-      ops.push({ k: 'img', x: (W - w) / 2, y: y, w, h }); y += h + 4;
-    }
+      ops.push({ k: 'img', x: (W - w) / 2, y: y, w, h });
+      if (conP) ops.push({ k: 't', txt: 'P', size: 44, bold: true, x: M, y: y + h / 2 + 44 * 0.36 });
+      y += h + 4;
+    } else if (conP) { ops.push({ k: 't', txt: 'P', size: 44, bold: true, x: M, y: y + 34 }); y += 40; }
     text('SMASH', 22, true, 'c');
     gap(3);
     text(ahora(), 8, false, 'c');
