@@ -20,9 +20,10 @@ const SmashTicket = (function () {
   /* ---------- HTML para imprimir ---------- */
   function html(o) {
     const items = (o.items || []).map((it) => `<div class="tk-it"><b>${esc(it.qty)} x</b> ${esc(it.name)}${it.nota ? `<div class="tk-n" style="font-weight:900;font-size:14pt;line-height:1.25;margin-top:.5mm">&gt; ${esc(it.nota)}</div>` : ''}</div>`).join('');
-    const P = esTransfer(o) ? '<span class="tk-p" style="position:absolute;left:0;top:50%;transform:translateY(-50%) rotate(-45deg);font:900 15mm/1 Courier New,Courier,monospace;color:#000">P</span>' : '';
+    // Con P: tres columnas (P | logo | vacío) para que la P quede justo en la mitad entre el borde y el logo
+    const P = esTransfer(o) ? '<span class="tk-p" style="justify-self:center;transform:rotate(-45deg);font:900 15mm/1 Courier New,Courier,monospace;color:#000">P</span>' : '';
     return `
-      <div class="tk-logo" style="position:relative${P ? ';min-height:16mm' : ''}">${P}<img src="${LOGO}" alt="" onerror="this.remove()"></div>
+      <div class="tk-logo"${P ? ' style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;min-height:16mm"' : ''}>${P}<img src="${LOGO}" alt="" onerror="this.remove()">${P ? '<span></span>' : ''}</div>
       <div class="tk-c tk-h">SMASH</div>
       <div class="tk-s">${esc(ahora())}</div>
       <div class="tk-c tk-big">Comanda #${esc(num(o))}</div>
@@ -108,7 +109,8 @@ const SmashTicket = (function () {
       const mw = 110, mh = 60, s = Math.min(mw / img.w, mh / img.h), w = img.w * s, h = img.h * s;
       ops.push({ k: 'img', x: (W - w) / 2, y: y, w, h });
       // P girada 45° a la izquierda; el giro es sobre la base de la letra, por eso se corre
-      if (conP) ops.push({ k: 't', txt: 'P', size: 44, bold: true, rot: 45, x: M + 19, y: y + h / 2 + 21 });
+      // centrada entre el borde del papel y el logo
+      if (conP) ops.push({ k: 't', txt: 'P', size: 44, bold: true, rot: 45, x: (W - w) / 4 + 0.8, y: y + h / 2 + 21.5 });
       y += h + 4;
     } else if (conP) { ops.push({ k: 't', txt: 'P', size: 44, bold: true, rot: 45, x: M + 19, y: y + 43 }); y += 46; }
     text('SMASH', 22, true, 'c');
