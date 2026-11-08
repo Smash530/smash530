@@ -734,3 +734,32 @@ body:has(#staffAuthSection:not([hidden])) .container{max-width:none;padding:0;ma
 .soc-lnk{border:0;background:none;padding:0;color:var(--red);font-weight:700;font-size:.82rem;cursor:pointer}
 @media (max-width:820px){.soc-gform{grid-template-columns:1fr 1fr}#socGasLista{grid-template-columns:1fr}}
 @media (max-width:520px){.soc-gform{grid-template-columns:1fr}}
+
+/* ---------- 📣 Avisar promo por WhatsApp ---------- */
+.avi-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.avi-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow-sm);min-width:0}
+.avi-h{margin:0 0 10px;font-size:1rem}
+.avi-card .avi-h:not(:first-child){margin-top:16px}
+.avi-promos{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.avi-promos li{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--card-2)}
+.avi-promos li span{color:var(--muted);font-size:.88rem}
+.avi-vacio{color:var(--muted);font-size:.9rem;margin:4px 0}
+#aviMsg{width:100%;box-sizing:border-box;resize:vertical;min-height:170px;padding:11px 12px;border:1px solid var(--border-2);border-radius:10px;background:var(--card-2);color:var(--text);font:inherit;font-size:.92rem;line-height:1.45}
+.avi-lnk{background:none;border:0;padding:0;color:var(--red);font-weight:600;cursor:pointer;text-decoration:underline;font-size:.85rem}
+.avi-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.avi-stats div{display:flex;flex-direction:column;align-items:center;padding:10px 6px;border:1px solid var(--border);border-radius:10px;background:var(--card-2)}
+.avi-stats b{font-size:1.35rem}
+.avi-stats small{color:var(--muted);font-size:.75rem;text-align:center}
+.avi-sig{width:100%;margin:0}
+.avi-sig[disabled]{opacity:.55;cursor:default}
+.avi-err{color:var(--danger);font-weight:600;font-size:.9rem}
+.avi-lista{display:grid;gap:6px;margin:12px 0;max-height:440px;overflow:auto}
+.avi-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:10px}
+.avi-row.ya{opacity:.6}
+.avi-q{display:flex;flex-direction:column;min-width:0;flex:1}
+.avi-q b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.avi-q small{color:var(--muted)}
+.avi-row .btn-sm{flex:none}
+.avi-row .avi-env{background:#1fa855;border-color:#1fa855;color:#fff}
+.avi-baja{flex:none;background:none;border:0;color:var(--muted);font-size:.78rem;cursor:pointer;text-decoration:underline;padding:4px}
+@media (max-width:900px){.avi-grid{grid-template-columns:1fr}}

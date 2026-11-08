@@ -262,6 +262,7 @@
       <label class="wide">Dirección de entrega<input name="direccion" autocomplete="street-address" maxlength="200" placeholder="Calle o carrera, barrio, referencia" required></label>
       <label>Contraseña <small>(mínimo 8)</small><input name="clave" type="password" autocomplete="new-password" minlength="8" required></label>
       <label>Repite la contraseña<input name="clave2" type="password" autocomplete="new-password" minlength="8" required></label>
+      <label class="achk wide"><input name="acepta_promos" type="checkbox"><span><b>Quiero recibir las promos del día por WhatsApp</b><small>Máximo un mensaje los días que haya promo. Puedes darte de baja cuando quieras.</small></span></label>
       <p class="amsg wide" role="alert"></p>
       <button type="submit" class="abtn wide">Crear mi cuenta</button>
       <p class="anote wide">Usamos tus datos solo para tus pedidos y promociones. Tu contraseña se guarda cifrada.</p>
@@ -269,6 +270,7 @@
 
     <div id="vCuenta" hidden>
       <div class="ahead"><div><b id="cNombre"></b><small id="cCorreo"></small></div><div class="apts"><b id="cPuntos">0</b><small>puntos</small></div></div>
+      <div id="cAviso" class="aaviso" hidden><span><b>📲 ¿Te avisamos por WhatsApp cuando haya promo?</b><small>Máximo un mensaje los días de promo. Te puedes dar de baja cuando quieras.</small></span><button type="button" class="abtn" id="cAvisoSi">Sí, avisarme</button></div>
       <h3>Tus promociones de hoy</h3>
       <div id="cPromos" class="apromos"></div>
       <h3>Tu historial de puntos</h3>
@@ -279,6 +281,7 @@
         <label>Teléfono<input name="telefono" type="tel" inputmode="tel"></label>
         <label>Teléfono de referencia <small>(opcional)</small><input name="telefono2" type="tel" inputmode="tel"></label>
         <label class="wide">Dirección guardada<input name="direccion" maxlength="200"></label>
+        <label class="achk wide"><input name="acepta_promos" type="checkbox"><span><b>Quiero recibir las promos del día por WhatsApp</b><small>Desmárcala y guarda para dejar de recibirlas.</small></span></label>
         <p class="amsg wide" role="alert"></p>
         <button type="submit" class="abtn wide">Guardar mis datos</button>
       </form>

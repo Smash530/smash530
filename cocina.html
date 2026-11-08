@@ -95,6 +95,7 @@
       <div class="nav-group">Clientes</div>
       <button class="nav-btn" data-section="clientes"><span class="ni">📇</span>Clientes</button>
       <button class="nav-btn" data-section="leales"><span class="ni">⭐</span>Clientes leales</button>
+      <button class="nav-btn" data-section="avisos"><span class="ni">📣</span>Avisar promo</button>
       <div class="nav-group">Sistema</div>
       <button class="nav-btn" data-section="config"><span class="ni">⚙️</span>Configuración</button>
     </nav>
@@ -180,6 +181,11 @@
       <div class="leal-root"></div>
     </section>
 
+    <section class="panel-section" id="section-avisos" hidden>
+      <h2 class="section-title" style="margin-top:0">📣 Avisar la promo de hoy por WhatsApp</h2>
+      <div class="avisos-root"></div>
+    </section>
+
     <!-- ---- Configuración ---- -->
         <section class="panel-section" id="section-config" hidden>
       <h2 class="section-title" style="margin-top:0">Configuración</h2>
@@ -208,6 +214,6 @@
 <div id="printArea" class="print-area"></div>
 
 <script src="boot.js"></script>
-<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'sincronizar.js', 'store.js', 'inventario.js', 'costos.js', 'comandas.js', 'caja.js', 'clientes.js', 'ticket.js', 'orders-ui.js', 'pedidos-lista.js', 'impresion-remota.js', 'leales-ui.js', 'pedidos-web.js', 'crear-pedido.js', 'cocina.js', 'comandas-ui.js', 'caja-ui.js', 'clientes-ui.js', 'auditoria.js', 'respaldo-nube.js', 'login-pro.js']);</script>
+<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'sincronizar.js', 'store.js', 'inventario.js', 'costos.js', 'comandas.js', 'caja.js', 'clientes.js', 'ticket.js', 'orders-ui.js', 'pedidos-lista.js', 'impresion-remota.js', 'leales-ui.js', 'pedidos-web.js', 'crear-pedido.js', 'avisar-promos.js', 'cocina.js', 'comandas-ui.js', 'caja-ui.js', 'clientes-ui.js', 'auditoria.js', 'respaldo-nube.js', 'login-pro.js']);</script>
 </body>
 </html>

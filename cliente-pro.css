@@ -555,3 +555,16 @@ button,input,select{font:inherit;color:inherit}
   .sem-dia{flex:0 0 76px;scroll-snap-align:start}
   .sem-list{grid-template-columns:1fr}
 }
+
+/* Casilla "Quiero recibir las promos" (registro y Tus datos) */
+.aform label.achk{flex-direction:row;align-items:flex-start;gap:11px;padding:12px 13px;border:1px solid var(--line-2);border-radius:12px;background:var(--bg-2);cursor:pointer;font-weight:500}
+.aform label.achk input{width:20px;height:20px;flex:none;margin:1px 0 0;padding:0;accent-color:var(--gold);cursor:pointer}
+.aform label.achk span{display:flex;flex-direction:column;gap:3px}
+.aform label.achk b{font-size:.88rem}
+.aform label.achk small{font-weight:400;line-height:1.35}
+.aform label.achk:has(input:checked){border-color:rgba(255,182,39,.55)}
+.aaviso{display:flex;align-items:center;gap:12px;justify-content:space-between;margin:0 0 14px;padding:12px 14px;border:1px solid rgba(255,182,39,.4);border-radius:14px;background:rgba(255,182,39,.07)}
+.aaviso span{display:flex;flex-direction:column;gap:3px;font-size:.88rem}
+.aaviso small{color:var(--dim);line-height:1.35}
+.aaviso .abtn{flex:none;width:auto;padding:10px 16px;margin:0}
+@media (max-width:520px){.aaviso{flex-direction:column;align-items:stretch}.aaviso .abtn{width:100%}}

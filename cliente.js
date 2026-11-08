@@ -666,7 +666,7 @@
     if (i) setTimeout(function () { i.focus(); }, 50);
   }
   function msg(form, ok, t) { var m = form.querySelector(".amsg"); m.textContent = t; m.classList.toggle("ok", !!ok); }
-  function datos(form) { var o = {}; Array.prototype.forEach.call(form.elements, function (e) { if (e.name) o[e.name] = e.value; }); return o; }
+  function datos(form) { var o = {}; Array.prototype.forEach.call(form.elements, function (e) { if (e.name) o[e.name] = e.type === "checkbox" ? e.checked : e.value; }); return o; }
   function ocupado(form, si, txt) { var b = form.querySelector(".abtn"); if (!b.dataset.t) b.dataset.t = b.textContent; b.disabled = si; b.textContent = si ? txt : b.dataset.t; }
 
   document.addEventListener("click", function (e) {
@@ -716,6 +716,15 @@
     });
   });
   $("salir").addEventListener("click", function () { SmashNube.salir().then(function () { yo = null; promos = []; cerrarAcc(); pintarCuenta(); render(); upd(); }); });
+  $("cAvisoSi").addEventListener("click", function () {
+    var b = this; b.disabled = true; b.textContent = "Guardando…";
+    SmashNube.guardarPerfil({ acepta_promos: true }).then(function (r) {
+      b.disabled = false; b.textContent = "Sí, avisarme";
+      if (!r.ok) { alert(r.error); return; }
+      yo = r.perfil; $("cAviso").hidden = true; $("fDatos").elements.acepta_promos.checked = true;
+      msg($("fDatos"), true, "✓ Listo, te avisaremos las promos por WhatsApp.");
+    });
+  });
   $("usaDir").addEventListener("click", function () { if (yo) { $("fa").value = yo.direccion; upd(); } });
 
   function pintarMiCuenta() {
@@ -730,6 +739,8 @@
     var f = $("fDatos");
     f.elements.nombre.value = yo.nombre || ""; f.elements.telefono.value = yo.telefono || "";
     f.elements.telefono2.value = yo.telefono2 || ""; f.elements.direccion.value = yo.direccion || "";
+    f.elements.acepta_promos.checked = !!yo.acepta_promos;
+    $("cAviso").hidden = !!yo.acepta_promos || !("acepta_promos" in yo);   // sin el SQL nuevo no se ofrece
   }
   /* Historial de puntos: lo que ya está en la nube + los pedidos enviados que aún no se entregan */
   function fechaCorta(iso) {

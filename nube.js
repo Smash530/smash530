@@ -81,7 +81,7 @@ const SmashNube = (function () {
     try {
       const { data, error } = await sb.auth.signUp({
         email: String(d.correo).trim().toLowerCase(), password: d.clave,
-        options: { data: { usuario, nombre: String(d.nombre).trim(), telefono: limpioTel(d.telefono), telefono2: limpioTel(d.telefono2), direccion: String(d.direccion).trim() } },
+        options: { data: { usuario, nombre: String(d.nombre).trim(), telefono: limpioTel(d.telefono), telefono2: limpioTel(d.telefono2), direccion: String(d.direccion).trim(), acepta_promos: d.acepta_promos === true } },
       });
       if (error) return { ok: false, error: errorTxt(error) };
       // Si en Supabase quedó activado "Confirm email", la cuenta existe pero aún no hay sesión
@@ -119,8 +119,10 @@ const SmashNube = (function () {
     if (campos.telefono != null) f.telefono = limpioTel(campos.telefono);
     if (campos.telefono2 != null) f.telefono2 = limpioTel(campos.telefono2);
     if (campos.direccion != null) f.direccion = String(campos.direccion).trim().slice(0, 200);
+    // Casilla "Quiero recibir promos": solo se envía si cambió (supabase/avisos-promos.sql)
+    if (campos.acepta_promos != null && !!campos.acepta_promos !== !!p.acepta_promos) f.acepta_promos = !!campos.acepta_promos;
     const { error } = await sb.from('perfiles').update(f).eq('id', p.id);
-    if (error) return { ok: false, error: errorTxt(error) };
+    if (error) return { ok: false, error: /acepta_promos/.test(error.message || '') ? 'Aún no podemos guardar esa opción. Intenta más tarde.' : errorTxt(error) };
     return { ok: true, perfil: await perfil(true) };
   }
 
@@ -597,6 +599,22 @@ const SmashNube = (function () {
     }
     return { ok: false, error: 'No se pudo buscar: falta ejecutar supabase/promos-por-producto.sql en Supabase (o conectar la cuenta de caja en "⭐ Clientes leales").' };
   }
+  /* ---- Avisos de promos por WhatsApp (supabase/avisos-promos.sql) ---- */
+  const faltaAvisosSql = (e) => /panel_clientes_promos|panel_baja_promos|acepta_promos|schema cache|does not exist/i.test((e && (e.message || e.details)) || '');
+  async function panelClientesPromos() {
+    if (!ok) return sinNube();
+    if (!tok()) return { ok: false, error: 'Conecta el panel a la nube (entra con tu usuario del panel).' };
+    const { data, error } = await sb.rpc('panel_clientes_promos', { p_token: tok() });
+    if (error) return { ok: false, error: faltaAvisosSql(error) ? 'Falta ejecutar supabase/avisos-promos.sql en Supabase.' : errorTxt(error) };
+    if (!data || !data.ok) return { ok: false, error: data && data.error === 'sin-acceso' ? 'La sesión del panel venció: sal y vuelve a entrar.' : 'No se pudo leer la lista.' };
+    return { ok: true, lista: data.lista || [] };
+  }
+  async function panelBajaPromos(id) {
+    if (!ok) return sinNube();
+    const { data, error } = await sb.rpc('panel_baja_promos', { p_token: tok() || '', p_id: id });
+    if (error) return { ok: false, error: faltaAvisosSql(error) ? 'Falta ejecutar supabase/avisos-promos.sql en Supabase.' : errorTxt(error) };
+    return data && data.ok ? { ok: true } : { ok: false, error: 'No se pudo dar de baja.' };
+  }
   async function panelDevolverCanje(ref) {
     if (!ok) return sinNube();
     const { data, error } = await sb.rpc('panel_devolver_canje', { p_token: tok(), p_ref: String(ref || '') });
@@ -633,7 +651,7 @@ const SmashNube = (function () {
   }
 
   const API = {
-    panelEntrar, panelSesion, panelSalir, panelSumarPuntos, panelDevolverCanje, panelPromos, panelBuscarCliente, tomarPedido, datosAvisos, datosLeer, guardarDato, seguirDatos,
+    panelEntrar, panelSesion, panelSalir, panelSumarPuntos, panelDevolverCanje, panelPromos, panelBuscarCliente, panelClientesPromos, panelBajaPromos, tomarPedido, datosAvisos, datosLeer, guardarDato, seguirDatos,
     subirRespaldo, listarRespaldos, leerRespaldo,
     enviarImpresion, estadoImpresion, tomarImpresion, marcarImpresion, seguirImpresiones,
     guardarCupo, leerCupo, seguirCupo, guardarHorario, leerHorario,
