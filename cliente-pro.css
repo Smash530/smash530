@@ -673,3 +673,8 @@ body.sheet-open .inst{display:none}
 @media (prefers-reduced-motion:reduce){
   .seg-pill,.czm-bar i,.cz-pts b.sube,.hop,.tab-n.pop,.sp-dots i.now,.ss-line li.now .ssl-ico{animation:none!important}
 }
+
+/* Regalo de bienvenida: 15 puntos al registrarse */
+.club-regalo{margin-top:10px;display:inline-block;background:rgba(255,182,39,.12);border:1px dashed rgba(255,182,39,.5);color:var(--gold);border-radius:12px;padding:8px 12px;font-size:.9rem}
+.aregalo{margin:4px 0 14px;background:rgba(255,182,39,.12);border:1px dashed rgba(255,182,39,.5);border-radius:12px;padding:10px 12px;color:var(--gold);font-size:.92rem}
+.aregalo small{display:block;color:var(--muted);font-size:.78rem;margin-top:2px}

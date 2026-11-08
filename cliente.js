@@ -194,7 +194,7 @@
     return beneficio(p);
   }
   function semCta(p, dia) {
-    if (!yo) return '<button type="button" class="sem-btn" data-acc="registro">Únete gratis y úsala</button>';
+    if (!yo) return '<button type="button" class="sem-btn" data-acc="registro">Únete y recibe 15 pts 🎁</button>';
     if (dia.i > 0) return '<span class="sem-cuando">Disponible ' + esc(dia.largo) + "</span>";
     var ids = SmashNube.prodsDe(p), dentro = PR.usadas.some(function (u) { return String(u.id) === String(p.id); });
     if (dentro) return '<span class="sem-ok">✓ Ya está en tu pedido</span>';
@@ -212,7 +212,7 @@
       SEM.sel = (dias[0].promos.length && !dias[0].cierre ? dias[0] : primero || dias[0]).d;
     }
     $("semSub").textContent = yo ? "Las de hoy se aplican solas al agregar los productos. Elige un día para ver qué viene."
-      : "Exclusivas para clientes registrados. Regístrate gratis para usarlas y sumar puntos.";
+      : "Exclusivas para clientes registrados. Regístrate gratis y te regalamos 15 puntos para usarlas.";
     var tira = $("semDias"), sl = tira.scrollLeft;
     tira.innerHTML = dias.map(function (x) {
       var on = x.d === SEM.sel;
@@ -670,7 +670,7 @@
     var dentro = !!yo;
     $("accTabs").hidden = dentro; $("vCuenta").hidden = !dentro;
     $("accT").textContent = dentro ? "Mi cuenta SMASH ⭐" : "Clientes SMASH ⭐";
-    $("accSub").hidden = dentro;
+    $("accSub").hidden = dentro; $("accRegalo").hidden = dentro;
     if (!dentro) verTab(tab === "registro" ? "registro" : "entrar");
     else { $("fEntrar").hidden = true; $("fRegistro").hidden = true; pintarMiCuenta(); }
     acc.querySelectorAll(".amsg").forEach(function (m) { m.textContent = ""; m.className = "amsg" + (m.classList.contains("wide") ? " wide" : ""); });
@@ -713,7 +713,7 @@
     SmashNube.registrar(datos(f)).then(function (r) {
       ocupado(f, false);
       if (!r.ok) { msg(f, false, r.error); return; }
-      if (r.confirmar) { msg(f, true, "✓ Cuenta creada. Te enviamos un correo para confirmarla; luego inicia sesión."); return; }
+      if (r.confirmar) { msg(f, true, "✓ Cuenta creada. Te enviamos un correo: confírmalo e inicia sesión. Tus 15 puntos de regalo ya te estarán esperando 🎁"); return; }
       f.reset(); entro(r.perfil, true);
     });
   });
@@ -790,7 +790,7 @@
     lb.innerHTML = yo
       ? (promos.length ? "⭐ <b>Tus promociones de hoy:</b> " + promos.map(function (p) { return esc(p.titulo); }).join(" · ") + ' <button type="button" class="lnk" data-acc="cuenta">Ver detalles</button>'
         : "⭐ Hola <b>" + esc(String(yo.nombre || "").split(" ")[0]) + "</b>, tienes <b>" + (yo.puntos || 0) + " puntos</b>. Hoy no hay promociones; sigue sumando.")
-      : '⭐ <b>¿Quieres descuentos y promociones cada día?</b> Regístrate gratis y gana puntos en cada pedido. <span class="lbtns"><button type="button" class="lnk" data-acc="registro">Registrarme</button><button type="button" class="lnk" data-acc="entrar">Ya tengo cuenta</button></span>';
+      : '⭐ <b>¿Quieres descuentos y promociones cada día?</b> Regístrate gratis y <b>te regalamos 15 puntos</b> para la promo del día. <span class="lbtns"><button type="button" class="lnk" data-acc="registro">Registrarme</button><button type="button" class="lnk" data-acc="entrar">Ya tengo cuenta</button></span>';
     $("usaDir").hidden = !(yo && yo.direccion);
     $("usaDir").textContent = yo ? "📍 Usar mi dirección guardada: " + yo.direccion : "";
     try { document.dispatchEvent(new CustomEvent("smash:yo", { detail: { yo: yo } })); } catch (x) { /* navegador viejo */ }
