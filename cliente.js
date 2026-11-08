@@ -713,7 +713,7 @@
     SmashNube.registrar(datos(f)).then(function (r) {
       ocupado(f, false);
       if (!r.ok) { msg(f, false, r.error); return; }
-      if (r.confirmar) { msg(f, true, "✓ Cuenta creada. Te enviamos un correo: confírmalo e inicia sesión. Tus 15 puntos de regalo ya te estarán esperando 🎁"); return; }
+      if (r.confirmar) { msg(f, true, "✓ Cuenta creada. Te enviamos un correo: confírmalo e inicia sesión. Tus 15 puntos de regalo ya te estarán esperando 🎁"); if (window.SmashConfeti) window.SmashConfeti(); return; }
       f.reset(); entro(r.perfil, true);
     });
   });
@@ -783,6 +783,8 @@
   function pintarCuenta() {
     $("tbAcc").hidden = !!yo || !hayNube;
     $("tbYo").hidden = !yo;
+    document.body.classList.toggle("invita-club", hayNube && !yo);   // anuncios del regalo de 15 pts (club-regalo.js)
+    document.body.classList.toggle("en-club", !!yo);
     if (yo) $("tbYo").textContent = "⭐ " + String(yo.nombre || yo.usuario || "").split(" ")[0] + " · " + (yo.puntos || 0) + " pts";
     var lb = $("leal");
     lb.hidden = !hayNube || !!yo;          // con sesión se ve la zona del Club SMASH en su lugar

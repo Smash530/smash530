@@ -52,6 +52,7 @@
       if (k < 1) requestAnimationFrame(paso); else c.remove();
     })(t0);
   }
+  window.SmashConfeti = confeti;   // lo usa club-regalo.js
 
   /* ================= 3. Micro-animaciones ================= */
   function destinoPedido() {

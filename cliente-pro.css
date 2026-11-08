@@ -674,7 +674,119 @@ body.sheet-open .inst{display:none}
   .seg-pill,.czm-bar i,.cz-pts b.sube,.hop,.tab-n.pop,.sp-dots i.now,.ss-line li.now .ssl-ico{animation:none!important}
 }
 
-/* Regalo de bienvenida: 15 puntos al registrarse */
-.club-regalo{margin-top:10px;display:inline-block;background:rgba(255,182,39,.12);border:1px dashed rgba(255,182,39,.5);color:var(--gold);border-radius:12px;padding:8px 12px;font-size:.9rem}
-.aregalo{margin:4px 0 14px;background:rgba(255,182,39,.12);border:1px dashed rgba(255,182,39,.5);border-radius:12px;padding:10px 12px;color:var(--gold);font-size:.92rem}
-.aregalo small{display:block;color:var(--muted);font-size:.78rem;margin-top:2px}
+/* ============================================================
+   Regalo de bienvenida: 15 puntos al registrarse (club-regalo.js)
+   Lo de "invitar" solo se ve con body.invita-club (sin sesión).
+   ============================================================ */
+/* Botón "Únete" de la barra superior */
+.tb-reg{position:relative;display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(255,182,39,.2),rgba(227,38,47,.2));border-color:rgba(255,182,39,.65);color:var(--text)}
+.tb-reg::after{content:"";position:absolute;inset:-1px;border-radius:inherit;border:2px solid var(--gold);pointer-events:none;animation:rg-anillo 2.4s ease-out infinite}
+.tb-reg-g{display:inline-block;transform-origin:50% 80%;animation:rg-wiggle 3.2s ease-in-out infinite}
+.tb-reg-n{background:var(--gold);color:#1a1000;border-radius:999px;padding:1px 7px;font-size:.74rem;font-weight:900}
+
+/* Cinta de la portada */
+.hero-regalo{display:none}
+body.invita-club .hero-regalo{display:flex}
+.hero-regalo{position:relative;overflow:hidden;align-items:center;gap:12px;width:100%;max-width:460px;margin-top:18px;padding:10px 12px 10px 10px;border-radius:16px;border:1px solid rgba(255,182,39,.55);background:linear-gradient(110deg,rgba(26,22,19,.88),rgba(70,34,10,.88));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:var(--text);text-align:left;cursor:pointer;box-shadow:0 16px 36px -16px rgba(255,182,39,.5);animation:rg-in .7s .5s both cubic-bezier(.2,.9,.3,1)}
+.hero-regalo::before{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,220,150,.22) 50%,transparent 65%);transform:translateX(-100%);animation:rg-brillo 4s 1.4s infinite;pointer-events:none}
+.hr-ico{flex:none;width:46px;height:46px;display:grid;place-items:center;border-radius:12px;background:var(--gold);font-size:1.5rem;animation:rg-wiggle 3.2s ease-in-out infinite}
+.hr-t{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.hr-t b{font-family:var(--display);font-weight:400;text-transform:uppercase;font-size:1.3rem;color:var(--gold)}
+.hr-t small{color:var(--muted);font-size:.8rem}
+.hr-go{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--red);color:#fff;font-weight:900;transition:transform .2s}
+.hero-regalo:hover .hr-go{transform:translateX(4px)}
+
+/* Sección Club SMASH */
+.club .club-in{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"txt gift" "pts gift";align-items:center;gap:20px 40px}
+.club-txt{grid-area:txt}
+.club .club-pts{grid-area:pts}
+.club-gift{grid-area:gift}
+.club-pasos{list-style:none;margin:18px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.club-pasos li{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line-2);border-radius:999px;padding:6px 14px 6px 6px;font-size:.88rem;font-weight:600}
+.club-pasos i{font-style:normal;flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--gold);color:#1a1000;font-weight:900;font-size:.8rem}
+.club-pasos b{color:var(--gold)}
+body:not(.invita-club) .club-pasos,body:not(.invita-club) .club-gift{display:none}
+.club-unirme{display:none}
+body.en-club .club-unirme{display:inline-flex}
+
+/* Cupón del regalo (ticket con muescas) */
+.club-gift{width:360px;max-width:100%;padding:0;border:0;background:none;color:#fff;text-align:left;cursor:pointer;filter:drop-shadow(0 26px 30px rgba(227,38,47,.38));transition:transform .25s cubic-bezier(.2,.9,.3,1);-webkit-tap-highlight-color:transparent}
+.club-gift:hover{transform:translateY(-4px) rotate(-1.5deg)}
+.club-gift:active{transform:scale(.97)}
+.cg-in{--pie:112px;position:relative;overflow:hidden;display:flex;flex-direction:column;padding:20px 22px 0;border-radius:22px;
+  background:radial-gradient(120% 90% at 0% 0%,rgba(255,182,39,.38),transparent 55%),linear-gradient(150deg,#e3262f,#8f1218 78%);
+  -webkit-mask:radial-gradient(circle 13px at 0 calc(100% - var(--pie)),#0000 97%,#000) left/51% 100% no-repeat,radial-gradient(circle 13px at 100% calc(100% - var(--pie)),#0000 97%,#000) right/51% 100% no-repeat;
+  mask:radial-gradient(circle 13px at 0 calc(100% - var(--pie)),#0000 97%,#000) left/51% 100% no-repeat,radial-gradient(circle 13px at 100% calc(100% - var(--pie)),#0000 97%,#000) right/51% 100% no-repeat;
+  animation:rg-flota 5s ease-in-out infinite}
+.cg-in::before{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.2) 50%,transparent 62%);transform:translateX(-100%);animation:rg-brillo 4.5s 1s infinite;pointer-events:none}
+.cg-cinta{align-self:flex-start;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:4px 11px;font-size:.7rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-2)}
+.cg-top{display:flex;align-items:center;gap:16px;padding:12px 0 18px}
+.cg-caja{flex:none;width:84px;height:84px;transform-origin:50% 90%;filter:drop-shadow(0 10px 12px rgba(0,0,0,.35));animation:rg-salta 2.8s ease-in-out infinite}
+.cg-caja svg{width:100%;height:100%}
+.cg-n{display:flex;align-items:center;gap:10px}
+.cg-n b{display:inline-block;min-width:1.15em;font-family:var(--display);font-weight:400;font-size:5.6rem;line-height:.85;color:var(--gold);font-variant-numeric:tabular-nums;text-shadow:0 4px 0 rgba(0,0,0,.25)}
+.cg-n small{font-family:var(--display);text-transform:uppercase;font-size:1.3rem;line-height:1.05}
+.club-gift.listo .cg-n b{animation:rg-pop .55s cubic-bezier(.3,1.6,.5,1)}
+.cg-pie{height:var(--pie);margin:0 -22px;padding:12px 22px 16px;display:flex;flex-direction:column;justify-content:center;gap:10px;border-top:2px dashed rgba(255,255,255,.4);background:rgba(0,0,0,.2)}
+.cg-txt{font-size:.85rem;color:rgba(255,255,255,.88);text-align:center}
+.cg-cta{display:flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;background:var(--gold);color:#1a1000;padding:11px 14px;font-weight:900;transition:background .2s}
+.club-gift:hover .cg-cta{background:var(--gold-2)}
+
+/* Cupón dentro de la ventana de registro */
+.aregalo{position:relative;overflow:hidden;display:flex;align-items:center;gap:14px;margin:4px 0 16px;padding:12px 14px 12px 12px;border-radius:16px;background:linear-gradient(135deg,#e3262f,#8f1218);color:#fff;animation:rg-in .5s both cubic-bezier(.2,1.2,.3,1)}
+.aregalo[hidden]{display:none}
+.aregalo::before{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.2) 50%,transparent 62%);transform:translateX(-100%);animation:rg-brillo 4s .6s infinite;pointer-events:none}
+.ar-n{flex:none;width:70px;height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:14px;background:var(--gold);color:#1a1000;line-height:1;animation:rg-wiggle 3.6s 1s ease-in-out infinite}
+.ar-n b{font-family:var(--display);font-weight:400;font-size:2rem}
+.ar-n small{font-weight:900;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase}
+.ar-t{display:flex;flex-direction:column;gap:3px;min-width:0}
+.ar-t b{font-size:1rem}
+.ar-t small{font-size:.8rem;line-height:1.35;color:rgba(255,255,255,.88)}
+
+/* Tarjeta flotante */
+.regalo-pop{position:fixed;left:20px;bottom:calc(20px + env(safe-area-inset-bottom,0));z-index:95;width:min(390px,calc(100vw - 32px));display:flex;align-items:center;gap:12px;padding:14px 12px 14px 12px;border-radius:20px;background:linear-gradient(135deg,#2a211b,#1a1613);border:1px solid rgba(255,182,39,.5);box-shadow:0 24px 50px -16px rgba(0,0,0,.85),0 0 0 4px rgba(255,182,39,.08);opacity:0;transform:translateY(40px) scale(.96);transition:transform .45s cubic-bezier(.2,1.25,.3,1),opacity .3s}
+.regalo-pop.show{opacity:1;transform:none}
+.rg-caja{flex:none;width:54px;height:54px;transform-origin:50% 90%;animation:rg-salta 2.4s ease-in-out infinite}
+.rg-caja svg{width:100%;height:100%}
+.rg-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;line-height:1.3}
+.rg-t b{font-size:.98rem}
+.rg-t em{font-style:normal;color:var(--gold)}
+.rg-t small{color:var(--muted);font-size:.78rem}
+.rg-si{flex:none;border:0;border-radius:12px;background:var(--red);color:#fff;font:inherit;font-weight:800;font-size:.86rem;padding:11px 14px;cursor:pointer;box-shadow:0 8px 20px -8px var(--red-glow)}
+.rg-si:hover{background:var(--red-2)}
+.rg-x{position:absolute;top:-10px;right:-10px;width:30px;height:30px;display:grid;place-items:center;border-radius:50%;border:1px solid var(--line-2);background:var(--card-2);color:var(--muted);font-size:1.05rem;line-height:1;cursor:pointer}
+
+/* Barra inferior: "+15" sobre "Cuenta" */
+body.invita-club .tabbar [data-tab="cuenta"] .tab-ico::after{content:"+15";position:absolute;top:-7px;right:-12px;background:var(--gold);color:#1a1000;font-size:.6rem;font-weight:900;border-radius:999px;padding:2px 5px;animation:rg-late 2s ease-in-out infinite}
+
+@media (max-width:1023px){
+  .club .club-in{grid-template-columns:minmax(0,1fr);grid-template-areas:"txt" "gift" "pts";gap:24px}
+  .club-gift{justify-self:center;width:400px}
+  body.con-tabbar .regalo-pop{left:12px;right:12px;width:auto;bottom:calc(74px + env(safe-area-inset-bottom,0))}
+}
+@media (max-width:760px){
+  .cg-n b{font-size:4.8rem}
+  .cg-caja{width:72px;height:72px}
+  .hero-regalo{max-width:none;margin-top:14px}
+  .hr-t b{font-size:1.12rem}
+  .tb-reg{padding:7px 10px}
+  .club-pasos li{font-size:.82rem}
+  .aregalo{gap:12px;padding:10px 12px 10px 10px}
+  .ar-n{width:60px;height:60px}
+}
+@media (max-width:380px){
+  .tb-reg-g,.hr-t small{display:none}
+  .cg-n b{font-size:4.2rem}
+}
+
+@keyframes rg-wiggle{0%,70%,100%{transform:rotate(0)}75%{transform:rotate(-14deg)}80%{transform:rotate(12deg)}85%{transform:rotate(-8deg)}90%{transform:rotate(5deg)}}
+@keyframes rg-brillo{0%{transform:translateX(-100%)}40%,100%{transform:translateX(100%)}}
+@keyframes rg-in{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes rg-flota{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes rg-salta{0%,60%,100%{transform:translateY(0) rotate(0)}68%{transform:translateY(-10px) rotate(-6deg)}76%{transform:translateY(0) rotate(0)}82%{transform:translateY(-4px) rotate(4deg)}88%{transform:translateY(0) rotate(0)}}
+@keyframes rg-pop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
+@keyframes rg-late{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+@keyframes rg-anillo{0%{opacity:.75;transform:scale(1)}100%{opacity:0;transform:scale(1.3)}}
+@media (prefers-reduced-motion:reduce){
+  .tb-reg::after,.tb-reg-g,.hero-regalo,.hero-regalo::before,.hr-ico,.cg-in,.cg-in::before,.cg-caja,.club-gift.listo .cg-n b,.aregalo,.aregalo::before,.ar-n,.rg-caja,body.invita-club .tabbar [data-tab="cuenta"] .tab-ico::after{animation:none!important}
+}
