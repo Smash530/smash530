@@ -402,6 +402,20 @@ const SmashNube = (function () {
     if (!ok) return;
     await sb.from('pedidos_web').update({ recibido: new Date().toISOString() }).eq('ref', ref).is('recibido', null);
   }
+  /* ---- Seguimiento del pedido en vivo (supabase/seguimiento-pedidos.sql) ---- */
+  // Panel: publica el estado de varios pedidos web [{ref, estado}]
+  async function panelEstadosPedidos(lista) {
+    if (!ok || !tok() || !lista || !lista.length) return { ok: false };
+    const { data, error } = await sb.rpc('panel_estados_pedidos', { p_token: tok(), p_lista: lista });
+    if (error) return { ok: false, falta: /panel_estados_pedidos|schema cache/i.test(error.message || ''), error: errorTxt(error) };
+    return data || { ok: false };
+  }
+  // Cliente: en qué va su pedido (por número). Devuelve [{ref, estado, estado_en, recibido, creado}]
+  async function pedidoEstado(refs) {
+    if (!ok || !refs || !refs.length) return { ok: false, lista: [] };
+    const { data, error } = await sb.rpc('pedido_estado', { p_refs: refs.slice(0, 5) });
+    return error ? { ok: false, lista: [], error: errorTxt(error) } : { ok: true, lista: data || [] };
+  }
 
   /* ---------------- Cupo de hamburguesas en línea ----------------
      Cocina guarda el cupo de hoy y las vendidas en la tabla cupo_dia
@@ -658,7 +672,7 @@ const SmashNube = (function () {
     ok, perfil, alCambiar, enRecuperacion, registrar, entrar, salir, recuperarClave, nuevaClave, guardarPerfil, usuarioLibre,
     promociones, promosSemana, aplicaEl, guardarPromo, activarPromo, borrarPromo, aplicarPromos, vigente, listaIds, prodsDe, regalosDe, tocaProducto, lineasPaquete, precioNormalPaquete, hoyCO, diaCO, tocaHoy, textoDias, DIAS,
     puntosPedido, REGLAS, clientes, movimientos, sumarPuntos, cambiarRol, buscarPorCorreo,
-    enviarPedido, recibirPedidos, marcarRecibido,
+    enviarPedido, recibirPedidos, marcarRecibido, panelEstadosPedidos, pedidoEstado,
   };
   return API;
 })();

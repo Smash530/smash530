@@ -239,7 +239,7 @@
   }
   function cargarSemana() {
     if (!hayNube || !SmashNube.promosSemana) return;
-    SmashNube.promosSemana().then(function (l) { SEM.lista = (l || []).filter(function (p) { return p && p.activa !== false; }); SEM.cargada = true; pintarSemana(); }, function () {});
+    SmashNube.promosSemana().then(function (l) { SEM.lista = (l || []).filter(function (p) { return p && p.activa !== false; }); SEM.cargada = true; pintarSemana(); pintarClub(); }, function () {});
   }
   document.addEventListener("click", function (e) {
     var b = e.target.closest ? e.target.closest("[data-semdia]") : null;
@@ -257,6 +257,21 @@
 
   /* Zona del Club SMASH: solo la ven los clientes con sesión iniciada */
   var REGLAS_TXT = "hamburguesa 10 · combo +5 · papas 2 · gaseosa 2 · salsa 1";
+  /* Meta de puntos: la promo con puntos más cercana de esta semana (o "ya te alcanza para todas") */
+  function metaPts(saldo) {
+    var vistas = {}, todas = (SEM.lista || []).concat(promos).filter(function (p) {
+      if (!p || !(cuestaPts(p) > 0) || vistas[p.id]) return false; vistas[p.id] = true; return true;
+    });
+    if (!todas.length) return "";
+    var sig = null;
+    todas.forEach(function (p) { var c = cuestaPts(p); if (c > saldo && (!sig || c < cuestaPts(sig))) sig = p; });
+    if (!sig) return '<div class="cz-meta done"><span class="czm-ico" aria-hidden="true">🏆</span><div><b>¡Tus puntos ya alcanzan para todas las promos con puntos!</b><small>Úsalos el día de cada promo; se aplican solos.</small></div></div>';
+    var c = cuestaPts(sig), pct = Math.round(Math.min(100, (saldo / c) * 100)), falta = c - saldo;
+    var burgers = Math.ceil(falta / 10);
+    return '<div class="cz-meta"><span class="czm-ico" aria-hidden="true">🎯</span><div class="czm-in"><b>Próxima meta: ' + esc(sig.titulo) + "</b>" +
+      '<div class="czm-bar" role="progressbar" aria-valuemin="0" aria-valuemax="' + c + '" aria-valuenow="' + saldo + '"><i style="--p:' + pct + '%"></i></div>' +
+      "<small>Te faltan <b>" + falta + " pts</b> · más o menos " + burgers + " burger" + (burgers > 1 ? "s" : "") + " · " + esc(SmashNube.textoDias(sig)) + "</small></div></div>";
+  }
   function pintarClub() {
     var z = $("club"); if (!z) return;
     z.hidden = !yo || !hayNube;
@@ -282,7 +297,7 @@
         estado + btn + "</article>";
     }).join("");
     z.innerHTML = '<div class="cz-head"><div><span class="eyebrow gold">Club SMASH</span><h3>Tus promos de hoy</h3></div>' +
-      '<div class="cz-pts"><b>' + saldo + "</b><small>tus puntos</small></div></div>" +
+      '<div class="cz-pts"><b data-pts="' + saldo + '">' + saldo + "</b><small>tus puntos</small></div></div>" + metaPts(saldo) +
       (tarjetas ? '<div class="cz-list">' + tarjetas + "</div>" : '<p class="cz-empty">Hoy no hay promociones. Sigue sumando puntos: pronto llegan nuevas.</p>') +
       '<p class="cz-how">Ganas puntos cuando entregamos tu pedido: ' + REGLAS_TXT + '. <button type="button" class="lnk" data-acc="cuenta">Ver mi historial</button></p>';
   }
@@ -573,6 +588,8 @@
     $("graciasSub").textContent = EH.abierto ? "Termina de enviar el mensaje en WhatsApp para confirmar tu pedido."
       : "Tu pedido quedó como reserva: lo despachamos al abrir cocina, " + reservaTxt() + ". Termina de enviar el mensaje en WhatsApp.";
     $("gracias").hidden = false;
+    // cliente-vivo.js: seguimiento del pedido y celebración
+    try { document.dispatchEvent(new CustomEvent("smash:pedido", { detail: { ref: code, total: $("tot").textContent, n: pedido.items.reduce(function (s, it) { return s + (Number(it.qty) || 0); }, 0), reserva: pedido.reserva, pts: ptsGana } })); } catch (x) { /* navegador viejo */ }
   });
   /* Mensaje de puntos al enviar el pedido (solo clientes con cuenta) */
   function pintarGraciasLeal(gana, canjes, faltaron, saldoAntes, canjeFallo) {
@@ -776,6 +793,7 @@
       : '⭐ <b>¿Quieres descuentos y promociones cada día?</b> Regístrate gratis y gana puntos en cada pedido. <span class="lbtns"><button type="button" class="lnk" data-acc="registro">Registrarme</button><button type="button" class="lnk" data-acc="entrar">Ya tengo cuenta</button></span>';
     $("usaDir").hidden = !(yo && yo.direccion);
     $("usaDir").textContent = yo ? "📍 Usar mi dirección guardada: " + yo.direccion : "";
+    try { document.dispatchEvent(new CustomEvent("smash:yo", { detail: { yo: yo } })); } catch (x) { /* navegador viejo */ }
   }
   // Al iniciar sesión: datos que casi nunca cambian (nombre y teléfono) se llenan solos
   function entro(p, cerrar) {

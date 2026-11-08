@@ -1,0 +1,15 @@
+{
+  "name": "SMASH · Hamburguesas smash",
+  "short_name": "SMASH",
+  "description": "Pide tus hamburguesas smash a domicilio en Armenia.",
+  "start_url": "cliente.html?app=1",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0c0a09",
+  "theme_color": "#0c0a09",
+  "lang": "es-CO",
+  "icons": [
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "images/logo-cliente.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }
+  ]
+}
