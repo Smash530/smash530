@@ -92,7 +92,7 @@ const SmashUI = (function () {
           <button class="btn-print" data-act="print" data-id="${id}">🖨️ Imprimir comanda</button>
           <button class="btn-pdf" data-act="pdf" data-id="${id}">⬇️ PDF</button>
           ${repBtn}
-          ${o.domicilioPendiente || despacho ? `<button class="btn-dom" data-act="dom" data-id="${id}">💲 ${o.domicilioPendiente ? 'Valor del domicilio' : 'Domicilio'}</button>` : ''}
+          ${status !== 'cancelado' ? `<button class="btn-dom" data-act="dom" data-id="${id}">💲 ${o.domicilioPendiente ? 'Valor del domicilio' : 'Corregir domicilio'}</button>` : ''}
           <button class="btn-edit" data-act="edit" data-id="${id}">✏️ Editar</button>
           <button class="btn-nov" data-act="nov" data-id="${id}">📝 Novedad</button>
           <button class="btn-del" data-act="cancel" data-id="${id}">✕ Cancelar</button>
@@ -140,7 +140,7 @@ const SmashUI = (function () {
     const remota = typeof SmashImpRemota !== 'undefined' && SmashImpRemota.disponible();
     if (remota && !SmashImpRemota.esImpresor()) acciones.push(btn('remote', '📡 Imprimir en cocina', 'hl'));
     acciones.push(btn('print', remota && !SmashImpRemota.esImpresor() ? '🖨️ Imprimir aquí' : '🖨️ Imprimir comanda'), btn('pdf', '⬇️ PDF'));    if (!fin && (o.impresa || despacho)) acciones.push(btn('rep', o.repartidor ? '🛵 Cambiar repartidor' : '🛵 Asignar repartidor'));
-    if (!fin && (o.domicilioPendiente || despacho)) acciones.push(btn('dom', o.domicilioPendiente ? '💲 Valor del domicilio' : '💲 Domicilio', o.domicilioPendiente ? 'hl' : ''));
+    if (st !== 'cancelado') acciones.push(btn('dom', o.domicilioPendiente ? '💲 Valor del domicilio' : '💲 Corregir domicilio', o.domicilioPendiente ? 'hl' : ''));
     if (!fin) acciones.push(btn('edit', '✏️ Editar pedido'));
     acciones.push(btn('nov', '📝 Novedad'));
     if (o.cuenta && !o.puntosSumados && st !== 'cancelado' && typeof SmashLealesUI !== 'undefined') acciones.push(btn('puntos', '⭐ Sumar puntos'));
@@ -182,7 +182,7 @@ const SmashUI = (function () {
         <div><span>Productos</span><b>${fmt(d.productos)}</b></div>
         ${d.adicionales ? `<div><span>Adicionales</span><b>${fmt(d.adicionales)}</b></div>` : ''}
         ${d.descuento ? `<div><span>Descuento</span><b>−${fmt(d.descuento)}</b></div>` : ''}
-        <div><span>Domicilio</span><b>${o.domicilioPendiente ? '<span class="pend">por confirmar</span>' : fmt(d.domicilio)}</b></div>
+        <div class="od-dom"><span>Domicilio${o.zona ? ` <small>· ${esc(o.zona)}</small>` : ''}</span><b>${o.domicilioPendiente ? '<span class="pend">por confirmar</span>' : fmt(d.domicilio)}${st !== 'cancelado' ? `<button type="button" class="od-dom-ed" data-act="dom" data-id="${id}" title="Corregir el valor del domicilio">✏️ Corregir</button>` : ''}</b></div>
         <div class="tot"><span>Total${o.pago ? ' · ' + esc(o.pago) : ''}</span><b>${fmt(d.total)}</b></div>
         ${ep && ep.k === 'pagado' ? `<div class="od-paid">💰 Pagado: ${esc(ep.pago.lineas.map((l) => SmashCaja.METODOS[l.metodo] + ' ' + fmt(l.monto)).join(' + '))}</div>` : ep && ep.k === 'pendiente' ? '<div class="od-unpaid">💰 Pendiente de pago</div>' : ''}
       </section>
@@ -272,16 +272,25 @@ const SmashUI = (function () {
 
   /* ---------- valor del domicilio (zona Otros) ---------- */
   function openDomicilio(o) {
+    const sinDom = (o.subtotal || 0) - (o.descuento || 0);
     const m = modal(`Domicilio del pedido #${esc(num(o))}`,
-      `<p class="hint">Zona: ${esc(o.zona)}. Escribe el valor que cobra la agencia; queda sumado al total y sale en la comanda.</p>
-       <label class="ed-wide">Valor del domicilio (COP)<input id="domIn" type="number" min="0" step="500" value="${esc(o.domicilioPendiente ? '' : o.domicilio)}"></label>`,
+      `<p class="hint">Zona: ${esc(o.zona || 'sin zona')}${o.domicilioPendiente ? '' : ` · valor actual ${fmt(o.domicilio || 0)}`}. Escribe el valor correcto: el total del pedido se recalcula y sale así en la comanda.</p>
+       <label class="ed-wide">Valor del domicilio (COP)<input id="domIn" type="number" min="0" step="500" inputmode="numeric" value="${esc(o.domicilioPendiente ? '' : o.domicilio)}"></label>
+       <div class="ed-total" id="domTot"></div>`,
       (mm) => {
         const v = parseFloat(mm.querySelector('#domIn').value);
         if (!(v >= 0)) { mm.querySelector('#domIn').focus(); return false; }
-        SmashExt.updateOrder(o.id, { domicilio: v });
+        const antes = o.domicilioPendiente ? null : Number(o.domicilio) || 0;
+        const nuevo = Math.round(v);
+        SmashExt.updateOrder(o.id, { domicilio: nuevo });
+        // queda constancia en las novedades del pedido
+        if (antes !== null && antes !== nuevo) { try { C.agregarNovedad(o.id, `Domicilio corregido: ${fmt(antes)} → ${fmt(nuevo)}`, cfg.who); } catch (e) { /* sin novedad no pasa nada */ } }
         cfg.refresh();
-      });
-    m.querySelector('#domIn').focus();
+      }, 'Guardar domicilio');
+    const inp = m.querySelector('#domIn'), tot = m.querySelector('#domTot');
+    const pintar = () => { const v = parseFloat(inp.value); tot.innerHTML = `Productos ${fmt(sinDom)} · Domicilio ${v >= 0 ? fmt(v) : '—'} · <b>Total ${fmt(sinDom + (v >= 0 ? v : 0))}</b>`; };
+    inp.addEventListener('input', pintar); pintar();
+    inp.focus(); inp.select();
   }
 
   /* ---------- editar pedido ---------- */
@@ -300,15 +309,16 @@ const SmashUI = (function () {
         notas: draft.notas.trim().slice(0, 300), cliente: draft.cliente.trim(), telefono: draft.telefono.trim(), direccion: draft.direccion.trim(),
         editadoEn: new Date().toISOString(),
       };
-      if (variable && draft.domicilio !== '' && !isNaN(parseFloat(draft.domicilio))) patch.domicilio = parseFloat(draft.domicilio);
+      const domNuevo = draft.domicilio === '' ? NaN : parseFloat(draft.domicilio);
+      if (domNuevo >= 0 && (o.domicilioPendiente || Math.round(domNuevo) !== (Number(o.domicilio) || 0))) patch.domicilio = Math.round(domNuevo);
       SmashExt.updateOrder(o.id, patch);
       cfg.refresh();
     }, 'Guardar cambios');
     m.querySelector('.sm-box').classList.add('wide');
     const body = m.querySelector('#edBody');
     const totalHtml = () => {
-      const sub = draft.items.reduce((s, i) => s + i.price * i.qty, 0) - (o.descuento || 0), dom = variable ? (parseFloat(draft.domicilio) || 0) : o.domicilio;
-      return `Subtotal ${fmt(sub)}${o.descuento ? ` (con descuento −${fmt(o.descuento)})` : ''} · Domicilio ${variable && draft.domicilio === '' ? 'por confirmar' : fmt(dom)} · <b>Total ${fmt(sub + dom)}</b>`;
+      const sub = draft.items.reduce((s, i) => s + i.price * i.qty, 0) - (o.descuento || 0), dom = parseFloat(draft.domicilio) || 0;
+      return `Subtotal ${fmt(sub)}${o.descuento ? ` (con descuento −${fmt(o.descuento)})` : ''} · Domicilio ${draft.domicilio === '' ? 'por confirmar' : fmt(dom)} · <b>Total ${fmt(sub + dom)}</b>`;
     };
     function render() {
       body.innerHTML = `
@@ -327,7 +337,7 @@ const SmashUI = (function () {
           </div>`).join('') || '<p class="hint">Sin productos: agrega al menos uno.</p>'}</div>
         <div class="ed-add"><select id="edSel">${products.map((p) => `<option value="${esc(p.id)}">${esc(p.name)} · ${fmt(p.price)}</option>`).join('')}</select>
           <button type="button" data-ed="add">+ Agregar producto</button></div>
-        ${variable ? `<label class="ed-wide">Valor del domicilio (agencia)<input type="number" min="0" step="500" data-f="domicilio" value="${esc(draft.domicilio)}"></label>` : ''}
+        <label class="ed-wide">Valor del domicilio${variable ? ' (agencia)' : ''}${o.zona ? ` <small>· ${esc(o.zona)}</small>` : ''}<input type="number" min="0" step="500" inputmode="numeric" data-f="domicilio" value="${esc(draft.domicilio)}"></label>
         <label class="ed-wide">Notas del pedido<textarea data-f="notas" maxlength="300">${esc(draft.notas)}</textarea></label>
         <div class="ed-total" id="edTotal">${totalHtml()}</div>`;
     }
@@ -390,7 +400,12 @@ const SmashUI = (function () {
           if (typeof SmashCaja !== 'undefined' && SmashCaja.pagoDe(o)) { alert('Este pedido ya está pagado. Si hay que cambiarlo, primero anula el pago en "Ver pago" (dentro del mismo turno).'); break; }
           openEditor(o); break;
         case 'rep': openRepartidor(o); break;
-        case 'dom': openDomicilio(o); break;
+        case 'dom': {
+          // Si el cliente le pagó el domicilio a SMASH, cambiarlo descuadraría caja
+          const pg = typeof SmashCaja !== 'undefined' ? SmashCaja.pagoDe(o) : null;
+          if (pg && pg.domicilio) { alert('Este pedido ya se cobró incluyendo el domicilio. Para corregirlo, primero anula el pago en "Ver pago" (dentro del mismo turno).'); break; }
+          openDomicilio(o); break;
+        }
         case 'nov': openNovedad(o); break;
         case 'pay': if (typeof SmashCajaUI !== 'undefined') SmashCajaUI.openPago(o); break;
         case 'cancel': openCancelar(o); break;

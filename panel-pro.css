@@ -763,3 +763,10 @@ body:has(#staffAuthSection:not([hidden])) .container{max-width:none;padding:0;ma
 .avi-row .avi-env{background:#1fa855;border-color:#1fa855;color:#fff}
 .avi-baja{flex:none;background:none;border:0;color:var(--muted);font-size:.78rem;cursor:pointer;text-decoration:underline;padding:4px}
 @media (max-width:900px){.avi-grid{grid-template-columns:1fr}}
+
+/* Corregir el domicilio desde la ficha del pedido */
+.od-sum .od-dom{align-items:center}
+.od-sum .od-dom small{color:var(--muted);font-weight:400}
+.od-sum .od-dom b{display:flex;align-items:center;gap:8px}
+.od-dom-ed{border:1px solid var(--border-2);background:var(--card-2);color:var(--text);border-radius:999px;padding:3px 10px;font-size:.74rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.od-dom-ed:hover{border-color:var(--gold, #ffb627)}
