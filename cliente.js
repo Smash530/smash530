@@ -149,24 +149,16 @@
     Object.keys(regGana).forEach(function (k) { if (!vistos[k] && regGana[k]) { sacarAuto(regAuto[k] || {}, Infinity); regGana[k] = 0; cambio = true; } });
     return cambio;
   }
-  /* Marca en el pedido las unidades regaladas: van en su propia línea con la nota
-     "GRATIS · NOMBRE DE LA PROMO" (así salen en la comanda y en el panel). */
-  function marcarRegalos(L, R) {
-    var out = L.map(function (it) { return Object.assign({}, it); });
-    (R.regalos || []).forEach(function (g) {
-      Object.keys(g.por || {}).forEach(function (id) {
-        var n = g.por[id];
-        for (var i = 0; i < out.length && n > 0; i++) {
-          var it = out[i];
-          if (it.id !== id || it.regalo || it.paq != null) continue;
-          var m = Math.min(n, it.qty), nota = (it.nota ? it.nota + " · " : "") + "GRATIS · " + g.p.titulo;
-          if (m < it.qty) { it.qty -= m; out.splice(i + 1, 0, Object.assign({}, it, { qty: m, nota: nota, regalo: g.p.titulo })); i++; }
-          else { it.nota = nota; it.regalo = g.p.titulo; }
-          n -= m;
-        }
-      });
-    });
-    return out;
+  /* Las unidades regaladas van en su propia línea a $0 con la nota "GRATIS · NOMBRE DE LA PROMO"
+     (así salen en la comanda y en el panel). No se suman al subtotal ni se restan en el descuento:
+     el cliente ve "Gratis", nunca un cobro que luego se descuenta. */
+  function sinPrecioRegalos(L, R) {
+    var G = SmashExt.regalosSinPrecio(L, R);
+    R.usadasRegalo = (R.usadas || []).filter(function (u) { return G.regaloIds[String(u.id)] && u.puntos > 0; });
+    R.usadasTodas = R.usadas || []; R.items = G.items; R.descuento = G.descuento; R.usadas = G.usadas;
+    // canje de puntos por un regalo: los puntos sí se gastan, pero no hay pesos que descontar
+    R.canjes = (R.canjes || []).map(function (c) { return G.regaloIds[String(c.promo)] ? Object.assign({}, c, { valor: 0 }) : c; });
+    return R;
   }
   // Etiqueta corta del beneficio de una promoción
   /* Paquetes (tipo "paquete"): se ven como una burger más, solo a clientes con sesión y solo el día
@@ -281,7 +273,7 @@
   function semCta(p, dia) {
     if (!yo) return '<button type="button" class="sem-btn" data-acc="registro">Únete y recibe 15 pts 🎁</button>';
     if (dia.i > 0) return '<span class="sem-cuando">Disponible ' + esc(dia.largo) + "</span>";
-    var ids = SmashNube.prodsDe(p), dentro = PR.usadas.some(function (u) { return String(u.id) === String(p.id); });
+    var ids = SmashNube.prodsDe(p), dentro = (PR.usadasTodas || PR.usadas).some(function (u) { return String(u.id) === String(p.id); });
     if (dentro) return '<span class="sem-ok">✓ Ya está en tu pedido</span>';
     if (p.tipo === "paquete" && paqDe(p.id)) return '<button type="button" class="sem-btn" data-addpaq="' + esc(p.id) + '">Agregar al pedido</button>';
     if (p.tipo !== "regalo" && ids.length === 1 && prodDe(ids[0])) return '<button type="button" class="sem-btn" data-addpromo="' + esc(ids[0]) + '">Agregar ' + esc(prodDe(ids[0]).name) + "</button>";
@@ -362,7 +354,7 @@
     z.hidden = !yo || !hayNube;
     if (z.hidden) { z.innerHTML = ""; return; }
     var saldo = Number(yo.puntos) || 0, enPedido = {};
-    PR.usadas.forEach(function (u) { if (u.id != null) enPedido[u.id] = true; });
+    (PR.usadasTodas || PR.usadas).forEach(function (u) { if (u.id != null) enPedido[u.id] = true; });
     var lista = promos.slice().sort(function (a, b) { return cuestaPts(a) - cuestaPts(b); });
     var tarjetas = lista.map(function (p) {
       var ids = SmashNube.prodsDe(p), c = cuestaPts(p), falta = Math.max(0, c - saldo), pr = ids.length === 1 ? prodDe(ids[0]) : null, dentro = !!enPedido[p.id];
@@ -586,17 +578,19 @@
     for (var vuelta = 0; vuelta < 4 && regalosSolos(); vuelta++) { /* otra vuelta */ }
     // promociones y puntos: solo con sesión de cliente leal
     var L0 = lines();
-    PR = calcularPromos(L0);
-    var L = marcarRegalos(L0, PR), t = 0, n = 0, txt = [];
+    PR = sinPrecioRegalos(L0, calcularPromos(L0));
+    var L = PR.items, t = 0, n = 0, txt = [];
     L.forEach(function (it) {
       t += it.price * it.qty; if (!it.para) n += it.qty;
-      txt.push("- " + it.qty + " x " + it.name + (it.para ? " para " + it.para : "") + (it.sabor ? " (" + it.sabor + ")" : "") + (it.paqT ? " [" + it.paqT + "]" : "") + " (" + fmt(it.price * it.qty) + ")" + (it.regalo ? "\n   🎁 *GRATIS · " + it.regalo + "*" : ""));
+      // regalo: primero el nombre de la promo en grande y debajo la adición gratis, sin precio
+      if (it.regalo) { txt.push("🎁 *GRATIS · " + it.regalo + "*\n- " + it.qty + " x " + (it.para ? "Combo para " + it.para : it.name) + (it.sabor ? " (" + it.sabor + ")" : "") + " (gratis)"); return; }
+      txt.push("- " + it.qty + " x " + it.name + (it.para ? " para " + it.para : "") + (it.sabor ? " (" + it.sabor + ")" : "") + (it.paqT ? " [" + it.paqT + "]" : "") + " (" + fmt(it.price * it.qty) + ")");
     });
     // en el carrito cada paquete se ve como una sola línea
     var paqVisto = {};
     var filas = L.map(function (it) {
       if (it.regalo) return '<div class="li gift-li' + (it.para ? " sub" : "") + '"><span>' + it.qty + "× " + esc(it.para ? "Combo para " + it.para : it.name + (it.sabor ? " · " + it.sabor : "")) +
-        ' <small class="li-gift">🎁 Gratis · ' + esc(it.regalo) + "</small></span><b><s>" + fmt(it.price * it.qty) + "</s></b></div>";
+        ' <small class="li-gift">🎁 Gratis · ' + esc(it.regalo) + "</small></span><b>Gratis</b></div>";
       if (it.paq == null) return '<div class="li' + (it.para ? " sub" : "") + '"><span>' + it.qty + "× " + esc(it.para ? "Combo para " + it.para : it.name + (it.sabor ? " · " + it.sabor : "")) + "</span><b>" + fmt(it.price * it.qty) + "</b></div>";
       var k = String(it.paq); if (paqVisto[k]) return ""; paqVisto[k] = 1;
       var s = L.filter(function (x) { return String(x.paq) === k; }).reduce(function (a, x) { return a + x.price * x.qty; }, 0);
@@ -605,7 +599,9 @@
     var desc = PR.descuento, puntos = hayNube ? SmashNube.puntosPedido(L, prodDe) : 0;
     var vz = !!(zone && Z[zone].variable), d = zone && !vz ? Z[zone].fee : 0, T = t - desc + d;
     $("tot").textContent = fmt(T);
-    $("lst").innerHTML = L.length ? filas + PR.usadas.map(function (u) {
+    $("lst").innerHTML = L.length ? filas + (PR.usadasRegalo || []).map(function (u) {
+      return '<div class="li promo"><span>🎁 ' + esc(u.titulo) + ' <small class="li-pts">usa ' + u.puntos + ' pts · <button type="button" class="lnk" data-nopts="' + esc(u.id) + '">No usar mis puntos</button></small></span><b>Gratis</b></div>';
+    }).join("") + PR.usadas.map(function (u) {
       return '<div class="li promo"><span>⭐ ' + esc(u.titulo) + (u.puntos ? ' <small class="li-pts">usa ' + u.puntos + ' pts · <button type="button" class="lnk" data-nopts="' + esc(u.id) + '">No usar mis puntos</button></small>' : "") + "</span><b>−" + fmt(u.valor) + "</b></div>";
     }).join("") + PR.faltan.map(function (f) {
       return '<div class="li promo lock"><span>🔒 ' + esc(f.p.titulo) + ' <small class="li-pts">te faltan ' + f.faltan + " pts</small></span><b>—</b></div>";
@@ -649,7 +645,7 @@
     var z = function (x) { return ("0" + x).slice(-2); }, a = "ABCDEFGHJKLMNPQRSTUVWXYZ";
     var code = "#" + z(d.getDate()) + z(d.getMonth() + 1) + "-" + z(d.getHours()) + z(d.getMinutes()) + a[Math.floor(Math.random() * a.length)] + Math.floor(Math.random() * 10);
     $("go").href = "https://wa.me/" + WA + "?text=" + encodeURIComponent(LM.replace("@@", code));
-    var pedido = { cliente: val("fn"), telefono: val("fp"), telefono2: val("fp2"), direccion: val("fa"), zona: Z[zone].nombre, domicilio: Z[zone].variable ? 0 : Z[zone].fee, domicilioPendiente: !!Z[zone].variable, pago: pm, horaEntrega: horaSel(), notas: val("fo"), items: marcarRegalos(lines(), PR), ref: code, origen: "web", reserva: !EH.abierto,
+    var pedido = { cliente: val("fn"), telefono: val("fp"), telefono2: val("fp2"), direccion: val("fa"), zona: Z[zone].nombre, domicilio: Z[zone].variable ? 0 : Z[zone].fee, domicilioPendiente: !!Z[zone].variable, pago: pm, horaEntrega: horaSel(), notas: val("fo"), items: PR.items || lines(), ref: code, origen: "web", reserva: !EH.abierto,
       descuento: PR.descuento, descuentos: PR.usadas, cuenta: yo ? { usuario: yo.usuario || "", correo: yo.correo } : null };
     if (yo && PR.canjes.length) pedido.canjes = PR.canjes;
     var ptsGana = yo && hayNube ? SmashNube.puntosPedido(pedido.items, prodDe) : 0, ptsUsa = PR.canjes.reduce(function (s, c) { return s + c.puntos; }, 0);

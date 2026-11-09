@@ -54,7 +54,7 @@ const SmashUI = (function () {
   const notaHtml = (n, tag) => n ? `<${tag} class="${tag === 'span' ? 'inote' : ''}${/(^|· )GRATIS/.test(n) ? ' gratis' : ''}">↳ ${esc(n)}</${tag}>` : '';
   function canjeHtml(o, cl) {
     let h = '';
-    if (o.canjes && o.canjes.length) h += `<div class="${cl} gold">⭐ Pagó con puntos: ${o.canjes.map((c) => esc(c.titulo) + ' (−' + esc(c.puntos) + ' pts · −' + fmt(c.valor) + ')').join(', ')}</div>`;
+    if (o.canjes && o.canjes.length) h += `<div class="${cl} gold">⭐ Pagó con puntos: ${o.canjes.map((c) => esc(c.titulo) + ' (−' + esc(c.puntos) + ' pts' + (Number(c.valor) > 0 ? ' · −' + fmt(c.valor) : ' · regalo') + ')').join(', ')}</div>`;
     if (o.canjeRechazado) h += `<div class="${cl} warn">⚠ La promoción con puntos no se aplicó (${esc(o.canjeRechazado)}). El total ya está sin ese descuento.</div>`;
     if (o.puntosDevueltos) h += `<div class="${cl}">↩ Se devolvieron ${esc(o.puntosDevueltos)} puntos del canje al cliente.</div>`;
     return h;
@@ -182,7 +182,7 @@ const SmashUI = (function () {
       <section class="od-sec">
         <h4>Productos</h4>
         ${promoHtml(o, 'od-tag gold')}
-        <ul class="od-items">${(o.items || []).map((it) => `<li><span class="q">${esc(it.qty)}×</span><span class="n">${esc(it.name)}${notaHtml(it.nota, 'small')}</span><span class="p">${fmt(it.price * it.qty)}</span></li>`).join('')}</ul>
+        <ul class="od-items">${(o.items || []).map((it) => `<li><span class="q">${esc(it.qty)}×</span><span class="n">${esc(it.name)}${notaHtml(it.nota, 'small')}</span><span class="p">${it.regalo ? 'Gratis' : fmt(it.price * it.qty)}</span></li>`).join('')}</ul>
         ${o.notas ? `<div class="od-note">📝 ${esc(o.notas)}</div>` : ''}
       </section>
 
@@ -313,7 +313,7 @@ const SmashUI = (function () {
       if (!draft.items.length) { alert('El pedido debe tener al menos un producto.'); return false; }
       if (!draft.cliente.trim()) { alert('Escribe el nombre del cliente.'); return false; }
       const patch = {
-        items: draft.items.map((i) => { const x = { id: i.id, name: i.name, price: i.price, qty: Math.max(1, Math.min(50, i.qty | 0)), cat: i.cat || '' }; if (i.nota && i.nota.trim()) x.nota = i.nota.trim().slice(0, 200); return x; }),
+        items: draft.items.map((i) => { const x = { id: i.id, name: i.name, price: i.price, qty: Math.max(1, Math.min(50, i.qty | 0)), cat: i.cat || '' }; if (i.nota && i.nota.trim()) x.nota = i.nota.trim().slice(0, 200); if (i.regalo) { x.regalo = i.regalo; x.precioLista = i.precioLista || 0; } return x; }),
         notas: draft.notas.trim().slice(0, 300), cliente: draft.cliente.trim(), telefono: draft.telefono.trim(), direccion: draft.direccion.trim(),
         editadoEn: new Date().toISOString(),
       };

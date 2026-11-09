@@ -20,12 +20,18 @@ const SmashTicket = (function () {
   function promos(o) {
     const l = [].concat((o && o.descuentos) || [], (o && o.canjes) || [])
       .map((x) => String((x && (x.titulo || x.motivo)) || '').replace(/^Promo cliente leal:\s*/i, '').trim()).filter(Boolean);
-    return l.filter((x, i) => l.indexOf(x) === i);
+    const regalos = (o && o.items || []).filter((it) => it.regalo).map((it) => String(it.regalo));   // esos salen junto a su regalo
+    return l.filter((x, i) => l.indexOf(x) === i && regalos.indexOf(x) < 0);
   }
+  // Regalo de promo: en grande "GRATIS · PROMO" y debajo la adición, sin precio
+  const notaSinGratis = (it) => String(it.nota || '').replace(/(^| · )GRATIS · .*$/, '').trim();
+  const lineaRegalo = (it) => it.qty + ' x ' + it.name + ' (adición gratis)';
 
   /* ---------- HTML para imprimir ---------- */
   function html(o) {
-    const items = (o.items || []).map((it) => `<div class="tk-it"><b>${esc(it.qty)} x</b> ${esc(it.name)}${it.nota ? `<div class="tk-n" style="font-weight:900;font-size:14pt;line-height:1.25;margin-top:.5mm">&gt; ${esc(it.nota)}</div>` : ''}</div>`).join('');
+    const items = (o.items || []).map((it) => it.regalo
+      ? `<div class="tk-it"><div style="font-weight:900;font-size:14pt;line-height:1.25">GRATIS · ${esc(it.regalo)}</div><b>${esc(lineaRegalo(it))}</b>${notaSinGratis(it) ? `<div class="tk-n" style="font-weight:900;font-size:14pt;line-height:1.25;margin-top:.5mm">&gt; ${esc(notaSinGratis(it))}</div>` : ''}</div>`
+      : `<div class="tk-it"><b>${esc(it.qty)} x</b> ${esc(it.name)}${it.nota ? `<div class="tk-n" style="font-weight:900;font-size:14pt;line-height:1.25;margin-top:.5mm">&gt; ${esc(it.nota)}</div>` : ''}</div>`).join('');
     // Con P: tres columnas (P | logo | vacío) para que la P quede justo en la mitad entre el borde y el logo
     const P = esTransfer(o) ? '<span class="tk-p" style="justify-self:center;transform:rotate(-45deg);font:900 15mm/1 Courier New,Courier,monospace;color:#000">P</span>' : '';
     return `
@@ -133,7 +139,10 @@ const SmashTicket = (function () {
     text((o.direccion || '-') + (o.zona ? ' (' + o.zona + ')' : ''), 10, false);
     gap(6); rule(); gap(4);
     promos(o).forEach((t) => { text('PROMO: ' + t, 13, true, 'c'); gap(3); });
-    (o.items || []).forEach((it) => { text(it.qty + ' x ' + it.name, 10.5, false); if (it.nota) text('   > ' + it.nota, 12, true); });
+    (o.items || []).forEach((it) => {
+      if (it.regalo) { text('GRATIS · ' + it.regalo, 13, true); text(lineaRegalo(it), 10.5, true); if (notaSinGratis(it)) text('   > ' + notaSinGratis(it), 12, true); return; }
+      text(it.qty + ' x ' + it.name, 10.5, false); if (it.nota) text('   > ' + it.nota, 12, true);
+    });
     if (o.notas) { gap(5); text('Notas: ' + o.notas, 9.5, true); }
     gap(5); rule();
     row('Subtotal', fmt(o.subtotal), 10, false);

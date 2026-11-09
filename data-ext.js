@@ -77,11 +77,16 @@ const SmashExt = (function () {
     abre.setHours(Math.floor(a / 60), a % 60, 0, 0);
     return abre.getTime() > new Date(o.creado).getTime() ? abre.toISOString() : o.creado;
   }
-  function nextDayNumber(orders, dia) {
+  /* Número de comanda del día: el más bajo libre. Un pedido cancelado suelta su número,
+     así el siguiente pedido que llega toma ese mismo número (si se cancela la #2, el
+     próximo pedido es la #2). */
+  function nextDayNumber(orders, dia, sinId) {
     dia = dia || localDay(new Date().toISOString());
-    const del = orders.filter((o) => diaServicio(o) === dia);
-    const max = del.reduce((m, o) => Math.max(m, Number(o.numeroDia) || 0), 0);
-    return Math.max(del.length, max) + 1;
+    const usados = new Set(orders.filter((o) => o.status !== 'cancelado' && o.id !== sinId && diaServicio(o) === dia)
+      .map((o) => Number(o.numeroDia)).filter((n) => n >= 1));
+    let n = 1;
+    while (usados.has(n)) n++;
+    return n;
   }
   /* El mismo pedido web guardado dos veces (mismo N° de la página, "ref").
      Pasaba cuando el pedido llegaba al mismo tiempo a cocina y a dueños.
@@ -239,6 +244,7 @@ const SmashExt = (function () {
     if (!del.length) return 0;
     const vistos = new Set();
     const malos = del.filter((o) => {
+      if (o.status === 'cancelado') return false;                                         // un cancelado ya soltó su número: no choca con nadie
       if (o.reserva && localDay(o.creado) !== hoyD && !o.diaServicio) return true;      // reserva de anoche con número de ayer
       const n = Number(o.numeroDia);
       if (!(n >= 1)) return true;                                                        // sin número
@@ -247,7 +253,7 @@ const SmashExt = (function () {
       return false;
     });
     if (!malos.length) return 0;
-    const usados = new Set(del.filter((o) => malos.indexOf(o) < 0).map((o) => Number(o.numeroDia)));
+    const usados = new Set(del.filter((o) => o.status !== 'cancelado' && malos.indexOf(o) < 0).map((o) => Number(o.numeroDia)));
     let n = 1;
     malos.forEach((o) => {
       while (usados.has(n)) n++;
@@ -256,6 +262,37 @@ const SmashExt = (function () {
     });
     wr(K.ORDERS, orders);
     return malos.length;
+  }
+  /* Regalos de las promos SIN precio. La unidad regalada va en su propia línea a $0 con la
+     nota "GRATIS · NOMBRE DE LA PROMO", y no entra ni en el subtotal ni en el descuento: el
+     cliente nunca ve que se le suma algo que luego se le resta. R = SmashNube.aplicarPromos(...).
+     Devuelve { items, descuento, usadas (sin las promos de regalo), regaloIds }. */
+  function regalosSinPrecio(items, R) {
+    const out = (items || []).map((it) => Object.assign({}, it));
+    const regaloIds = {};
+    let quita = 0;
+    ((R && R.regalos) || []).forEach((g) => {
+      regaloIds[String(g.p.id)] = 1;
+      Object.keys(g.por || {}).forEach((id) => {
+        let n = g.por[id];
+        for (let i = 0; i < out.length && n > 0; i++) {
+          const it = out[i];
+          if (it.id !== id || it.regalo || it.paq != null) continue;
+          const m = Math.min(n, it.qty);
+          const gift = Object.assign({}, it, { qty: m, nota: (it.nota ? it.nota + ' · ' : '') + 'GRATIS · ' + g.p.titulo, regalo: g.p.titulo, regaloPromo: g.p.id, precioLista: it.price, price: 0 });
+          if (Number(g.p.puntos) > 0) gift.regaloPts = Number(g.p.puntos);
+          quita += it.price * m;
+          if (m < it.qty) { it.qty -= m; out.splice(i + 1, 0, gift); i++; } else out[i] = gift;
+          n -= m;
+        }
+      });
+    });
+    return {
+      items: out,
+      descuento: Math.max(0, Math.round(((R && R.descuento) || 0) - quita)),
+      usadas: ((R && R.usadas) || []).filter((u) => !regaloIds[String(u.id)]),
+      regaloIds,
+    };
   }
   function addOrder(d) {
     const K = SmashDB.KEYS;
@@ -267,10 +304,19 @@ const SmashExt = (function () {
     // nunca repite un número interno ya usado (otro equipo pudo crear pedidos con su propio contador)
     const seq = Math.max(rd(K.ORDER_SEQ, 0) || 0, orders.reduce((m, o) => (typeof o.id === "number" && o.id > m ? o.id : m), 0)) + 1;
     wr(K.ORDER_SEQ, seq);
-    const subtotal = d.items.reduce((s, it) => s + it.price * it.qty, 0);
+    // Regalo de promo: va a $0. Si llega con precio (página vieja abierta), se pasa a $0 y se
+    // saca del descuento, para que no se sume y luego se reste.
+    let quitaRegalo = 0;
+    const lineas = d.items.map((it) => {
+      if (!it.regalo || !(Number(it.price) > 0)) return it;
+      quitaRegalo += it.price * it.qty;
+      return Object.assign({}, it, { precioLista: it.price, price: 0 });
+    });
+    const subtotal = lineas.reduce((s, it) => s + it.price * it.qty, 0);
     const domicilio = Number(d.domicilio) || 0;
     // descuento de cliente leal (promociones de la nube); nunca más que el subtotal
-    const descuento = Math.min(subtotal, Math.max(0, Math.round(Number(d.descuento) || 0)));
+    const descuento = Math.min(subtotal, Math.max(0, Math.round((Number(d.descuento) || 0) - quitaRegalo)));
+    const titRegalo = new Set(lineas.filter((it) => it.regalo).map((it) => String(it.regalo)));
     const order = {
       id: seq,
       numeroDia: 0,
@@ -282,10 +328,11 @@ const SmashExt = (function () {
       pago: d.pago || '',
       ref: d.ref || '',
       origen: d.origen || 'web',
-      items: d.items.map((it) => {
+      items: lineas.map((it) => {
         const p = SmashDB.getProductById(it.id);
         const line = { id: it.id, name: it.name, price: it.price, qty: it.qty, cat: it.cat || (p ? p.categoria : '') };
         if (it.nota) line.nota = String(it.nota).slice(0, 200);
+        if (it.regalo) { line.regalo = String(it.regalo).slice(0, 80); line.precioLista = Math.max(0, Math.round(Number(it.precioLista) || 0)); }
         return line;
       }),
       notas: d.notas || '',
@@ -300,7 +347,7 @@ const SmashExt = (function () {
     };
     if (d.telefono2) order.telefono2 = String(d.telefono2).slice(0, 20);
     if (d.horaEntrega) order.horaEntrega = String(d.horaEntrega).slice(0, 40);
-    if (descuento) { order.descuento = descuento; order.descuentos = (d.descuentos || []).map((x) => ({ motivo: 'Promo cliente leal: ' + String(x.titulo || x.motivo || '').slice(0, 80), valor: Math.round(Number(x.valor) || 0) })); }
+    if (descuento) { order.descuento = descuento; order.descuentos = (d.descuentos || []).filter((x) => !titRegalo.has(String(x.titulo || x.motivo || ''))).map((x) => ({ motivo: 'Promo cliente leal: ' + String(x.titulo || x.motivo || '').slice(0, 80), valor: Math.round(Number(x.valor) || 0) })); }
     if (d.cuenta && d.cuenta.correo) order.cuenta = { usuario: String(d.cuenta.usuario || '').slice(0, 30), correo: String(d.cuenta.correo).toLowerCase().slice(0, 120) };
     if (Array.isArray(d.canjes) && d.canjes.length) order.canjes = d.canjes.slice(0, 10).map((x) => ({ promo: x.promo || 0, titulo: String(x.titulo || "").slice(0, 80), puntos: Math.max(0, Math.round(Number(x.puntos) || 0)), valor: Math.max(0, Math.round(Number(x.valor) || 0)) }));
     if (d.canjeRechazado) order.canjeRechazado = String(d.canjeRechazado).slice(0, 160);
@@ -525,6 +572,11 @@ const SmashExt = (function () {
     const K = SmashDB.KEYS, orders = rd(K.ORDERS, []);
     const o = orders.find((x) => x.id === id);
     if (!o) return false;
+    // un cancelado que vuelve a la vida: si otro pedido ya tomó su número, recibe uno libre
+    if (o.status === 'cancelado' && status !== 'cancelado') {
+      const dia = diaServicio(o), n = Number(o.numeroDia);
+      if (orders.some((x) => x !== o && x.status !== 'cancelado' && diaServicio(x) === dia && Number(x.numeroDia) === n)) o.numeroDia = nextDayNumber(orders, dia, o.id);
+    }
     o.status = status;
     const ahora = new Date().toISOString();
     if (status === 'confirmado' && !o.confirmadoEn) o.confirmadoEn = ahora;
@@ -775,7 +827,7 @@ const SmashExt = (function () {
   }
 
   return {
-    getZones, setZoneFees, getZonasCfg, saveZonasCfg, addOrder, localDay, pedidosRepetidos, diaServicio, inicioPedido, nextDayNumber, arreglarNumerosHoy, getCupoRaw, setCupo, cupoHoy, CUPO_POR_BURGER,buildMenu, loadMenu,
+    getZones, setZoneFees, getZonasCfg, saveZonasCfg, addOrder, regalosSinPrecio, localDay, pedidosRepetidos, diaServicio, inicioPedido, nextDayNumber, arreglarNumerosHoy, getCupoRaw, setCupo, cupoHoy, CUPO_POR_BURGER,buildMenu, loadMenu,
     setStatus, updateOrder, getRepartidores, rememberRepartidor, soundOn, setSound, unlockAudio, audioReady, chime,
     refreshLedger, getLedger, deleteOrder, getDeletedOrders, DIAS, getPersonal, addPersonal, deletePersonal, antiguedad,
     hashPassword, loginOwner, currentOwner, logoutOwner, changeOwnerPassword, OWNER_DEF,

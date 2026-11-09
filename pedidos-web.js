@@ -25,6 +25,12 @@ const SmashPedidosWeb = (function () {
       const l = { id: txt(it && it.id, 60), name: txt(it && it.name, 120), price: num(it && it.price), qty: Math.min(99, Math.max(1, num(it && it.qty) || 1)) };
       if (it && it.cat) l.cat = txt(it.cat, 30);
       if (it && it.nota) l.nota = txt(it.nota, 200);
+      // regalo de una promo: llega a $0 (precioLista = lo que cuesta normalmente)
+      if (it && it.regalo && f.cuenta) {
+        l.regalo = txt(it.regalo, 80); l.precioLista = num(it.precioLista);
+        // regalo pagado con puntos que la nube no aprobó: vuelve a su precio normal
+        if (d.canjeRechazado && num(it.regaloPts) > 0) { l.price = l.precioLista || l.price; delete l.regalo; delete l.precioLista; l.nota = l.nota ? txt(l.nota.replace(/(^| · )GRATIS · .*$/, ''), 200) : ''; if (!l.nota) delete l.nota; }
+      } else if (it && it.regalo && !l.price) l.price = num(it.precioLista);   // sin cuenta no hay promos: precio normal
       return l;
     }).filter((l) => l.id && l.name);
     if (!items.length) return null;

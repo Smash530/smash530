@@ -140,14 +140,15 @@ const SmashCrear = (function () {
     crTotal();
   }
   // Descuentos del club para este pedido (solo con un cliente registrado elegido)
+  // Los regalos quedan en su propia línea a $0 (no se suman ni se descuentan)
   function crPromos(items) {
-    if (!N || !cr.cuenta) return { descuento: 0, usadas: [], regalos: [] };
-    return N.aplicarPromos(items, promosHoy());
+    if (!N || !cr.cuenta) return { descuento: 0, usadas: [], regalos: [], items };
+    const R = N.aplicarPromos(items, promosHoy()), G = SmashExt.regalosSinPrecio(items, R);
+    return Object.assign(R, { items: G.items, descuento: G.descuento, usadas: G.usadas });
   }
   function crTotal() {
-    const items = crItems();
+    const R = crPromos(crItems()), items = R.items, desc = R.descuento;
     const sub = items.reduce((s, i) => s + i.qty * i.price, 0);
-    const R = crPromos(items), desc = R.descuento;
     const zk = $('crZona').value, z = SmashExt.getZones()[zk] || { fee: 0 };
     $('crDomWrap').hidden = !z.variable;
     const dom = z.variable ? (parseFloat($('crDom').value) || 0) : z.fee;
@@ -160,6 +161,7 @@ const SmashCrear = (function () {
     }).join('');
     $('crResumen').innerHTML = items.length
       ? items.map((i) => {
+        if (i.regalo) return `<div class="cr-li cr-gift"><span><b>🎁 GRATIS · ${esc(i.regalo)}</b><small>${esc(i.qty)}× ${esc(i.name)} de regalo</small></span><span>Gratis</span></div>`;
         if (i.paq == null) return `<div class="cr-li"><span><b>${esc(i.qty)}×</b> ${esc(i.name)}${i.nota ? `<small>${esc(i.nota)}</small>` : ''}</span><span>${fmt(i.qty * i.price)}</span></div>`;
         if (items.find((x) => String(x.paq) === String(i.paq)) !== i) return '';   // un paquete = una sola línea
         const s = items.filter((x) => String(x.paq) === String(i.paq)).reduce((a, x) => a + x.qty * x.price, 0);
@@ -279,14 +281,13 @@ const SmashCrear = (function () {
   ['crZona', 'crDom'].forEach((i) => $(i).addEventListener('input', crTotal));
   $('crBtn').addEventListener('click', () => {
     const msg = $('crMsg'); msg.className = 'error'; msg.textContent = '';
-    const items = crItems();
+    const R = crPromos(crItems()), items = R.items;
     const cliente = $('crCliente').value.trim(), zk = $('crZona').value, z = SmashExt.getZones()[zk];
     if (!items.length) { msg.textContent = 'Elige al menos un producto.'; return; }
     if (!cliente) { msg.textContent = 'Escribe el nombre del cliente.'; $('crCliente').focus(); return; }
     if (!z) { msg.textContent = 'Elige la zona.'; return; }
     let dom = z.fee;
     if (z.variable) { const v = $('crDom').value; if (v === '' || !(parseFloat(v) >= 0)) { msg.textContent = 'Escribe el valor del domicilio de la agencia.'; $('crDom').focus(); return; } dom = parseFloat(v); }
-    const R = crPromos(items);
     const res = SmashExt.addOrder({ cliente, telefono: $('crTel').value.trim(), direccion: $('crDir').value.trim(), items, notas: $('crNotas').value.trim(),
       zona: z.nombre, domicilio: dom, domicilioPendiente: false, pago: $('crPago').value, origen: 'cocina',
       descuento: R.descuento, descuentos: R.usadas, cuenta: cr.cuenta ? { usuario: cr.cuenta.usuario || '', correo: cr.cuenta.correo } : null });
