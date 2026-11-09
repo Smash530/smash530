@@ -29,6 +29,9 @@ const SmashNube = (function () {
     if (/already registered|already been registered|user_already_exists/i.test(m)) return 'Ese correo ya tiene una cuenta. Inicia sesión.';
     if (/email not confirmed/i.test(m)) return 'Tu correo aún no está confirmado. Revisa tu bandeja de entrada.';
     if (/password.*(at least|short|characters)/i.test(m)) return 'La contraseña debe tener al menos 8 caracteres.';
+    // Límite de correos del proyecto en Supabase (no es culpa del cliente): se dice tal cual
+    if (/email rate limit|over_email_send_rate_limit/i.test(m)) return 'En este momento no podemos enviar el correo de confirmación porque hay muchos registros. Intenta de nuevo en un rato o escríbenos por WhatsApp y te ayudamos.';
+    if (/for security purposes.*after (\d+) seconds/i.test(m)) return 'Espera ' + m.match(/after (\d+) seconds/i)[1] + ' segundos e intenta de nuevo.';
     if (/rate limit|too many/i.test(m)) return 'Demasiados intentos. Espera un momento e intenta de nuevo.';
     if (/database error saving new user/i.test(m)) return 'Ese usuario ya está en uso. Elige otro.';
     if (/failed to fetch|network/i.test(m)) return 'Sin conexión. Revisa tu internet e intenta de nuevo.';
