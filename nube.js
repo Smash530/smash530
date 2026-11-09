@@ -283,14 +283,14 @@ const SmashNube = (function () {
       const pagados = (id) => Object.keys(enCombo[id] || {}).reduce((s, c) => s + (regs.includes(c) ? 0 : enCombo[id][c]), 0);
       const cuentan = prodsDe(p).reduce((s, id) => s + Math.max(0, (porId[id] ? porId[id].qty : 0) - (sinCombo ? pagados(id) : 0)), 0);
       const gana = Math.floor(cuentan / cada);
-      let usados = 0, v = 0;
+      let usados = 0, v = 0; const por = {};   // por = { producto: unidades regaladas }
       regs.filter((id) => libres[id] > 0).sort((a, b) => porId[b].price - porId[a].price).forEach((id) => {
         const n = Math.min(libres[id], gana - usados); if (n <= 0) return;
         const unidad = porId[id].price - (mejor[id] ? mejor[id].v / porId[id].qty : 0);
-        libres[id] -= n; usados += n; v += Math.round(Math.max(0, unidad) * n);
+        libres[id] -= n; usados += n; por[id] = n; v += Math.round(Math.max(0, unidad) * n);
       });
       if (v > 0) { desc += v; usar(p, v); }
-      if (cuentan > 0) regalos.push({ p, gana, usados, faltan: gana - usados, cuentan, cada, siguiente: gana ? 0 : cada - cuentan });
+      if (cuentan > 0) regalos.push({ p, gana, usados, faltan: gana - usados, cuentan, cada, siguiente: gana ? 0 : cada - cuentan, por });
     });
     let gen = null;
     vig.filter((p) => !p.producto && (p.tipo === 'porcentaje' || p.tipo === 'valor')).forEach((p) => {

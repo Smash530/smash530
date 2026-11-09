@@ -16,6 +16,12 @@ const SmashTicket = (function () {
 
   // Pedido pagado por transferencia -> lleva una "P" grande a la izquierda del logo
   const esTransfer = (o) => /transfer/i.test(String((o && o.pago) || ''));
+  // Nombres de las promociones del pedido (descuentos de la página y canjes con puntos), sin repetir
+  function promos(o) {
+    const l = [].concat((o && o.descuentos) || [], (o && o.canjes) || [])
+      .map((x) => String((x && (x.titulo || x.motivo)) || '').replace(/^Promo cliente leal:\s*/i, '').trim()).filter(Boolean);
+    return l.filter((x, i) => l.indexOf(x) === i);
+  }
 
   /* ---------- HTML para imprimir ---------- */
   function html(o) {
@@ -34,6 +40,7 @@ const SmashTicket = (function () {
       <div>Tel: ${esc(o.telefono || '-')}</div>
       <div>${esc(o.direccion || '-')}${o.zona ? ' (' + esc(o.zona) + ')' : ''}</div>
       <div class="tk-sp"></div><hr><div class="tk-sp"></div>
+      ${promos(o).map((t) => `<div class="tk-c" style="font-weight:900;font-size:14pt;line-height:1.25;margin-bottom:1.5mm">PROMO: ${esc(t)}</div>`).join('')}
       ${items}
       ${o.notas ? `<div class="tk-sp"></div><div>Notas: <b>${esc(o.notas)}</b></div>` : ''}
       <div class="tk-sp"></div><hr>
@@ -125,6 +132,7 @@ const SmashTicket = (function () {
     text('Tel: ' + (o.telefono || '-'), 10, false);
     text((o.direccion || '-') + (o.zona ? ' (' + o.zona + ')' : ''), 10, false);
     gap(6); rule(); gap(4);
+    promos(o).forEach((t) => { text('PROMO: ' + t, 13, true, 'c'); gap(3); });
     (o.items || []).forEach((it) => { text(it.qty + ' x ' + it.name, 10.5, false); if (it.nota) text('   > ' + it.nota, 12, true); });
     if (o.notas) { gap(5); text('Notas: ' + o.notas, 9.5, true); }
     gap(5); rule();
@@ -356,6 +364,6 @@ const SmashTicket = (function () {
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
 
-  return { html, buildPdf, downloadPdf, balance, cierreHtml, cierrePdf, downloadCierrePdf };
+  return { html, promos, buildPdf, downloadPdf, balance, cierreHtml, cierrePdf, downloadCierrePdf };
 })();
 if (typeof module !== 'undefined') module.exports = SmashTicket;

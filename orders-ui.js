@@ -45,6 +45,13 @@ const SmashUI = (function () {
     const otros = repetidos(o);
     return otros.length ? `<div class="${cl} warn">⚠ Pedido repetido: es el mismo pedido web que ${otros.map((x) => '#' + esc(num(x))).join(', ')}. Cancela uno de los dos.</div>` : '';
   }
+  // Nombre de la promo del pedido, en negrilla y antes de los productos (igual que en la comanda)
+  function promoHtml(o, cl) {
+    const l = typeof SmashTicket !== 'undefined' && SmashTicket.promos ? SmashTicket.promos(o) : [];
+    return l.map((t) => `<div class="${cl} promo-tit">⭐ PROMO: <b>${esc(t)}</b></div>`).join('');
+  }
+  // Producto regalado por una promo: su nota dice "GRATIS"
+  const notaHtml = (n, tag) => n ? `<${tag} class="${tag === 'span' ? 'inote' : ''}${/(^|· )GRATIS/.test(n) ? ' gratis' : ''}">↳ ${esc(n)}</${tag}>` : '';
   function canjeHtml(o, cl) {
     let h = '';
     if (o.canjes && o.canjes.length) h += `<div class="${cl} gold">⭐ Pagó con puntos: ${o.canjes.map((c) => esc(c.titulo) + ' (−' + esc(c.puntos) + ' pts · −' + fmt(c.valor) + ')').join(', ')}</div>`;
@@ -56,7 +63,7 @@ const SmashUI = (function () {
   /* ---------- tarjeta de pedido ---------- */
   function card(o) {
     const status = o.status;
-    const items = o.items.map((it) => `<div class="oit">${esc(it.qty)}× ${esc(it.name)}${it.nota ? `<span class="inote">↳ ${esc(it.nota)}</span>` : ''}</div>`).join('');
+    const items = o.items.map((it) => `<div class="oit">${esc(it.qty)}× ${esc(it.name)}${notaHtml(it.nota, 'span')}</div>`).join('');
     const id = esc(o.id), d = C.desglose(o);
     const dom = o.domicilioPendiente ? '<span class="pend">por confirmar</span>' : fmt(d.domicilio);
     const despacho = status === 'listo' || status === 'en_camino';
@@ -78,7 +85,7 @@ const SmashUI = (function () {
         ${o.cuenta && !o.puntosSumados && o.puntosAviso ? `<div class="leal-tag">⚠ ${esc(o.puntosAviso)}</div>` : ''}
         ${canjeHtml(o, "leal-tag")}${repetidoHtml(o, "leal-tag")}
         <div class="oaddr">📍 ${esc(o.direccion || 'sin dirección')}${o.zona ? ` <span class="meta">(${esc(o.zona)})</span>` : ''}</div>
-        <div class="items">${items}</div>
+        <div class="items">${promoHtml(o, 'leal-tag')}${items}</div>
         ${o.notas ? `<div class="meta">📝 ${esc(o.notas)}</div>` : ''}
         ${(o.novedades || []).map((n) => `<div class="nov">⚠ ${esc(n.texto)} <span class="meta">${esc(hora(n.en))}${n.por ? ' · ' + esc(n.por) : ''}</span></div>`).join('')}
         ${o.repartidor ? `<div class="rep">🛵 Repartidor: <b>${esc(o.repartidor)}</b>${o.salioEn ? ' · salió ' + esc(hora(o.salioEn)) : ''}</div>` : ''}
@@ -119,7 +126,7 @@ const SmashUI = (function () {
       <div class="ol-num"><b>#${esc(num(o))}</b><small>${esc(hora(o.creado))}</small></div>
       <div class="ol-st"><span class="st-badge st-${esc(st)}">${esc(C.NOMBRE[st] || st)}</span>${o.reserva ? '<span class="ol-flag">📅 Reserva</span>' : ''}${o.origen === 'web' ? '<span class="ol-flag web">🌐 Web</span>' : ''}${repetidos(o).length ? '<span class="ol-flag rep">⚠ Repetido</span>' : ''}${o.canjes && o.canjes.length ? '<span class="ol-flag pts">⭐ Puntos</span>' : ''}</div>
       <div class="ol-cli"><b>${esc(o.cliente || 'Sin nombre')}</b><small>📍 ${esc(o.zona || o.direccion || 'sin dirección')}${o.horaEntrega ? ' · 🕒 ' + esc(o.horaEntrega) : ''}</small></div>
-      <div class="ol-items" title="${resumenItems(o)}">${resumenItems(o)}</div>
+      <div class="ol-items" title="${resumenItems(o)}">${typeof SmashTicket !== 'undefined' && SmashTicket.promos ? SmashTicket.promos(o).map((t) => `<b class="ol-promo">⭐ ${esc(t)}</b> · `).join('') : ''}${resumenItems(o)}</div>
       <div class="ol-tot"><b>${fmt(o.total)}</b><small>${pagoCorto(o)}</small></div>
       <div class="ol-time">${fin ? `<span class="ol-end">${st === 'entregado' ? '✓' : '✕'} ${esc(hora(cuando))}</span>` : timerHtml(o)}</div>
       <div class="ol-act">${!fin && NEXT[st] ? `<button type="button" class="ol-next" data-act="advance" data-id="${id}" data-status="${esc(st)}">${NEXT_LABEL[st]}</button>` : '<span class="ol-chev">›</span>'}</div>
@@ -174,7 +181,8 @@ const SmashUI = (function () {
 
       <section class="od-sec">
         <h4>Productos</h4>
-        <ul class="od-items">${(o.items || []).map((it) => `<li><span class="q">${esc(it.qty)}×</span><span class="n">${esc(it.name)}${it.nota ? `<small>↳ ${esc(it.nota)}</small>` : ''}</span><span class="p">${fmt(it.price * it.qty)}</span></li>`).join('')}</ul>
+        ${promoHtml(o, 'od-tag gold')}
+        <ul class="od-items">${(o.items || []).map((it) => `<li><span class="q">${esc(it.qty)}×</span><span class="n">${esc(it.name)}${notaHtml(it.nota, 'small')}</span><span class="p">${fmt(it.price * it.qty)}</span></li>`).join('')}</ul>
         ${o.notas ? `<div class="od-note">📝 ${esc(o.notas)}</div>` : ''}
       </section>
 

@@ -68,20 +68,105 @@
     var vacio = { descuento: 0, usadas: [], canjes: [], faltan: [], opcionales: [], regalos: [] };
     if (!yo || !hayNube) return vacio;
     var base = gratis(), saldo = Number(yo.puntos) || 0, elegidas = [], faltan = [], opcionales = [];
+    // Regalo con puntos: cuenta desde que el pedido tiene las burgers, aunque el regalo aún no esté
+    // en el carrito (antes no aparecía hasta que el cliente agregaba las papas a mano).
+    var regDe = function (r, p) { return (r.regalos || []).filter(function (g) { return g.p.id === p.id; })[0] || null; };
+    var precioRegalo = function (p) { return SmashNube.regalosDe(p).map(prodDe).filter(Boolean).reduce(function (m, x) { return Math.min(m, x.price); }, Infinity); };
     promos.filter(cuestaPts).map(function (p) {
-      var u = SmashNube.aplicarPromos(L, base.concat([p])).usadas.filter(function (x) { return x.id === p.id; })[0];
-      return { p: p, v: u ? u.valor : 0 };
-    }).filter(function (c) { return c.v > 0; }).sort(function (a, b) { return b.v - a.v; }).forEach(function (c) {
-      opcionales.push(c.p);
+      var r = SmashNube.aplicarPromos(L, base.concat([p]));
+      var u = r.usadas.filter(function (x) { return x.id === p.id; })[0], g = p.tipo === "regalo" ? regDe(r, p) : null;
+      var v = u ? u.valor : 0, activa = v > 0 || !!(g && g.gana > 0);
+      return { p: p, v: v || (activa ? g.gana * (isFinite(precioRegalo(p)) ? precioRegalo(p) : 1) : 0), activa: activa, aviso: !!g };
+    }).filter(function (c) { return c.activa || c.aviso; }).sort(function (a, b) { return b.v - a.v; }).forEach(function (c) {
+      if (c.activa) opcionales.push(c.p);
       if (usarPts[c.p.id] === false) return;
-      if (cuestaPts(c.p) > saldo) { faltan.push({ p: c.p, faltan: cuestaPts(c.p) - saldo }); return; }
-      var r = SmashNube.aplicarPromos(L, base.concat(elegidas, [c.p]));
-      if (r.usadas.some(function (x) { return x.id === c.p.id; })) { elegidas.push(c.p); saldo -= cuestaPts(c.p); }
+      if (cuestaPts(c.p) > saldo) { if (c.activa) faltan.push({ p: c.p, faltan: cuestaPts(c.p) - saldo }); return; }
+      // aún no le alcanzan las burgers: solo se muestra "agrega 1 más y te regalamos…", sin gastar puntos
+      if (!c.activa) { elegidas.push(c.p); return; }
+      var r = SmashNube.aplicarPromos(L, base.concat(elegidas, [c.p])), g = regDe(r, c.p);
+      if (r.usadas.some(function (x) { return x.id === c.p.id; }) || (g && g.gana > 0)) { elegidas.push(c.p); saldo -= cuestaPts(c.p); }
     });
     var R = SmashNube.aplicarPromos(L, base.concat(elegidas));
     R.canjes = R.usadas.filter(function (u) { return u.puntos > 0; }).map(function (u) { return { promo: u.id, titulo: u.titulo, puntos: u.puntos, valor: u.valor }; });
     R.faltan = faltan; R.opcionales = opcionales;
     return R;
+  }
+
+  /* Regalos automáticos: cuando el pedido gana un regalo (ej. LUNES DE PAPAS: 2 burgers → papas
+     gratis) el producto se agrega solo, y si quita burgers se quita lo que se había agregado solo.
+     Si el cliente quita el regalo a mano, no se vuelve a poner hasta que gane uno más.
+     Con varias opciones de regalo se pone la primera; el cliente puede cambiarla por otra. */
+  var regAuto = {}, regGana = {};
+  function ponerUno(id, p) {
+    if (esCombo(id)) {
+      // el combo de regalo va a una burger de la promo que aún no tenga combo
+      var bs = Object.keys(qty).filter(function (k) { var x = prodDe(k); return x && x.categoria === "hamburguesa" && qty[k] > enCombo(k); });
+      var bid = bs.filter(function (k) { return SmashNube.prodsDe(p).indexOf(k) > -1; })[0] || bs[0];
+      if (!bid) return false;
+      cq[bid] = cq[bid] || {}; cq[bid][id] = (cq[bid][id] || 0) + 1; pintarCombo(bid);
+      return true;
+    }
+    if (!prodDe(id)) return false;
+    qty[id] = (qty[id] || 0) + 1;
+    if ($("q_" + id)) $("q_" + id).textContent = qty[id];
+    pintarSab(id);
+    return true;
+  }
+  function quitarUno(id) {
+    if (esCombo(id)) {
+      var bid = Object.keys(cq).filter(function (k) { return (cq[k][id] || 0) > 0; })[0];
+      if (!bid) return false;
+      cq[bid][id]--; pintarCombo(bid);
+      return true;
+    }
+    if (!qty[id]) return false;
+    qty[id]--;
+    if ($("q_" + id)) $("q_" + id).textContent = qty[id];
+    var ms = sq[id] || {}, sobra = elegidas(id) - qty[id];
+    Object.keys(ms).reverse().forEach(function (k) { var r = Math.min(ms[k], Math.max(0, sobra)); ms[k] -= r; sobra -= r; });
+    pintarSab(id);
+    return true;
+  }
+  function sacarAuto(a, n) {
+    Object.keys(a).forEach(function (id) {
+      if (!esCombo(id)) a[id] = Math.min(a[id], qty[id] || 0);   // lo que el cliente ya quitó a mano
+      while (n > 0 && a[id] > 0) { a[id]--; n--; if (!quitarUno(id)) a[id] = 0; }
+    });
+  }
+  function regalosSolos() {
+    var R = calcularPromos(lines()), vistos = {}, cambio = false;
+    (R.regalos || []).forEach(function (g) {
+      var k = String(g.p.id), antes = regGana[k] || 0, a = regAuto[k] = regAuto[k] || {};
+      vistos[k] = 1;
+      if (g.gana > antes) {
+        var id = SmashNube.regalosDe(g.p).filter(prodDe)[0], n = Math.min(g.faltan, g.gana - antes);
+        for (var i = 0; id && i < n; i++) if (ponerUno(id, g.p)) a[id] = (a[id] || 0) + 1;
+      } else if (g.gana < antes) sacarAuto(a, antes - g.gana);
+      if (g.gana !== antes) cambio = true;
+      regGana[k] = g.gana;
+    });
+    // promo que ya no aplica (quitó las burgers, cerró sesión, no usa sus puntos): se quita su regalo
+    Object.keys(regGana).forEach(function (k) { if (!vistos[k] && regGana[k]) { sacarAuto(regAuto[k] || {}, Infinity); regGana[k] = 0; cambio = true; } });
+    return cambio;
+  }
+  /* Marca en el pedido las unidades regaladas: van en su propia línea con la nota
+     "GRATIS · NOMBRE DE LA PROMO" (así salen en la comanda y en el panel). */
+  function marcarRegalos(L, R) {
+    var out = L.map(function (it) { return Object.assign({}, it); });
+    (R.regalos || []).forEach(function (g) {
+      Object.keys(g.por || {}).forEach(function (id) {
+        var n = g.por[id];
+        for (var i = 0; i < out.length && n > 0; i++) {
+          var it = out[i];
+          if (it.id !== id || it.regalo || it.paq != null) continue;
+          var m = Math.min(n, it.qty), nota = (it.nota ? it.nota + " · " : "") + "GRATIS · " + g.p.titulo;
+          if (m < it.qty) { it.qty -= m; out.splice(i + 1, 0, Object.assign({}, it, { qty: m, nota: nota, regalo: g.p.titulo })); i++; }
+          else { it.nota = nota; it.regalo = g.p.titulo; }
+          n -= m;
+        }
+      });
+    });
+    return out;
   }
   // Etiqueta corta del beneficio de una promoción
   /* Paquetes (tipo "paquete"): se ven como una burger más, solo a clientes con sesión y solo el día
@@ -497,21 +582,26 @@
     return m;
   }
   function upd() {
-    var L = lines(), t = 0, n = 0, txt = [];
+    // un regalo puede cambiar otra promo (ej. el combo regalado ya trae gaseosa): se repite hasta que quede quieto
+    for (var vuelta = 0; vuelta < 4 && regalosSolos(); vuelta++) { /* otra vuelta */ }
+    // promociones y puntos: solo con sesión de cliente leal
+    var L0 = lines();
+    PR = calcularPromos(L0);
+    var L = marcarRegalos(L0, PR), t = 0, n = 0, txt = [];
     L.forEach(function (it) {
       t += it.price * it.qty; if (!it.para) n += it.qty;
-      txt.push("- " + it.qty + " x " + it.name + (it.para ? " para " + it.para : "") + (it.sabor ? " (" + it.sabor + ")" : "") + (it.paqT ? " [" + it.paqT + "]" : "") + " (" + fmt(it.price * it.qty) + ")");
+      txt.push("- " + it.qty + " x " + it.name + (it.para ? " para " + it.para : "") + (it.sabor ? " (" + it.sabor + ")" : "") + (it.paqT ? " [" + it.paqT + "]" : "") + " (" + fmt(it.price * it.qty) + ")" + (it.regalo ? "\n   🎁 *GRATIS · " + it.regalo + "*" : ""));
     });
     // en el carrito cada paquete se ve como una sola línea
     var paqVisto = {};
     var filas = L.map(function (it) {
+      if (it.regalo) return '<div class="li gift-li' + (it.para ? " sub" : "") + '"><span>' + it.qty + "× " + esc(it.para ? "Combo para " + it.para : it.name + (it.sabor ? " · " + it.sabor : "")) +
+        ' <small class="li-gift">🎁 Gratis · ' + esc(it.regalo) + "</small></span><b><s>" + fmt(it.price * it.qty) + "</s></b></div>";
       if (it.paq == null) return '<div class="li' + (it.para ? " sub" : "") + '"><span>' + it.qty + "× " + esc(it.para ? "Combo para " + it.para : it.name + (it.sabor ? " · " + it.sabor : "")) + "</span><b>" + fmt(it.price * it.qty) + "</b></div>";
       var k = String(it.paq); if (paqVisto[k]) return ""; paqVisto[k] = 1;
       var s = L.filter(function (x) { return String(x.paq) === k; }).reduce(function (a, x) { return a + x.price * x.qty; }, 0);
       return '<div class="li paq"><span>' + it.paqN + "× 🏆 " + esc(it.paqT) + "</span><b>" + fmt(s) + "</b></div>";
     }).join("");
-    // promociones y puntos: solo con sesión de cliente leal
-    PR = calcularPromos(L);
     var desc = PR.descuento, puntos = hayNube ? SmashNube.puntosPedido(L, prodDe) : 0;
     var vz = !!(zone && Z[zone].variable), d = zone && !vz ? Z[zone].fee : 0, T = t - desc + d;
     $("tot").textContent = fmt(T);
@@ -539,7 +629,8 @@
     LM = "*NUEVO PEDIDO - SMASH*\n" + (EH.abierto ? "" : "*RESERVA:* se despacha al abrir cocina, " + reservaTxt() + "\n") + "*Pedido N°:* @@\n" +
       (yo ? "*Cuenta SMASH:* " + (yo.usuario || "") + " (" + yo.correo + ")\n" : "") +
       "\n*Cliente:* " + val("fn") + "\n*Teléfono:* " + val("fp") + (val("fp2") ? "\n*Tel. referencia:* " + val("fp2") : "") + "\n*Zona:* " + (zone ? Z[zone].nombre : "") +
-      "\n*Dirección:* " + val("fa") + "\n*Medio de pago:* " + pm + (horaSel() ? "\n*Hora de entrega:* " + horaSel() : "") + "\n\n*Pedido:*\n" + txt.join("\n") + "\n\n*Subtotal:* " + fmt(t) +
+      "\n*Dirección:* " + val("fa") + "\n*Medio de pago:* " + pm + (horaSel() ? "\n*Hora de entrega:* " + horaSel() : "") + "\n\n" +
+      PR.usadas.map(function (u) { return "*PROMO: " + u.titulo + "*\n"; }).join("") + "*Pedido:*\n" + txt.join("\n") + "\n\n*Subtotal:* " + fmt(t) +
       (desc ? "\n*Descuento cliente leal:* -" + fmt(desc) + " (" + PR.usadas.map(function (u) { return u.titulo + (u.puntos ? " con " + u.puntos + " pts" : ""); }).join("; ") + ")" : "") +
       "\n*Domicilio:* " + (vz ? "Por confirmar (agencia)" : fmt(d)) + "\n*TOTAL A PAGAR:* " + fmt(T) + (vz ? " + domicilio" : "") +
       (yo && puntos ? "\n*Puntos a sumar:* " + puntos : "") + (val("fo") ? "\n\n*Notas:* " + val("fo") : "");
@@ -558,7 +649,7 @@
     var z = function (x) { return ("0" + x).slice(-2); }, a = "ABCDEFGHJKLMNPQRSTUVWXYZ";
     var code = "#" + z(d.getDate()) + z(d.getMonth() + 1) + "-" + z(d.getHours()) + z(d.getMinutes()) + a[Math.floor(Math.random() * a.length)] + Math.floor(Math.random() * 10);
     $("go").href = "https://wa.me/" + WA + "?text=" + encodeURIComponent(LM.replace("@@", code));
-    var pedido = { cliente: val("fn"), telefono: val("fp"), telefono2: val("fp2"), direccion: val("fa"), zona: Z[zone].nombre, domicilio: Z[zone].variable ? 0 : Z[zone].fee, domicilioPendiente: !!Z[zone].variable, pago: pm, horaEntrega: horaSel(), notas: val("fo"), items: lines(), ref: code, origen: "web", reserva: !EH.abierto,
+    var pedido = { cliente: val("fn"), telefono: val("fp"), telefono2: val("fp2"), direccion: val("fa"), zona: Z[zone].nombre, domicilio: Z[zone].variable ? 0 : Z[zone].fee, domicilioPendiente: !!Z[zone].variable, pago: pm, horaEntrega: horaSel(), notas: val("fo"), items: marcarRegalos(lines(), PR), ref: code, origen: "web", reserva: !EH.abierto,
       descuento: PR.descuento, descuentos: PR.usadas, cuenta: yo ? { usuario: yo.usuario || "", correo: yo.correo } : null };
     if (yo && PR.canjes.length) pedido.canjes = PR.canjes;
     var ptsGana = yo && hayNube ? SmashNube.puntosPedido(pedido.items, prodDe) : 0, ptsUsa = PR.canjes.reduce(function (s, c) { return s + c.puntos; }, 0);

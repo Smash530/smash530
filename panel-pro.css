@@ -770,3 +770,14 @@ body:has(#staffAuthSection:not([hidden])) .container{max-width:none;padding:0;ma
 .od-sum .od-dom b{display:flex;align-items:center;gap:8px}
 .od-dom-ed{border:1px solid var(--border-2);background:var(--card-2);color:var(--text);border-radius:999px;padding:3px 10px;font-size:.74rem;font-weight:700;cursor:pointer;white-space:nowrap}
 .od-dom-ed:hover{border-color:var(--gold, #ffb627)}
+
+/* Promos en el pedido: nombre en negrilla antes de los productos y regalos resaltados */
+.promo-tit{font-size:.9rem;letter-spacing:.01em;margin:0 0 6px}
+.promo-tit b{font-weight:900;text-transform:uppercase}
+.od-tag.promo-tit{margin:0 0 10px}
+.inote.gratis,.od-items small.gratis{color:#15803d;font-weight:800}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .inote.gratis,:root:not([data-theme="light"]) .od-items small.gratis{color:#4ade80}}
+:root[data-theme="dark"] .inote.gratis,:root[data-theme="dark"] .od-items small.gratis{color:#4ade80}
+.ol-promo{color:#b45309;font-weight:900;text-transform:uppercase}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .ol-promo{color:#fcd47a}}
+:root[data-theme="dark"] .ol-promo{color:#fcd47a}
