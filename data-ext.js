@@ -294,6 +294,36 @@ const SmashExt = (function () {
       regaloIds,
     };
   }
+  /* Para MOSTRAR un pedido (comanda, ficha, cobro): los regalos van a $0 y fuera del descuento,
+     también en pedidos que entraron con el formato anterior (papas cobradas y luego descontadas,
+     con la nota "GRATIS · PROMO"). No guarda nada: el total no cambia, solo cómo se ve. */
+  const RX_GRATIS = /(?:^| · )GRATIS · (.+)$/;
+  function verRegalos(o) {
+    if (!o || !Array.isArray(o.items)) return o;
+    let quita = 0, cambio = false;
+    const items = o.items.map((it) => {
+      const m = !it.regalo && RX_GRATIS.exec(String(it.nota || ''));
+      if (!it.regalo && !m) return it;
+      const x = Object.assign({}, it);
+      if (!x.regalo) { x.regalo = m[1].trim(); cambio = true; }
+      if (Number(x.price) > 0) { quita += x.price * x.qty; x.precioLista = x.price; x.price = 0; cambio = true; }
+      return x;
+    });
+    if (!cambio) return o;
+    const v = Object.assign({}, o, { items });
+    if (quita) {
+      v.subtotal = Math.max(0, (Number(o.subtotal) || 0) - quita);
+      v.descuento = Math.max(0, (Number(o.descuento) || 0) - quita);
+    }
+    const tit = new Set(items.filter((it) => it.regalo).map((it) => String(it.regalo)));
+    if (Array.isArray(o.descuentos)) v.descuentos = o.descuentos.filter((x) => !tit.has(String(x.titulo || x.motivo || '').replace(/^Promo cliente leal:\s*/i, '').trim()));
+    return v;
+  }
+  // Lista de productos para mostrar: primero los cobrados y al final cada regalo debajo de su promo
+  function itemsConRegalos(o) {
+    const its = (verRegalos(o) || {}).items || [];
+    return its.filter((it) => !it.regalo).concat(its.filter((it) => it.regalo));
+  }
   function addOrder(d) {
     const K = SmashDB.KEYS;
     const orders = rd(K.ORDERS, []);
@@ -827,7 +857,7 @@ const SmashExt = (function () {
   }
 
   return {
-    getZones, setZoneFees, getZonasCfg, saveZonasCfg, addOrder, regalosSinPrecio, localDay, pedidosRepetidos, diaServicio, inicioPedido, nextDayNumber, arreglarNumerosHoy, getCupoRaw, setCupo, cupoHoy, CUPO_POR_BURGER,buildMenu, loadMenu,
+    getZones, setZoneFees, getZonasCfg, saveZonasCfg, addOrder, regalosSinPrecio, verRegalos, itemsConRegalos, localDay, pedidosRepetidos, diaServicio, inicioPedido, nextDayNumber, arreglarNumerosHoy, getCupoRaw, setCupo, cupoHoy, CUPO_POR_BURGER,buildMenu, loadMenu,
     setStatus, updateOrder, getRepartidores, rememberRepartidor, soundOn, setSound, unlockAudio, audioReady, chime,
     refreshLedger, getLedger, deleteOrder, getDeletedOrders, DIAS, getPersonal, addPersonal, deletePersonal, antiguedad,
     hashPassword, loginOwner, currentOwner, logoutOwner, changeOwnerPassword, OWNER_DEF,

@@ -778,6 +778,9 @@ body:has(#staffAuthSection:not([hidden])) .container{max-width:none;padding:0;ma
 .inote.gratis,.od-items small.gratis{color:#15803d;font-weight:800}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .inote.gratis,:root:not([data-theme="light"]) .od-items small.gratis{color:#4ade80}}
 :root[data-theme="dark"] .inote.gratis,:root[data-theme="dark"] .od-items small.gratis{color:#4ade80}
+/* Regalo de promo: el nombre de la promo va encima y la adición gratis debajo */
+.od-items li.od-regalo-tit{display:block;padding:10px 0 0;border-bottom:0;text-transform:uppercase;font-size:.9rem}
+.oit.promo-tit{margin:6px 0 0}
 .ol-promo{color:#b45309;font-weight:900;text-transform:uppercase}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .ol-promo{color:#fcd47a}}
 :root[data-theme="dark"] .ol-promo{color:#fcd47a}

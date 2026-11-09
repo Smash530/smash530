@@ -144,7 +144,7 @@ const SmashCrear = (function () {
   function crPromos(items) {
     if (!N || !cr.cuenta) return { descuento: 0, usadas: [], regalos: [], items };
     const R = N.aplicarPromos(items, promosHoy()), G = SmashExt.regalosSinPrecio(items, R);
-    return Object.assign(R, { items: G.items, descuento: G.descuento, usadas: G.usadas });
+    return Object.assign(R, { items: G.items.filter((i) => !i.regalo).concat(G.items.filter((i) => i.regalo)), descuento: G.descuento, usadas: G.usadas });
   }
   function crTotal() {
     const R = crPromos(crItems()), items = R.items, desc = R.descuento;

@@ -18,7 +18,8 @@ const SmashTicket = (function () {
   const esTransfer = (o) => /transfer/i.test(String((o && o.pago) || ''));
   // Nombres de las promociones del pedido (descuentos de la página y canjes con puntos), sin repetir
   function promos(o) {
-    const l = [].concat((o && o.descuentos) || [], (o && o.canjes) || [])
+    o = ver(o);
+    const l =[].concat((o && o.descuentos) || [], (o && o.canjes) || [])
       .map((x) => String((x && (x.titulo || x.motivo)) || '').replace(/^Promo cliente leal:\s*/i, '').trim()).filter(Boolean);
     const regalos = (o && o.items || []).filter((it) => it.regalo).map((it) => String(it.regalo));   // esos salen junto a su regalo
     return l.filter((x, i) => l.indexOf(x) === i && regalos.indexOf(x) < 0);
@@ -26,9 +27,15 @@ const SmashTicket = (function () {
   // Regalo de promo: en grande "GRATIS · PROMO" y debajo la adición, sin precio
   const notaSinGratis = (it) => String(it.nota || '').replace(/(^| · )GRATIS · .*$/, '').trim();
   const lineaRegalo = (it) => it.qty + ' x ' + it.name + ' (adición gratis)';
+  // Pedidos con el formato anterior también salen con el regalo a $0, sin descuento, y al final
+  const ver = (o) => {
+    if (typeof SmashExt === 'undefined' || !SmashExt.verRegalos) return o;
+    return Object.assign({}, SmashExt.verRegalos(o), { items: SmashExt.itemsConRegalos(o) });
+  };
 
   /* ---------- HTML para imprimir ---------- */
   function html(o) {
+    o = ver(o);
     const items = (o.items || []).map((it) => it.regalo
       ? `<div class="tk-it"><div style="font-weight:900;font-size:14pt;line-height:1.25">GRATIS · ${esc(it.regalo)}</div><b>${esc(lineaRegalo(it))}</b>${notaSinGratis(it) ? `<div class="tk-n" style="font-weight:900;font-size:14pt;line-height:1.25;margin-top:.5mm">&gt; ${esc(notaSinGratis(it))}</div>` : ''}</div>`
       : `<div class="tk-it"><b>${esc(it.qty)} x</b> ${esc(it.name)}${it.nota ? `<div class="tk-n" style="font-weight:900;font-size:14pt;line-height:1.25;margin-top:.5mm">&gt; ${esc(it.nota)}</div>` : ''}</div>`).join('');
@@ -97,6 +104,7 @@ const SmashTicket = (function () {
   }
 
   function buildPdf(o, logoBytes) {
+    o = ver(o);
     const ops = []; // {k:'t'|'r'|'rule'|'img', ...} con y desde arriba
     let y = 14;
     const text = (txt, size, bold, align) => {

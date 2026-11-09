@@ -579,7 +579,8 @@
     // promociones y puntos: solo con sesión de cliente leal
     var L0 = lines();
     PR = sinPrecioRegalos(L0, calcularPromos(L0));
-    var L = PR.items, t = 0, n = 0, txt = [];
+    // los regalos van al final, cada uno debajo del nombre de su promo
+    var L = PR.items = PR.items.filter(function (it) { return !it.regalo; }).concat(PR.items.filter(function (it) { return it.regalo; })), t = 0, n = 0, txt = [];
     L.forEach(function (it) {
       t += it.price * it.qty; if (!it.para) n += it.qty;
       // regalo: primero el nombre de la promo en grande y debajo la adición gratis, sin precio
@@ -589,8 +590,9 @@
     // en el carrito cada paquete se ve como una sola línea
     var paqVisto = {};
     var filas = L.map(function (it) {
-      if (it.regalo) return '<div class="li gift-li' + (it.para ? " sub" : "") + '"><span>' + it.qty + "× " + esc(it.para ? "Combo para " + it.para : it.name + (it.sabor ? " · " + it.sabor : "")) +
-        ' <small class="li-gift">🎁 Gratis · ' + esc(it.regalo) + "</small></span><b>Gratis</b></div>";
+      // regalo: arriba el nombre de la promo y debajo la adición gratis, sin precio
+      if (it.regalo) return '<div class="li gift-li"><span><small class="li-gift">🎁 GRATIS · ' + esc(it.regalo) + "</small>" + it.qty + "× " + esc(it.para ? "Combo para " + it.para : it.name + (it.sabor ? " · " + it.sabor : "")) +
+        " (adición gratis)</span><b>Gratis</b></div>";
       if (it.paq == null) return '<div class="li' + (it.para ? " sub" : "") + '"><span>' + it.qty + "× " + esc(it.para ? "Combo para " + it.para : it.name + (it.sabor ? " · " + it.sabor : "")) + "</span><b>" + fmt(it.price * it.qty) + "</b></div>";
       var k = String(it.paq); if (paqVisto[k]) return ""; paqVisto[k] = 1;
       var s = L.filter(function (x) { return String(x.paq) === k; }).reduce(function (a, x) { return a + x.price * x.qty; }, 0);

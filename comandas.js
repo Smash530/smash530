@@ -31,6 +31,7 @@ const SmashComandas = (function () {
 
   // Valor de productos, adicionales, descuentos y domicilio, siempre por separado
   function desglose(o) {
+    o = SmashExt.verRegalos ? SmashExt.verRegalos(o) : o;   // los regalos no se cobran ni se descuentan
     let productos = 0, adicionales = 0;
     (o.items || []).forEach((it) => {
       const p = SmashDB.getProductById(it.id), cat = it.cat || (p ? p.categoria : '');

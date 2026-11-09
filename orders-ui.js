@@ -51,6 +51,7 @@ const SmashUI = (function () {
     return l.map((t) => `<div class="${cl} promo-tit">⭐ PROMO: <b>${esc(t)}</b></div>`).join('');
   }
   // Producto regalado por una promo: su nota dice "GRATIS"
+  const notaSinGratis = (it) => String(it.nota || '').replace(/(^| · )GRATIS · .*$/, '').trim();
   const notaHtml = (n, tag) => n ? `<${tag} class="${tag === 'span' ? 'inote' : ''}${/(^|· )GRATIS/.test(n) ? ' gratis' : ''}">↳ ${esc(n)}</${tag}>` : '';
   function canjeHtml(o, cl) {
     let h = '';
@@ -63,7 +64,9 @@ const SmashUI = (function () {
   /* ---------- tarjeta de pedido ---------- */
   function card(o) {
     const status = o.status;
-    const items = o.items.map((it) => `<div class="oit">${esc(it.qty)}× ${esc(it.name)}${notaHtml(it.nota, 'span')}</div>`).join('');
+    const items = SmashExt.itemsConRegalos(o).map((it) => it.regalo
+      ? `<div class="oit promo-tit"><b>🎁 GRATIS · ${esc(it.regalo)}</b></div><div class="oit">${esc(it.qty)}× ${esc(it.name)} <span class="inote gratis">adición gratis</span>${notaSinGratis(it) ? notaHtml(notaSinGratis(it), 'span') : ''}</div>`
+      : `<div class="oit">${esc(it.qty)}× ${esc(it.name)}${notaHtml(it.nota, 'span')}</div>`).join('');
     const id = esc(o.id), d = C.desglose(o);
     const dom = o.domicilioPendiente ? '<span class="pend">por confirmar</span>' : fmt(d.domicilio);
     const despacho = status === 'listo' || status === 'en_camino';
@@ -182,7 +185,9 @@ const SmashUI = (function () {
       <section class="od-sec">
         <h4>Productos</h4>
         ${promoHtml(o, 'od-tag gold')}
-        <ul class="od-items">${(o.items || []).map((it) => `<li><span class="q">${esc(it.qty)}×</span><span class="n">${esc(it.name)}${notaHtml(it.nota, 'small')}</span><span class="p">${it.regalo ? 'Gratis' : fmt(it.price * it.qty)}</span></li>`).join('')}</ul>
+        <ul class="od-items">${SmashExt.itemsConRegalos(o).map((it) => it.regalo
+          ? `<li class="od-regalo-tit"><b>🎁 GRATIS · ${esc(it.regalo)}</b></li><li><span class="q">${esc(it.qty)}×</span><span class="n">${esc(it.name)} <small class="gratis">adición gratis</small>${notaSinGratis(it) ? notaHtml(notaSinGratis(it), 'small') : ''}</span><span class="p">Gratis</span></li>`
+          : `<li><span class="q">${esc(it.qty)}×</span><span class="n">${esc(it.name)}${notaHtml(it.nota, 'small')}</span><span class="p">${fmt(it.price * it.qty)}</span></li>`).join('')}</ul>
         ${o.notas ? `<div class="od-note">📝 ${esc(o.notas)}</div>` : ''}
       </section>
 
