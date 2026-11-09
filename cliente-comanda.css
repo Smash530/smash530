@@ -1,0 +1,135 @@
+/* ============================================================
+   SMASH · cliente-comanda.css — piel nueva SOLO para:
+   1) el pedido ("Tu comanda" con ticket impreso y formulario),
+   2) la confirmación con el seguimiento por etapas,
+   3) el pie "Cuando se acaba, se acaba".
+   El resto de la página (portada, menú, adicionales, promos,
+   club) queda con cliente-pro.css tal cual está en línea.
+   ============================================================ */
+.order-col,.gracias,.foot2{
+  --bg:#0E0E0E; --bg-2:#141414; --card:#1A1A1A; --card-2:#232323; --line:#2C2C2C; --line-2:#3a3a3a;
+  --text:#F5F1EA; --muted:#9A948C; --dim:#77716A;
+  --red:#FF2A2A; --red-2:#FF4747; --red-d:#C8101A; --red-glow:rgba(255,42,42,.35);
+  --yel:#FFD400; --wa:#25D366;
+  --disp:'Inter',system-ui,sans-serif;
+}
+.sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.order-col .disp,.gracias .disp,.foot2 .disp{font-family:var(--disp);font-weight:900;letter-spacing:-.04em;line-height:.88;text-transform:uppercase}
+
+/* ---------------- Tu comanda ---------------- */
+.order-col .panel{background:#121212;border:1px solid var(--line);border-radius:24px;padding:18px}
+.order-col .panel-h{align-items:center;justify-content:flex-start;gap:12px;margin-bottom:14px}
+.order-col .panel-h h2{font-family:var(--disp);font-size:34px;margin:0}
+.ticket2{position:relative;margin:0 0 18px;background:#FBF8F1;color:#141414;border-radius:6px;padding:18px 18px 22px;font-family:ui-monospace,"DejaVu Sans Mono",Menlo,Consolas,monospace;font-size:12.5px;
+  -webkit-mask:radial-gradient(circle 7px at 50% 0,transparent 98%,#000) 0 0/18px 100% repeat-x;mask:radial-gradient(circle 7px at 50% 0,transparent 98%,#000) 0 0/18px 100% repeat-x}
+.ticket2::after{content:"";position:absolute;left:0;right:0;bottom:-8px;height:10px;background:radial-gradient(circle at 9px 0,#FBF8F1 7px,transparent 7.5px) 0 0/18px 10px repeat-x}
+.tk-hd{text-align:center;border-bottom:1.5px dashed #bbb;padding-bottom:10px;margin-bottom:8px;text-transform:uppercase}
+.tk-hd b{display:block;font-family:var(--disp);font-weight:900;font-size:24px;letter-spacing:-.04em;line-height:1.05}
+.ticket2 .lst{margin:0;gap:0}
+.ticket2 .li{border:0;padding:4px 0;font-size:12.5px;text-transform:uppercase;color:#141414;align-items:flex-start}
+.ticket2 .li b{font-weight:400}
+.ticket2 .li.sub{color:#777;padding-left:16px;font-size:11.5px}
+.ticket2 .li.paq span{color:#141414;font-weight:700}
+.ticket2 .li.promo,.ticket2 .li.promo b{color:#7a5200}
+.ticket2 .li.promo.gift b,.ticket2 .li.gift-li b{color:#11713a}
+.ticket2 .li.gift-li{color:#141414}
+.ticket2 .li.promo.lock,.ticket2 .li.promo.off,.ticket2 .li.promo.lock b,.ticket2 .li.promo.off b{color:#999}
+.ticket2 .li-pts{color:#777;text-transform:none}
+.ticket2 .li-gift{color:#11713a}
+.ticket2 .lnk{border-color:#b08a00;color:#6b4f00;text-transform:none;font-family:Inter,system-ui,sans-serif}
+.ticket2 .lnk.gift-add{border-color:#11713a;color:#11713a}
+.ticket2 .li-empty{border:0;color:#888;padding:14px 0;text-transform:none;font-family:Inter,system-ui,sans-serif;font-size:13px}
+.tk-ft{border-top:1.5px dashed #bbb;margin-top:8px;padding-top:6px}
+.tk-ft .ln{display:flex;justify-content:space-between;gap:10px;padding:4px 0;text-transform:uppercase}
+.tk-ft .ln span:last-child{white-space:nowrap;text-align:right}
+.tk-ft .ln.desc{color:#7a5200}
+.tk-ft .dash{border-top:1.5px dashed #bbb;margin:8px 0}
+.tk-ft .big{font-weight:700;font-size:17px}
+
+.order-col .form{grid-template-columns:1fr;gap:8px}
+.order-col .form-h{margin:14px 2px 0;font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.06em}
+.order-col .form-h:first-child{margin-top:0}
+.order-col .form label{gap:0}
+.order-col .form input,.order-col .form select{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;font-size:14px;font-weight:600;color:var(--text)}
+.order-col .form input::placeholder{color:#666;font-weight:500}
+.order-col .form input:focus,.order-col .form select:focus{border-color:var(--yel);box-shadow:0 0 0 3px rgba(255,212,0,.15)}
+.order-col .form label.sel{gap:6px}
+.order-col .lb2{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:4px 2px 0}
+.order-col .lb2 small{text-transform:none;letter-spacing:0;font-weight:600}
+.order-col .chips{gap:8px}
+.order-col .chip{flex-direction:row;align-items:baseline;gap:4px;background:transparent;border:1.5px solid #333;border-radius:12px;padding:10px 12px;font-size:12.5px;font-weight:800}
+.order-col .chip small{font-size:12.5px;font-weight:700;color:var(--muted)}
+.order-col .chip.on{background:rgba(255,42,42,.14);border-color:var(--red);box-shadow:none;color:#fff}
+.order-col .chip.on small{color:var(--muted)}
+.order-col .usa-dir{background:rgba(255,212,0,.08);border-color:rgba(255,212,0,.4);color:var(--yel);border-radius:14px}
+
+.order-col .cart{flex-direction:column;align-items:stretch;gap:8px;border-top:0;padding-top:0;margin-top:18px}
+.order-col #cnt,.order-col #tot,.order-col #dl,.order-col #desc{display:none!important}
+.order-col .cart-info{gap:4px}
+.order-col .cart-info:not(:has(small:not(:empty):not([hidden]):not(#cnt):not(#dl):not(#desc))){display:none}
+.order-col .cart-info .pts{color:var(--yel);font-size:12px}
+.order-col #err{font-size:13px}
+.order-col .go{justify-content:center;background:var(--wa);color:#06210f;border-radius:18px;padding:17px;font-size:16px;box-shadow:0 12px 26px -14px rgba(37,211,102,.7)}
+.order-col .go[data-tot]::after{content:" · " attr(data-tot);margin-left:-4px}
+.go-sub{margin:0;text-align:center;font-size:11.5px;color:var(--muted);font-weight:600}
+
+/* ---------------- Confirmación y seguimiento ---------------- */
+.gracias{background:rgba(0,0,0,.75)}
+.gracias .gbox{text-align:left;background:var(--bg);border:1px solid var(--line);padding:22px 16px 18px;border-radius:26px;color:var(--text)}
+.g-wm{font-family:var(--disp);font-size:22px;font-weight:900;letter-spacing:-.05em}
+.g-wm em{font-style:normal;color:var(--red)}
+#graciasT.g-big{margin:18px 0 0;font-size:clamp(52px,17vw,80px);font-weight:900;line-height:.88}
+.g-big span{color:var(--red)}
+.g-hola{font-size:13px;color:var(--muted);margin:12px 0 0;line-height:1.4}
+.gracias .gsub{font-size:12.5px;margin:8px 0 0;color:var(--muted)}
+.g-order{margin:16px 0 0;background:var(--card);border-radius:22px;padding:16px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.g-order small{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.g-order b{display:block;font-size:26px;font-weight:900;letter-spacing:-.03em;margin-top:2px}
+.g-eta{text-align:right}
+.g-eta b{color:var(--yel)}
+.g-prog{margin:12px 0 0;background:var(--card);border-radius:22px;padding:16px}
+.g-bars{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.g-bars i{height:7px;border-radius:9px;background:#333;display:block;transition:background .4s}
+.g-bars i.on{background:var(--red)}
+.g-bars i.half{background:linear-gradient(90deg,var(--red) 55%,#333 55%)}
+.g-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;font-size:10.5px;font-weight:800;color:var(--muted)}
+.g-steps .on{color:#fff}
+.g-now{margin-top:14px;display:flex;gap:12px;align-items:center;padding-top:14px;border-top:1px solid var(--line)}
+.g-ic{width:46px;height:46px;border-radius:14px;background:rgba(255,42,42,.15);display:grid;place-items:center;font-size:22px;flex:none}
+.g-now b{font-size:15px;display:block}
+.g-now span{font-size:12px;color:var(--muted)}
+.g-prog.mal .g-bars i{background:#333}
+.gracias .gleal{margin:12px 0 0;padding:16px;border-radius:24px;background:linear-gradient(135deg,var(--red),#8E0B12);position:relative;overflow:hidden}
+.gracias .gleal::before{content:"530";position:absolute;right:-8px;top:-14px;font-family:var(--disp);font-weight:900;letter-spacing:-.04em;font-size:96px;line-height:1;opacity:.12;pointer-events:none}
+.gracias .gleal .gl-row,.gracias .gleal .gl-how{background:rgba(0,0,0,.25);border-color:rgba(255,255,255,.18);color:#fff}
+.gracias .gleal .gl-row small,.gracias .gleal .gl-how p{color:rgba(255,255,255,.85)}
+#graciasOk{display:block;width:100%;margin-top:14px;background:var(--text);color:#111;border-radius:16px;padding:15px;font-weight:900}
+
+/* ---------------- Pie "Cuando se acaba, se acaba" ---------------- */
+.foot2{margin-top:24px;padding:26px 0 calc(40px + env(safe-area-inset-bottom,0));border-top:1px solid var(--line);color:var(--text)}
+.f2-big{font-size:clamp(56px,18.5vw,110px)}
+.f2-big em{font-style:normal;color:var(--red)}
+.foot2 p{font-size:12.5px;color:var(--muted);margin:10px 0 0;line-height:1.4}
+.soc2{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.soc2 a{border:1.5px solid #333;border-radius:99px;padding:8px 12px;font-size:12px;font-weight:800;text-decoration:none;color:var(--text)}
+.soc2 a:hover{border-color:#555}
+
+/* ---------------- Celular y tablet ---------------- */
+@media (max-width:1023px){
+  .foot2{padding-bottom:calc(110px + env(safe-area-inset-bottom,0))}
+  body.con-tabbar .foot2{padding-bottom:calc(170px + env(safe-area-inset-bottom,0))}
+  /* Tu comanda: pantalla completa */
+  body.has-sheet .order-col .panel{height:100dvh;max-height:100dvh;border-radius:0;border:0;background:var(--bg);padding:calc(10px + env(safe-area-inset-top,0)) 14px calc(18px + env(safe-area-inset-bottom,0))}
+  body.has-sheet .order-col .sheet-grip{display:none}
+  body.has-sheet .order-col .sheet-x{width:40px;height:40px;border-radius:12px;background:var(--card);border:0;font-weight:900;font-size:18px;order:-1;color:var(--text)}
+  body.has-sheet .order-col .cart{background:var(--bg);margin:18px -14px 0;padding:12px 14px calc(12px + env(safe-area-inset-bottom,0));bottom:calc(-18px - env(safe-area-inset-bottom,0))}
+  .gracias{padding:0;place-items:stretch}
+  .gracias .gbox{width:100%;max-height:none;height:100%;border-radius:0;border:0;padding:calc(18px + env(safe-area-inset-top,0)) 14px calc(18px + env(safe-area-inset-bottom,0))}
+}
+@media (min-width:1024px){
+  .order-col .panel-h h2{font-size:30px}
+  .gracias .gbox{width:min(440px,100%)}
+}
+@media (max-width:760px){
+  .order-col .form{grid-template-columns:1fr}
+}

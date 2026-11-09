@@ -17,6 +17,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&family=Permanent+Marker&display=swap">
 <link rel="stylesheet" href="cliente-pro.css">
+<link rel="stylesheet" href="cliente-comanda.css">
 </head>
 <body>
 <a class="skip" href="#menu">Saltar al menú</a>
@@ -144,36 +145,39 @@
     <div class="panel">
       <div class="sheet-grip" aria-hidden="true"></div>
       <div class="panel-h">
-        <div>
-          <h2>Tu pedido</h2>
-          <p class="sub">Te lo llevamos a la puerta.</p>
-        </div>
-        <button type="button" class="sheet-x" id="sheetX" aria-label="Cerrar tu pedido">×</button>
+        <button type="button" class="sheet-x" id="sheetX" aria-label="Volver al menú">←</button>
+        <h2 class="disp">Tu comanda</h2>
       </div>
-      <div class="lst" id="lst"></div>
+
+      <!-- Comanda impresa: las líneas las arma cliente.js; el pie copia sus totales -->
+      <div class="ticket2">
+        <div class="tk-hd"><b>SMASH 530</b><span id="tkFecha">PEDIDO WEB</span></div>
+        <div class="lst" id="lst"></div>
+        <div class="tk-ft" id="tkFoot" hidden></div>
+      </div>
 
       <div class="form">
-        <div class="form-h"><span>1</span>Tus datos</div>
-        <label>Nombre<input id="fn" autocomplete="name" placeholder="Tu nombre"></label>
-        <label>Teléfono<input id="fp" type="tel" inputmode="tel" autocomplete="tel" placeholder="3XX XXX XXXX"></label>
-        <label class="wide">Otro teléfono de referencia <small>(opcional)</small><input id="fp2" type="tel" inputmode="tel" placeholder="Quien recibe el domicilio"></label>
+        <div class="form-h">¿Quién recibe?</div>
+        <label class="wide"><span class="sr">Nombre</span><input id="fn" autocomplete="name" placeholder="Tu nombre"></label>
+        <label class="wide"><span class="sr">Teléfono</span><input id="fp" type="tel" inputmode="tel" autocomplete="tel" placeholder="Teléfono · 3XX XXX XXXX"></label>
+        <label class="wide"><span class="sr">Otro teléfono de referencia (opcional)</span><input id="fp2" type="tel" inputmode="tel" placeholder="Otro teléfono de quien recibe (opcional)"></label>
 
-        <div class="form-h"><span>2</span>Entrega</div>
-        <div class="fld wide"><div class="lb">¿Para qué zona es?</div><div class="chips" id="zones"></div></div>
-        <label class="wide">Dirección<input id="fa" autocomplete="street-address" placeholder="Calle o carrera, barrio, referencia"></label>
+        <div class="form-h">¿A dónde?</div>
+        <label class="wide"><span class="sr">Dirección</span><input id="fa" autocomplete="street-address" placeholder="Dirección: calle o carrera, barrio, referencia"></label>
         <button type="button" class="usa-dir wide" id="usaDir" hidden></button>
-        <label class="wide">Hora de entrega <small>(opcional)</small><select id="fh"><option value="">Lo antes posible</option></select></label>
+        <div class="fld wide"><div class="lb sr">Zona</div><div class="chips" id="zones"></div></div>
+        <label class="wide sel"><span class="lb2">Hora de entrega <small>(opcional)</small></span><select id="fh"><option value="">Lo antes posible</option></select></label>
 
-        <div class="form-h"><span>3</span>Pago</div>
-        <div class="fld wide"><div class="lb">Medio de pago</div><div class="chips" id="pays"></div></div>
-        <label class="wide">Notas <small>(opcional)</small><input id="fo" placeholder="Ej: sin cebolla, pago con $50.000"></label>
+        <div class="form-h">¿Cómo pagas?</div>
+        <div class="fld wide"><div class="lb sr">Medio de pago</div><div class="chips" id="pays"></div></div>
+        <label class="wide"><span class="sr">Notas (opcional)</span><input id="fo" placeholder="Notas: sin cebolla, pago con $50.000…"></label>
       </div>
 
       <div class="cart">
         <div class="cart-info"><small id="cnt">Tu pedido está vacío</small><b id="tot">$0</b><small id="desc" class="desc" hidden></small><small id="dl"></small><small id="pts" class="pts" hidden></small><small id="err" role="alert"></small></div>
         <a class="go" id="go" href="#" target="_blank" rel="noopener">Enviar pedido</a>
+        <p class="go-sub">Se abre WhatsApp con tu pedido · entra directo a cocina</p>
       </div>
-      <p class="secure"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.7 15l-1.3 5 5.2-1.3A10 10 0 1 0 12 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Se envía por WhatsApp. Allí te confirmamos y coordinamos la entrega.</p>
     </div>
   </aside>
 </main>
@@ -234,22 +238,16 @@
   </div>
 </section>
 
-<footer class="foot">
-  <div class="wrap foot-in">
-    <div>
-      <b class="foot-brand">SMASH</b>
-      <p>Hamburguesas smash · Armenia, Quindío</p>
-    </div>
-    <div>
-      <b>Horario</b>
-      <p><span id="hfd">Todos los días </span><span id="hft">5:30 pm a 10:00 pm</span></p>
-    </div>
-    <div>
-      <b>Síguenos</b>
-      <p><a href="https://www.instagram.com/530.smash/" target="_blank" rel="noopener">Instagram @530.smash</a></p>
+<footer class="foot2">
+  <div class="wrap">
+    <div class="disp f2-big">Cuando<br>se acaba,<br><em>se acaba.</em></div>
+    <p>Hacemos una cantidad limitada cada noche. <span id="hfd">Todos los días </span><span id="hft">5:30 pm a 10:00 pm</span>.</p>
+    <p>Hamburguesas smash · Armenia, Quindío.</p>
+    <div class="soc2">
+      <a href="https://www.instagram.com/530.smash/" target="_blank" rel="noopener">@530.smash</a>
+      <a href="https://wa.me/573146836097" target="_blank" rel="noopener">WhatsApp</a>
     </div>
   </div>
-  <p class="foot-note">Producimos por tandas limitadas: si algo se agota, te avisamos.</p>
 </footer>
 
 <!-- Barra fija del pedido (celular) -->
@@ -324,14 +322,21 @@
 
 <div class="gracias" id="gracias" hidden role="dialog" aria-modal="true" aria-labelledby="graciasT">
   <div class="gbox">
-    <div class="g-ico" aria-hidden="true">🍔</div>
-    <p id="graciasT">¡Gracias por tu pedido! Esperamos que disfrutes la burger y vuelvas pronto a SMASH 😊</p>
+    <div class="g-wm" aria-hidden="true">SMASH<em>530</em></div>
+    <h2 class="disp g-big" id="graciasT">Ya está<br>en la<br><span>plancha.</span></h2>
+    <p class="g-hola" id="graciasHola">Gracias por tu pedido. Si necesitamos algo te escribimos por WhatsApp.</p>
     <p class="gsub" id="graciasSub"></p>
+    <div class="g-order" id="gOrder" hidden><div><small>Pedido</small><b id="gRef"></b></div><div class="g-eta"><small>Total</small><b id="gTot"></b></div></div>
+    <div class="g-prog" id="gProg" hidden>
+      <div class="g-bars"><i></i><i></i><i></i><i></i></div>
+      <div class="g-steps"><span>Recibido</span><span>Cocinando</span><span>En camino</span><span>Entregado</span></div>
+      <div class="g-now"><div class="g-ic" id="gNowI">🧾</div><div><b id="gNowT">Recibido</b><span id="gNowD">Tu pedido ya está en la caja.</span></div></div>
+    </div>
     <button type="button" id="graciasOk">Listo</button>
   </div>
 </div>
 
 <script src="boot.js"></script>
-<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'cliente.js', 'cliente-pro.js', 'cliente-vivo.js', 'club-regalo.js']);</script>
+<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'cliente.js', 'cliente-pro.js', 'cliente-vivo.js', 'club-regalo.js', 'cliente-comanda.js']);</script>
 </body>
 </html>
