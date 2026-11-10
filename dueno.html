@@ -472,6 +472,10 @@
           <div class="hor-fecha-row"><input type="date" id="horFecha" aria-label="Fecha cerrada"><input id="horMotivo" maxlength="60" placeholder="Motivo (ej: mantenimiento de equipos)" aria-label="Motivo"><button type="button" class="btn-secondary" id="horFechaAdd">Agregar día</button></div>
           <div id="horFechas"></div>
         </fieldset>
+        <fieldset class="promo-dias hor-box"><legend>Abrir un día de descanso <small class="hint">(solo esa fecha; la semana sigue igual)</small></legend>
+          <div class="hor-fecha-row"><input type="date" id="horAbreFecha" aria-label="Fecha que sí abren"><button type="button" class="btn-secondary" id="horAbreAdd">Abrir ese día</button></div>
+          <div id="horAbiertos"></div>
+        </fieldset>
         <button type="submit" class="btn-primary">Guardar horario</button>
         <p class="error" id="horMsg"></p>
       </form>
