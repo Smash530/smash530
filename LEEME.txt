@@ -339,6 +339,11 @@ RESPALDO Y RECUPERACIÓN
   PUNTOS: hamburguesa 10 · hamburguesa en combo 15 · papas 2 · gaseosa 2 · salsa 1.
   - Se suman en caja o dueños con el botón "⭐ Sumar puntos" del pedido (verifica la cuenta y el
     descuento antes; un pedido no puede sumar dos veces). También "± Puntos" para canjes o regalos.
+  ELIMINAR UNA CUENTA (2026-11-09, solo dueños: panel de dueño → "⭐ Clientes leales" → "🗑 Eliminar"):
+    para un cliente que se equivocó al registrarse. Borra la cuenta, sus puntos y su historial;
+    sus pedidos quedan. Luego puede registrarse otra vez con el mismo correo y usuario.
+    Solo cuentas con rol Cliente. Pide confirmar y escribir ELIMINAR. No se puede deshacer.
+    Requiere ejecutar UNA VEZ supabase/eliminar-cliente.sql en Supabase (SQL Editor → Run).
   PROMOCIONES (solo dueños, sección "🎁 Promociones"): % de descuento, $ de descuento, precio
     especial de un producto (ej. el combo) o incentivo (beneficio que solo se muestra).
     Con fecha desde/hasta, pausar, editar y borrar. Se activan al instante (no requiere menu.json).

@@ -336,6 +336,19 @@ const SmashNube = (function () {
     const { error } = await sb.rpc('cambiar_rol', { p_id: id, p_rol: rol });
     return error ? { ok: false, error: errorTxt(error) } : { ok: true };
   }
+  // Eliminar la cuenta de un cliente (solo dueños, solo rol Cliente): supabase/eliminar-cliente.sql
+  async function eliminarCliente(id) {
+    if (!ok) return sinNube();
+    const { data, error } = await sb.rpc('eliminar_cliente', { p_id: id });
+    if (error) {
+      const m = String(error.message || error.details || '');
+      if (/eliminar_cliente|schema cache|does not exist|could not find the function/i.test(m)) return { ok: false, error: 'Falta ejecutar supabase/eliminar-cliente.sql en Supabase.' };
+      if (/solo se eliminan cuentas de clientes|propia cuenta/i.test(m)) return { ok: false, error: m.replace(/^.*?(Solo se eliminan|No puedes)/, '$1') };
+      return { ok: false, error: errorTxt(error) };
+    }
+    if (!data || !data.ok) return { ok: false, error: data && data.error === 'no-existe' ? 'Esa cuenta ya no existe.' : 'No se pudo eliminar la cuenta.' };
+    return { ok: true };
+  }
   async function buscarPorCorreo(correo) {
     const { data, error } = await sb.from('perfiles').select('*').eq('correo', String(correo || '').trim().toLowerCase()).maybeSingle();
     return error ? null : data;
@@ -674,7 +687,7 @@ const SmashNube = (function () {
     guardarCupo, leerCupo, seguirCupo, guardarHorario, leerHorario,
     ok, perfil, alCambiar, enRecuperacion, registrar, entrar, salir, recuperarClave, nuevaClave, guardarPerfil, usuarioLibre,
     promociones, promosSemana, aplicaEl, guardarPromo, activarPromo, borrarPromo, aplicarPromos, vigente, listaIds, prodsDe, regalosDe, tocaProducto, lineasPaquete, precioNormalPaquete, hoyCO, diaCO, tocaHoy, textoDias, DIAS,
-    puntosPedido, REGLAS, clientes, movimientos, sumarPuntos, cambiarRol, buscarPorCorreo,
+    puntosPedido, REGLAS, clientes, movimientos, sumarPuntos, cambiarRol, eliminarCliente, buscarPorCorreo,
     enviarPedido, recibirPedidos, marcarRecibido, panelEstadosPedidos, pedidoEstado,
   };
   return API;

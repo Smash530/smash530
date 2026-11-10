@@ -98,6 +98,7 @@ const SmashLealesUI = (function () {
           <button type="button" class="btn-sm" data-l="hist" data-id="${esc(c.id)}">${abierto === c.id ? 'Ocultar' : 'Historial'}</button>
           <button type="button" class="btn-sm" data-l="pts" data-id="${esc(c.id)}">± Puntos</button>
           ${esDueno && yo.rol === 'dueno' && c.id !== yo.id ? `<select class="leal-rol" data-id="${esc(c.id)}" aria-label="Rol de ${esc(c.usuario || c.correo)}">${Object.keys(ROL).map((r) => `<option value="${r}"${c.rol === r ? ' selected' : ''}>${ROL[r]}</option>`).join('')}</select>` : ''}
+          ${esDueno && yo.rol === 'dueno' && c.rol === 'cliente' && c.id !== yo.id ? `<button type="button" class="btn-sm btn-danger" data-l="borrar" data-id="${esc(c.id)}" title="Eliminar esta cuenta para que el cliente se pueda registrar de nuevo">🗑 Eliminar</button>` : ''}
         </div></td></tr>
         ${abierto === c.id ? `<tr class="leal-hist"><td class="full" colspan="9" id="hist_${esc(c.id)}">Cargando historial…</td></tr>` : ''}`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--muted)">No hay cuentas que coincidan.</td></tr>'}
       </tbody></table>`;
@@ -316,6 +317,20 @@ const SmashLealesUI = (function () {
         if (motivo == null) return;
         const r2 = await N.sumarPuntos(id, v, motivo, '');
         if (!r2.ok) alert(r2.error);
+        await cargar();
+      } else if (act === 'borrar') {
+        // Eliminar la cuenta de un cliente que se equivocó al registrarse (solo dueños, con doble confirmación)
+        const c = lista.find((x) => x.id === id); if (!c) return;
+        const quien = `${c.nombre || 'Sin nombre'} (@${c.usuario || '-'} · ${c.correo})`;
+        if (!confirm(`¿Eliminar la cuenta de ${quien}?\n\nSe borran su cuenta, sus ${c.puntos || 0} puntos y su historial de puntos. Sus pedidos quedan guardados.\nDespués podrá registrarse otra vez con el mismo correo y usuario.\n\nEsto NO se puede deshacer.`)) return;
+        const t = prompt(`Para confirmar, escribe ELIMINAR (en mayúsculas):`, '');
+        if (t == null) return;
+        if (t.trim() !== 'ELIMINAR') { alert('No se eliminó: no escribiste ELIMINAR.'); return; }
+        b.disabled = true; b.textContent = 'Eliminando…';
+        const r2 = await N.eliminarCliente(id);
+        if (!r2.ok) { alert(r2.error); b.disabled = false; b.textContent = '🗑 Eliminar'; return; }
+        if (abierto === id) abierto = null;
+        alert(`✓ Cuenta eliminada: ${c.correo}. El cliente ya se puede registrar de nuevo.`);
         await cargar();
       } else if (act === 'pedit') { const p = promos.find((x) => String(x.id) === id); if (p) editarPromo(p); }
       else if (act === 'ptoggle') { const p = promos.find((x) => String(x.id) === id); const r2 = await N.activarPromo(p.id, !p.activa); if (!r2.ok) alert(r2.error); promos = await N.promociones(true); renderPromos(); }

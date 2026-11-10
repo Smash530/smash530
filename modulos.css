@@ -184,6 +184,8 @@ details.mod-box[open]>summary{margin-bottom:8px}
 .leal-login form{display:grid;gap:8px;max-width:420px}
 .leal-acts{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .leal-acts select{padding:5px 6px;border-radius:6px}
+.leal-acts .btn-danger{color:var(--danger,#dc2626);border-color:var(--danger,#dc2626)}
+.leal-acts .btn-danger:hover{background:var(--danger,#dc2626);color:#fff}
 .leal-hist td{background:rgba(0,0,0,.03)}
 .leal-mov{padding:3px 0;font-size:.88rem}
 .leal-mov .pos{color:#1e8a4c}
