@@ -67,7 +67,7 @@
       <div class="summary-grid">
         ${box('💵 Efectivo', fmt(R.medios.efectivo))}${box('🏦 Transferencia', fmt(R.medios.transferencia))}${box('Otros medios', fmt(R.medios.otro))}
       </div>
-      <p class="hint">Dinero recibido en el periodo según los pagos registrados en caja${R.domiciliosCobrados ? ` (incluye ${fmt(R.domiciliosCobrados)} de domicilios que se entregan al domiciliario)` : ''}.</p>
+      <p class="hint">Cobrado por productos en el periodo según los pagos registrados en caja. No incluye domicilios${R.domiciliosCobrados ? ` (aparte: ${fmt(R.domiciliosCobrados)} de domicilios que el cliente pagó a SMASH y son del domiciliario)` : ''}.</p>
       <h3 class="section-title">Estado de resultados</h3>
       <div class="simple-table pyg">
         <div class="row"><span>Ventas brutas</span><b>${fmt(R.brutas)}</b></div>

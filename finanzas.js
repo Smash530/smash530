@@ -139,9 +139,10 @@ const SmashFinanzas = (function () {
 
     const utilidad = margenBruto - g.operativo - g.fijo - g.nomina - g.otro;
 
-    // Cobrado por medio de pago (dinero recibido, por fecha del pago) + pedidos antiguos por el medio anunciado
+    // Cobrado por medio de pago (solo productos, sin domicilios aunque el cliente los haya pagado a SMASH)
+    // por fecha del pago + pedidos antiguos por el medio anunciado
     const caja = SmashCaja.resumenPeriodo(d1, d2), pagos = SmashCaja.getPagos();
-    const medios = Object.assign({}, caja.porMetodo);
+    const medios = Object.assign({}, caja.ventasPorMetodo);
     validos.forEach((o) => { if (SmashCaja.estadoPago(o, pagos).k === 'antiguo') { const k = /transf/i.test(o.pago) ? 'transferencia' : /efect/i.test(o.pago) ? 'efectivo' : 'otro'; medios[k] += (o.subtotal || 0) - (o.descuento || 0); } });
 
     // Nómina estimada con el personal registrado (solo referencia, no se suma)

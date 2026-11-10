@@ -178,11 +178,20 @@ const SmashCaja = (function () {
 
   /* ---------------- Arqueo ---------------- */
   // Dinero esperado = base + ingresos en efectivo − egresos en efectivo
+  // porMetodo = todo lo que entró (incluye domicilios que el cliente pagó a SMASH): solo para el arqueo.
+  // ventasPorMetodo = solo productos, sin ningún domicilio: es lo que va en informes, estadísticas y socios.
+  // El domicilio de un pago combinado se reparte entre sus medios en proporción a cada valor.
   function resumen(pagos, movs, base) {
-    const porMetodo = { efectivo: 0, transferencia: 0, otro: 0 }, porCuenta = {};
+    const porMetodo = { efectivo: 0, transferencia: 0, otro: 0 }, domPorMetodo = { efectivo: 0, transferencia: 0, otro: 0 }, porCuenta = {};
     let domicilios = 0, nPagos = 0;
     pagos.forEach((p) => {
       nPagos++; domicilios += p.domicilio || 0;
+      const dom = r(p.domicilio), tot = p.lineas.reduce((s, l) => s + l.monto, 0);
+      let resta = dom;
+      p.lineas.forEach((l, i) => {
+        const parte = !dom || !tot ? 0 : i === p.lineas.length - 1 ? resta : Math.min(resta, r((dom * l.monto) / tot));
+        resta -= parte; domPorMetodo[l.metodo] += parte;
+      });
       p.lineas.forEach((l) => {
         porMetodo[l.metodo] += l.monto;
         if (l.metodo === 'transferencia') { const k = l.cuentaId || '?'; porCuenta[k] = porCuenta[k] || { nombre: l.cuenta || 'Sin cuenta', v: 0, n: 0 }; porCuenta[k].v += l.monto; porCuenta[k].n++; }
@@ -193,7 +202,9 @@ const SmashCaja = (function () {
     movs.forEach((m) => { porTipo[m.tipo][m.metodo === 'efectivo' ? 'efectivo' : 'otros'] += m.monto; });
     const ingresosEf = porMetodo.efectivo + porTipo.ingreso.efectivo;
     const egresosEf = Object.keys(MOV_TIPOS).filter((k) => MOV_TIPOS[k].signo < 0).reduce((s, k) => s + porTipo[k].efectivo, 0);
-    return { base: base || 0, porMetodo, porCuenta, domicilios, nPagos, porTipo, ingresosEf, egresosEf, esperado: (base || 0) + ingresosEf - egresosEf };
+    const ventasPorMetodo = {};
+    Object.keys(porMetodo).forEach((k) => { ventasPorMetodo[k] = porMetodo[k] - domPorMetodo[k]; });
+    return { base: base || 0, porMetodo, ventasPorMetodo, domPorMetodo, porCuenta, domicilios, nPagos, porTipo, ingresosEf, egresosEf, esperado: (base || 0) + ingresosEf - egresosEf };
   }
   function resumenTurno(t) {
     return resumen(getPagos().filter((p) => p.turnoId === t.id && !p.anulado), getMovs().filter((m) => m.turnoId === t.id), t.base);

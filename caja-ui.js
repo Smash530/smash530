@@ -159,9 +159,9 @@ const SmashCajaUI = (function () {
     root.innerHTML = `
       <div class="banner green">🔓 Caja abierta por <b>${esc(t.cajero)}</b> desde ${esc(fecha(t.abierto))} · base ${fmt(t.base)}</div>
       <div class="summary-grid" style="margin-top:12px">
-        <div class="summary-box"><div class="label">💵 Efectivo cobrado</div><div class="value">${fmt(res.porMetodo.efectivo)}</div></div>
-        <div class="summary-box"><div class="label">🏦 Transferencias</div><div class="value">${fmt(res.porMetodo.transferencia)}</div></div>
-        <div class="summary-box"><div class="label">Otros medios</div><div class="value">${fmt(res.porMetodo.otro)}</div></div>
+        <div class="summary-box"><div class="label">💵 Efectivo cobrado</div><div class="value">${fmt(res.ventasPorMetodo.efectivo)}</div><div class="sub">solo productos</div></div>
+        <div class="summary-box"><div class="label">🏦 Transferencias</div><div class="value">${fmt(res.ventasPorMetodo.transferencia)}</div><div class="sub">solo productos</div></div>
+        <div class="summary-box"><div class="label">Otros medios</div><div class="value">${fmt(res.ventasPorMetodo.otro)}</div><div class="sub">solo productos</div></div>
         <div class="summary-box"><div class="label">Pagos registrados</div><div class="value">${res.nPagos}</div></div>
         <div class="summary-box"><div class="label">Ingresos adicionales (efectivo)</div><div class="value">${fmt(res.porTipo.ingreso.efectivo)}</div></div>
         <div class="summary-box"><div class="label">Salidas de efectivo</div><div class="value">${fmt(res.egresosEf)}</div></div>
@@ -201,7 +201,8 @@ const SmashCajaUI = (function () {
       <div class="mod-box">
         <div class="simple-table">
           <div class="row"><span>Base inicial</span><b>${fmt(t.base)}</b></div>
-          <div class="row"><span>+ Ventas en efectivo</span><b>${fmt(res.porMetodo.efectivo)}</b></div>
+          <div class="row"><span>+ Ventas en efectivo (productos)</span><b>${fmt(res.ventasPorMetodo.efectivo)}</b></div>
+          ${res.domPorMetodo.efectivo ? `<div class="row"><span>+ Domicilios cobrados en efectivo (del domiciliario, no son venta)</span><b>${fmt(res.domPorMetodo.efectivo)}</b></div>` : ''}
           <div class="row"><span>+ Ingresos adicionales en efectivo</span><b>${fmt(res.porTipo.ingreso.efectivo)}</b></div>
           ${egresos.map((k) => res.porTipo[k].efectivo ? `<div class="row"><span>− ${esc(SC.MOV_TIPOS[k].n)}</span><b>${fmt(res.porTipo[k].efectivo)}</b></div>` : '').join('')}
           <div class="row"><span><b>Dinero esperado</b></span><b>${fmt(res.esperado)}</b></div>
@@ -264,12 +265,13 @@ const SmashCajaUI = (function () {
         <div class="summary-box"><div class="label">Caja ahora</div><div class="value" style="font-size:.95rem">${SC.turnoAbierto() ? 'Abierta (' + esc(SC.turnoAbierto().cajero) + ')' : 'Cerrada'}</div></div></div>` +
         (turnos.map((t) => {
           const res = t.cierre ? t.cierre.resumen : SC.resumenTurno(t);
+          const vm = res.ventasPorMetodo || SC.resumenTurno(t).ventasPorMetodo; // cierres viejos no lo guardaban
           return `<details class="mod-box"><summary>${esc(fecha(t.abierto))} · ${esc(t.cajero)} · ${t.cierre ? 'cerrado, diferencia&nbsp;' + difHtml(t.cierre.diferencia) : '<span class="pos">abierto</span>'}</summary>
             <div class="simple-table">
               <div class="row"><span>Base inicial</span><b>${fmt(t.base)}</b></div>
-              <div class="row"><span>Ventas en efectivo</span><b>${fmt(res.porMetodo.efectivo)}</b></div>
-              <div class="row"><span>Transferencias</span><b>${fmt(res.porMetodo.transferencia)}</b></div>
-              <div class="row"><span>Otros medios</span><b>${fmt(res.porMetodo.otro)}</b></div>
+              <div class="row"><span>Ventas en efectivo (productos)</span><b>${fmt(vm.efectivo)}</b></div>
+              <div class="row"><span>Transferencias (productos)</span><b>${fmt(vm.transferencia)}</b></div>
+              <div class="row"><span>Otros medios (productos)</span><b>${fmt(vm.otro)}</b></div>
               ${Object.keys(res.porTipo).map((k) => res.porTipo[k].efectivo + res.porTipo[k].otros ? `<div class="row"><span>${esc(SC.MOV_TIPOS[k].n)}</span><b>${fmt(res.porTipo[k].efectivo + res.porTipo[k].otros)}</b></div>` : '').join('')}
               ${res.domicilios ? `<div class="row"><span>Domicilios cobrados por SMASH (del domiciliario)</span><b>${fmt(res.domicilios)}</b></div>` : ''}
               <div class="row"><span>Efectivo esperado</span><b>${fmt(res.esperado)}</b></div>
@@ -281,17 +283,18 @@ const SmashCajaUI = (function () {
       const d1 = droot.dataset.d1 || SmashStore.today(), d2 = droot.dataset.d2 || d1, res = SC.resumenPeriodo(d1, d2);
       html += `<div class="date-row"><label class="mod-inline" style="margin:0">Desde<input type="date" id="mdD1" value="${d1}"></label><label class="mod-inline" style="margin:0">Hasta<input type="date" id="mdD2" value="${d2}"></label></div>
         <div class="summary-grid">
-          <div class="summary-box"><div class="label">💵 Efectivo</div><div class="value">${fmt(res.porMetodo.efectivo)}</div></div>
-          <div class="summary-box"><div class="label">🏦 Transferencias</div><div class="value">${fmt(res.porMetodo.transferencia)}</div></div>
-          <div class="summary-box"><div class="label">Otros medios</div><div class="value">${fmt(res.porMetodo.otro)}</div></div>
-          <div class="summary-box"><div class="label">Total cobrado</div><div class="value">${fmt(res.porMetodo.efectivo + res.porMetodo.transferencia + res.porMetodo.otro)}</div><div class="sub">${res.nPagos} pagos</div></div>
+          <div class="summary-box"><div class="label">💵 Efectivo</div><div class="value">${fmt(res.ventasPorMetodo.efectivo)}</div></div>
+          <div class="summary-box"><div class="label">🏦 Transferencias</div><div class="value">${fmt(res.ventasPorMetodo.transferencia)}</div></div>
+          <div class="summary-box"><div class="label">Otros medios</div><div class="value">${fmt(res.ventasPorMetodo.otro)}</div></div>
+          <div class="summary-box"><div class="label">Total cobrado en productos</div><div class="value">${fmt(res.ventasPorMetodo.efectivo + res.ventasPorMetodo.transferencia + res.ventasPorMetodo.otro)}</div><div class="sub">${res.nPagos} pagos · sin domicilios</div></div>
+          ${res.domicilios ? `<div class="summary-box"><div class="label">Domicilios cobrados por SMASH (aparte)</div><div class="value">${fmt(res.domicilios)}</div><div class="sub">del domiciliario, no suman</div></div>` : ''}
         </div>
         <h3 class="section-title">Transferencias por cuenta receptora</h3>
         ${Object.keys(res.porCuenta).length ? `<table class="rtable"><thead><tr><th>Cuenta</th><th class="num">Pagos</th><th class="num">Valor</th></tr></thead><tbody>${Object.keys(res.porCuenta).map((k) => `<tr><td class="first">${esc(res.porCuenta[k].nombre)}</td><td class="num" data-l="Pagos">${res.porCuenta[k].n}</td><td class="num" data-l="Valor">${fmt(res.porCuenta[k].v)}</td></tr>`).join('')}</tbody></table>` : '<p class="hint">Sin transferencias en este periodo.</p>'}
         <h3 class="section-title">Movimientos de caja</h3>
         <table class="rtable"><thead><tr><th>Tipo</th><th class="num">Efectivo</th><th class="num">Otros medios</th></tr></thead><tbody>
         ${Object.keys(SC.MOV_TIPOS).map((k) => `<tr><td class="first">${esc(SC.MOV_TIPOS[k].n)}</td><td class="num" data-l="Efectivo">${fmt(res.porTipo[k].efectivo)}</td><td class="num" data-l="Otros">${fmt(res.porTipo[k].otros)}</td></tr>`).join('')}</tbody></table>
-        <p class="hint">${res.domicilios ? `Incluye ${fmt(res.domicilios)} de domicilios que los clientes pagaron a SMASH (son de los domiciliarios). ` : ''}Los valores son del día en que se registró cada pago o movimiento.</p>`;
+        <p class="hint">Efectivo, transferencias y total son solo productos: no incluyen domicilios. ${res.domicilios ? `La tabla por cuenta receptora muestra lo que llegó a cada cuenta, con los domicilios que los clientes pagaron a SMASH. ` : ''}Los valores son del día en que se registró cada pago o movimiento.</p>`;
     } else {
       const cuentas = SC.getCuentas(), uso = SC.resumenPeriodo('0000-00-00', '9999-12-31').porCuenta, hist = SC.getCuentasHist().slice().reverse().slice(0, 50);
       const edit = droot.dataset.edit ? SC.getCuenta(droot.dataset.edit) : null;

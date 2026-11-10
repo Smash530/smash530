@@ -445,7 +445,8 @@ const SmashUI = (function () {
   function cajaReal(day) {
     const SC = SmashCaja, res = SC.resumenPeriodo(day, day), pagos = SC.getPagos();
     const del = SmashDB.getOrders().filter((o) => SmashExt.localDay(o.creado) === day && C.valido(o));
-    const by = { efectivo: { n: 0, v: res.porMetodo.efectivo }, transferencia: { n: 0, v: res.porMetodo.transferencia }, otro: { n: 0, v: res.porMetodo.otro } };
+    const vm = res.ventasPorMetodo; // solo productos: los domicilios nunca suman aquí
+    const by = { efectivo: { n: 0, v: vm.efectivo }, transferencia: { n: 0, v: vm.transferencia }, otro: { n: 0, v: vm.otro } };
     SC.getPagos().filter((p) => !p.anulado && SmashExt.localDay(p.en) === day).forEach((p) => p.lineas.forEach((l) => by[l.metodo].n++));
     let pendV = 0, pendN = 0;
     del.forEach((o) => {
@@ -457,7 +458,7 @@ const SmashUI = (function () {
     return `${box('💵 Efectivo', by.efectivo)}${box('🏦 Transferencia', by.transferencia)}${by.otro.v ? box('Otros medios', by.otro) : ''}
       ${box('Total cobrado', { v: by.efectivo.v + by.transferencia.v + by.otro.v }, del.length + (del.length === 1 ? ' pedido del día' : ' pedidos del día'))}
       ${pendN ? `<div class="summary-box"><div class="label">⚠ Pendiente de pago</div><div class="value neg">${fmt(pendV)}</div><div class="sub">${pendN} ${pendN === 1 ? 'pedido' : 'pedidos'}</div></div>` : ''}
-      <p class="hint caja-note">Dinero cobrado ese día por medio de pago${res.domicilios ? `, incluye ${fmt(res.domicilios)} de domicilios que el cliente pagó a SMASH (son del domiciliario)` : ''}. Domicilios de los pedidos del día: ${fmt(del.reduce((s, o) => s + (o.domicilio || 0), 0))}.</p>`;
+      <p class="hint caja-note">Cobrado ese día por productos, por medio de pago. No incluye domicilios${res.domicilios ? ` (aparte: ${fmt(res.domicilios)} de domicilios que el cliente pagó a SMASH, son del domiciliario)` : ''}. Domicilios de los pedidos del día: ${fmt(del.reduce((s, o) => s + (o.domicilio || 0), 0))}.</p>`;
   }
 
   return { init, card, fila, detalle, caja, fmtMs, timerHtml, tick, esc, fmt, openCancelar, modal, closeModal, refresh: () => cfg.refresh(), who: () => cfg.who };
