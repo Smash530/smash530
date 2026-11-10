@@ -478,3 +478,12 @@ RESPALDO Y RECUPERACIÓN
   costo de producto) y al final "Paso a paso se construye el camino".
 - El costo sale de las recetas/costos del panel de dueños de ESE equipo. Si un
   producto no tiene costo registrado, el recibo lo avisa.
+
+
+PROMOS CON PUNTOS DESDE "CREAR PEDIDO" (cocina y dueños)
+  Para el cliente del club que pide por WhatsApp o en el local. Busca al cliente en
+  "¿Cliente del club?" y agrega sus productos: las promos del día salen solas, también
+  las que cuestan puntos (ej. LUNES DE PAPAS). Si le alcanzan los puntos se usan solos;
+  toca "No usar puntos" si el cliente no los quiere gastar. Al crear el pedido la nube
+  descuenta los puntos; si el pedido se cancela, se le devuelven solos.
+  Requiere ejecutar UNA VEZ supabase/canje-panel.sql en Supabase (SQL Editor > Run).

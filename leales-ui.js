@@ -409,11 +409,11 @@ const SmashLealesUI = (function () {
   /* Pedido cancelado que había pagado una promoción con puntos: se le devuelven
      los puntos al cliente (la nube no los devuelve dos veces). */
   async function devolverCanje(o) {
-    if (!o || o.status !== 'cancelado' || !o.canjes || !o.canjes.length || o.puntosDevueltos != null || !o.ref) return;
+    if (!o || o.status !== 'cancelado' || !o.canjes || !o.canjes.length || o.puntosDevueltos != null || !(o.ref || o.refCanje)) return;
     if (enCurso.has('dev' + o.id) || !N || !N.ok || !N.panelDevolverCanje || !(N.panelSesion && N.panelSesion())) return;
     enCurso.add('dev' + o.id);
     try {
-      const r = await N.panelDevolverCanje(o.ref);
+      const r = await N.panelDevolverCanje(o.ref || o.refCanje);
       if (r.ok) {
         const pts = o.canjes.reduce((s, c) => s + (Number(c.puntos) || 0), 0);
         SmashExt.updateOrder(o.id, { puntosDevueltos: r.devueltos || pts });

@@ -651,6 +651,15 @@ const SmashNube = (function () {
     if (error) return { ok: false, falta: faltaPuntosSql(error), error: errorTxt(error) };
     return data || { ok: false };
   }
+  /* Canjear puntos desde "Crear pedido" (supabase/canje-panel.sql): la nube revisa la promo y el saldo */
+  async function panelCanjear(correo, promos, ref) {
+    if (!ok) return sinNube();
+    if (!tok()) return { ok: false, error: 'Conecta el panel a la nube (entra con tu usuario del panel) para usar puntos.' };
+    const { data, error } = await sb.rpc('panel_canjear_puntos', { p_token: tok(), p_correo: String(correo || ''), p_promos: (promos || []).map(Number), p_pedido: String(ref || '') });
+    if (error) return { ok: false, error: faltaPuntosSql(error) ? 'Falta ejecutar supabase/canje-panel.sql en Supabase.' : errorTxt(error) };
+    if (data && data.error === 'sin-acceso') return { ok: false, error: 'La sesión del panel venció: sal y vuelve a entrar.' };
+    return data || { ok: false, error: 'sin respuesta' };
+  }
   // true = este equipo tomó el pedido web · false = ya lo tomó otro equipo · null = no se pudo saber
   async function tomarPedido(ref) {
     if (!ok) return null;
@@ -681,7 +690,7 @@ const SmashNube = (function () {
   }
 
   const API = {
-    panelEntrar, panelSesion, panelSalir, panelSumarPuntos, panelDevolverCanje, panelPromos, panelBuscarCliente, panelClientesPromos, panelBajaPromos, tomarPedido, datosAvisos, datosLeer, guardarDato, seguirDatos,
+    panelEntrar, panelSesion, panelSalir, panelSumarPuntos, panelDevolverCanje, panelCanjear,panelPromos, panelBuscarCliente, panelClientesPromos, panelBajaPromos, tomarPedido, datosAvisos, datosLeer, guardarDato, seguirDatos,
     subirRespaldo, listarRespaldos, leerRespaldo,
     enviarImpresion, estadoImpresion, tomarImpresion, marcarImpresion, seguirImpresiones,
     guardarCupo, leerCupo, seguirCupo, guardarHorario, leerHorario,

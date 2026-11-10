@@ -19,6 +19,10 @@ const SmashCrear = (function () {
   let promos = [], promosEn = 0, promosMsg = '';
   const cuestaPts = (p) => Math.max(0, Number(p && p.puntos) || 0);
   const promosHoy = () => (N ? promos.filter((p) => N.vigente(p) && !cuestaPts(p)) : []);
+  // Promos que cuestan puntos (ej. LUNES DE PAPAS · 10 pts): igual que en la página, se usan solas si
+  // al cliente le alcanzan los puntos; caja puede tocar "No usar puntos". usarPts[id] = false → no usar.
+  const promosPts = () => (N ? promos.filter((p) => N.vigente(p) && cuestaPts(p)) : []);
+  let usarPts = {};
   async function cargarPromos(forzar) {
     if (!N || (!forzar && Date.now() - promosEn < 120000)) return;
     promosEn = Date.now();
@@ -89,14 +93,14 @@ const SmashCrear = (function () {
   const sinComboTxt = (x) => (x.sin_combo !== false && !N.regalosDe(x).some(esCombo) ? ' (sin combo)' : '');
   // Promos de hoy encima de cada producto
   function tagsPromo(p) {
-    const l = promosHoy().filter((x) => N.tocaProducto(x, p.id));
+    const l = promosHoy().concat(promosPts()).filter((x) => N.tocaProducto(x, p.id));
     if (!l.length) return '';
     return `<div class="cr-promos">${l.map((x) => {
       const cada = Math.max(1, Number(x.valor) || 1), esRegalo = x.tipo === 'regalo' && !N.prodsDe(x).includes(p.id);
       const txt = x.tipo === 'regalo'
         ? (esRegalo ? `Gratis por cada ${cada > 1 ? cada + ' burgers' : 'burger'}` : `Regala ${regaloTxt(x)}${cada > 1 ? ' por cada ' + cada + ' burgers' : ' por cada burger'}${sinComboTxt(x)}`)
         : (x.descripcion || '');
-      return `<div class="cr-promo${x.tipo === 'regalo' ? ' gift' : ''}"><b>${x.tipo === 'regalo' ? '🎁' : '⭐'} ${esc(x.titulo)}</b>${txt ? `<span>${esc(txt)}</span>` : ''}</div>`;
+      return `<div class="cr-promo${x.tipo === 'regalo' ? ' gift' : ''}"><b>${x.tipo === 'regalo' ? '🎁' : '⭐'} ${esc(x.titulo)}${cuestaPts(x) ? ' · ' + cuestaPts(x) + ' pts' : ''}</b>${txt ? `<span>${esc(txt)}</span>` : ''}</div>`;
     }).join('')}${cr.cuenta ? '' : '<small class="cr-promo-nota">Solo clientes del club: busca al cliente para aplicarla</small>'}</div>`;
   }
 
@@ -141,10 +145,30 @@ const SmashCrear = (function () {
   }
   // Descuentos del club para este pedido (solo con un cliente registrado elegido)
   // Los regalos quedan en su propia línea a $0 (no se suman ni se descuentan)
+  // Elige las promos con puntos que se usan (la de más valor primero, mientras alcancen los puntos)
+  function elegirPts(items) {
+    const base = promosHoy(), elegidas = [], faltan = [], opcionales = [];
+    let saldo = Number(cr.cuenta.puntos) || 0;
+    promosPts().map((p) => {
+      const r = N.aplicarPromos(items, base.concat([p]));
+      const u = r.usadas.find((x) => x.id === p.id), g = (r.regalos || []).find((x) => x.p.id === p.id);
+      return { p, v: u ? u.valor : 0, activa: !!u || !!(g && g.gana > 0), aviso: !!g };
+    }).filter((c) => c.activa || c.aviso).sort((a, b) => b.v - a.v).forEach((c) => {
+      if (c.activa) opcionales.push(c.p);
+      if (usarPts[c.p.id] === false) return;
+      if (cuestaPts(c.p) > saldo) { if (c.activa) faltan.push({ p: c.p, faltan: cuestaPts(c.p) - saldo }); return; }
+      elegidas.push(c.p);
+      if (c.activa) saldo -= cuestaPts(c.p);
+    });
+    return { elegidas, faltan, opcionales };
+  }
   function crPromos(items) {
-    if (!N || !cr.cuenta) return { descuento: 0, usadas: [], regalos: [], items };
-    const R = N.aplicarPromos(items, promosHoy()), G = SmashExt.regalosSinPrecio(items, R);
-    return Object.assign(R, { items: G.items.filter((i) => !i.regalo).concat(G.items.filter((i) => i.regalo)), descuento: G.descuento, usadas: G.usadas });
+    if (!N || !cr.cuenta) return { descuento: 0, usadas: [], regalos: [], canjes: [], faltan: [], opcionales: [], items };
+    const E = elegirPts(items);
+    const R = N.aplicarPromos(items, promosHoy().concat(E.elegidas)), G = SmashExt.regalosSinPrecio(items, R);
+    // canje de puntos: los puntos se gastan; si es un regalo no hay pesos que descontar
+    const canjes = R.usadas.filter((u) => u.puntos > 0).map((u) => ({ promo: u.id, titulo: u.titulo, puntos: u.puntos, valor: G.regaloIds[String(u.id)] ? 0 : u.valor }));
+    return Object.assign(R, { items: G.items.filter((i) => !i.regalo).concat(G.items.filter((i) => i.regalo)), descuento: G.descuento, usadas: G.usadas, canjes, faltan: E.faltan, opcionales: E.opcionales });
   }
   function crTotal() {
     const R = crPromos(crItems()), items = R.items, desc = R.descuento;
@@ -168,11 +192,22 @@ const SmashCrear = (function () {
         const p = paquetesHoy().find((x) => String(x.id) === String(i.paq));
         return `<div class="cr-li cr-paq-li"><span><b>${esc(i.paqN)}×</b> 🏆 ${esc(i.paqT)}${p ? `<small>${esc(paqQueTrae(p))}</small>` : ''}</span><span>${fmt(s)}</span></div>`;
       }).join('') +
-        R.usadas.map((u) => `<div class="cr-li cr-desc"><span>⭐ ${esc(u.titulo)}</span><span>−${fmt(u.valor)}</span></div>`).join('') + regalos
+        R.usadas.map((u) => `<div class="cr-li cr-desc"><span>⭐ ${esc(u.titulo)}</span><span>−${fmt(u.valor)}</span></div>`).join('') + regalos + ptsHtml(R)
       : '<p class="cr-vacio">Aún no has elegido productos.</p>';
     $('crTotal').innerHTML = `<div><span>Subtotal</span><b>${fmt(sub)}</b></div>${desc ? `<div class="cr-desc"><span>Descuento club</span><b>−${fmt(desc)}</b></div>` : ''}<div><span>Domicilio</span><b>${z.variable && $('crDom').value === '' ? 'por definir' : fmt(dom)}</b></div><div class="tot"><span>Total</span><b>${fmt(sub - desc + dom)}</b></div>`;
   }
+  // Puntos del cliente en este pedido: qué promos los usan y cuáles se pueden activar
+  function ptsHtml(R) {
+    if (!cr.cuenta) return '';
+    const usa = R.canjes.reduce((s, c) => s + c.puntos, 0), saldo = Number(cr.cuenta.puntos) || 0;
+    const usadas = R.canjes.map((c) => `<div class="cr-li cr-pts"><span>⭐ <b>${esc(c.titulo)}</b> con ${esc(c.puntos)} pts <button type="button" class="btn-sm" data-crpts="${esc(c.promo)}" data-v="0">No usar puntos</button></span><span>−${esc(c.puntos)} pts</span></div>`).join('');
+    const off = R.opcionales.filter((p) => usarPts[p.id] === false).map((p) => `<div class="cr-li cr-pts off"><span>⭐ ${esc(p.titulo)}: cuesta ${cuestaPts(p)} pts <button type="button" class="btn-sm" data-crpts="${esc(p.id)}" data-v="1">Usar puntos</button></span><span>—</span></div>`).join('');
+    const faltan = R.faltan.map((f) => `<div class="cr-li cr-pts off"><span>⭐ ${esc(f.p.titulo)} cuesta ${cuestaPts(f.p)} pts: no le alcanzan (le faltan ${esc(f.faltan)})</span><span>—</span></div>`).join('');
+    return usadas + off + faltan + (usa ? `<div class="cr-li cr-pts-saldo"><span>Puntos del cliente: tiene ${esc(saldo)}, usa ${esc(usa)}, le quedan ${esc(saldo - usa)}</span><span></span></div>` : '');
+  }
   $('crResumen').addEventListener('click', (e) => {
+    const bp = e.target.closest('[data-crpts]');
+    if (bp) { usarPts[bp.dataset.crpts] = bp.dataset.v === '1'; render(); return; }
     const b = e.target.closest('[data-crgift]'); if (!b) return;
     const id = b.dataset.crgift;
     if (esCombo(id)) {
@@ -190,7 +225,7 @@ const SmashCrear = (function () {
     if (cr.cuenta) {
       const c = cr.cuenta;
       box.innerHTML = `<div class="cr-club-sel">⭐ <b>${esc(c.nombre || c.correo)}</b>${c.usuario ? ' @' + esc(c.usuario) : ''} · ${esc(c.puntos || 0)} pts <button type="button" class="btn-sm" data-club="quitar">Quitar</button></div>` +
-        (promosHoy().length ? '' : `<small class="hint">${esc(promosMsg || 'Hoy no hay promociones gratuitas activas.')}</small>`);
+        (promosHoy().length || promosPts().length ? '' : `<small class="hint">${esc(promosMsg || 'Hoy no hay promociones activas.')}</small>`);
       return;
     }
     box.innerHTML = (lista || []).map((c, i) => `<button type="button" class="cr-club-op" data-club="${i}"><b>${esc(c.nombre || c.correo)}</b><small>${esc([c.telefono, c.correo].filter(Boolean).join(' · '))} · ${esc(c.puntos || 0)} pts</small></button>`).join('') +
@@ -209,7 +244,7 @@ const SmashCrear = (function () {
     pintarClub(r.lista, 'Elige al cliente:');
   }
   function elegirClub(c) {
-    cr.cuenta = c;
+    cr.cuenta = c; usarPts = {};
     // llena los datos que estén vacíos
     if (!$('crCliente').value.trim() && c.nombre) $('crCliente').value = c.nombre;
     if (!$('crTel').value.trim() && c.telefono) $('crTel').value = c.telefono;
@@ -222,7 +257,7 @@ const SmashCrear = (function () {
   $('crClubQ').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); buscarClub(); } });
   $('crClubRes').addEventListener('click', (e) => {
     const b = e.target.closest('[data-club]'); if (!b) return;
-    if (b.dataset.club === 'quitar') { cr.cuenta = null; $('crClubQ').value = ''; pintarClub(); render(); return; }
+    if (b.dataset.club === 'quitar') { cr.cuenta = null; usarPts = {}; $('crClubQ').value = ''; pintarClub(); render(); return; }
     const c = ($('crClubRes')._lista || [])[+b.dataset.club]; if (c) elegirClub(c);
   });
   if (!N) $('crClub').hidden = true;
@@ -279,8 +314,9 @@ const SmashCrear = (function () {
   }
   $('crProducts').addEventListener('input', (e) => { if (e.target.classList.contains('cr-note')) { cr.nota[e.target.dataset.id] = e.target.value; crTotal(); } });
   ['crZona', 'crDom'].forEach((i) => $(i).addEventListener('input', crTotal));
-  $('crBtn').addEventListener('click', () => {
-    const msg = $('crMsg'); msg.className = 'error'; msg.textContent = '';
+  $('crBtn').addEventListener('click', async () => {
+    const msg = $('crMsg'), btn = $('crBtn'); msg.className = 'error'; msg.textContent = '';
+    if (btn.disabled) return;
     const R = crPromos(crItems()), items = R.items;
     const cliente = $('crCliente').value.trim(), zk = $('crZona').value, z = SmashExt.getZones()[zk];
     if (!items.length) { msg.textContent = 'Elige al menos un producto.'; return; }
@@ -288,11 +324,29 @@ const SmashCrear = (function () {
     if (!z) { msg.textContent = 'Elige la zona.'; return; }
     let dom = z.fee;
     if (z.variable) { const v = $('crDom').value; if (v === '' || !(parseFloat(v) >= 0)) { msg.textContent = 'Escribe el valor del domicilio de la agencia.'; $('crDom').focus(); return; } dom = parseFloat(v); }
+    // Promos con puntos: primero la nube descuenta los puntos; si no se puede, no se crea el pedido
+    const canjes = cr.cuenta ? R.canjes : [];
+    let refCanje = '';
+    if (canjes.length) {
+      if (!N.panelCanjear) { msg.textContent = 'Recarga la página para poder usar puntos.'; return; }
+      refCanje = 'caja-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      btn.disabled = true; msg.className = 'hint'; msg.textContent = 'Descontando los puntos del cliente…';
+      let r;
+      try { r = await N.panelCanjear(cr.cuenta.correo, canjes.map((c) => c.promo), refCanje); } catch (e) { r = { ok: false, error: 'Sin internet' }; }
+      btn.disabled = false; msg.className = 'error';
+      if (!r.ok) { msg.textContent = 'No se descontaron los puntos: ' + (r.error || 'error') + '. El pedido no se creó; toca "No usar puntos" para crearlo sin esa promo.'; return; }
+      if (r.total != null) cr.cuenta.puntos = r.total;
+    }
     const res = SmashExt.addOrder({ cliente, telefono: $('crTel').value.trim(), direccion: $('crDir').value.trim(), items, notas: $('crNotas').value.trim(),
       zona: z.nombre, domicilio: dom, domicilioPendiente: false, pago: $('crPago').value, origen: 'cocina',
-      descuento: R.descuento, descuentos: R.usadas, cuenta: cr.cuenta ? { usuario: cr.cuenta.usuario || '', correo: cr.cuenta.correo } : null });
-    if (!res.ok) { msg.textContent = 'No se creó: era igual al pedido #' + num(res.order) + ' de hace unos minutos.'; return; }
-    cr.qty = {}; cr.nota = {}; cr.combo = {}; cr.sab = {}; cr.paq = {}; cr.cuenta = null; pintarClub();
+      descuento: R.descuento, descuentos: R.usadas, cuenta: cr.cuenta ? { usuario: cr.cuenta.usuario || '', correo: cr.cuenta.correo } : null, canjes });
+    if (!res.ok) {
+      // ya se habían descontado: se devuelven
+      if (refCanje && N.panelDevolverCanje) N.panelDevolverCanje(refCanje).catch(() => {});
+      msg.textContent = 'No se creó: era igual al pedido #' + num(res.order) + ' de hace unos minutos.' + (refCanje ? ' Los puntos se le devolvieron.' : ''); return;
+    }
+    if (refCanje) SmashExt.updateOrder(res.order.id, { refCanje });
+    cr.qty = {}; cr.nota = {}; cr.combo = {}; cr.sab = {}; cr.paq = {}; cr.cuenta = null; usarPts = {}; pintarClub();
     ['crCliente', 'crTel', 'crDir', 'crNotas', 'crDom', 'crClubQ'].forEach((i) => ($(i).value = ''));
     msg.className = 'ok-msg';
     msg.innerHTML = '✓ Pedido #' + esc(num(res.order)) + ' creado. Ya está en Pedidos. <button type="button" class="cr-ver" data-ver="' + esc(res.order.id) + '">Ver pedido</button>';

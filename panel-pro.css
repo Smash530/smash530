@@ -700,6 +700,8 @@ body:has(#staffAuthSection:not([hidden])) .container{max-width:none;padding:0;ma
 .cr-li.cr-gift{font-size:.82rem;color:#1f8f55}
 .cr-li.cr-gift.off{color:var(--muted)}
 .cr-li.cr-gift .btn-sm{margin:3px 4px 0 0}
+.cr-li.cr-pts{font-size:.82rem;color:#b07800}.cr-li.cr-pts.off{color:var(--muted)}.cr-li.cr-pts .btn-sm{margin:3px 4px 0 0}.cr-li.cr-pts-saldo{font-size:.78rem;color:var(--muted)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .cr-li.cr-pts:not(.off){color:#ffb627}}:root[data-theme="dark"] .cr-li.cr-pts:not(.off){color:#ffb627}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .cr-promo b{color:#ffb627}:root:not([data-theme="light"]) .cr-promo.gift b,:root:not([data-theme="light"]) .cr-li.cr-desc,:root:not([data-theme="light"]) .cr-total .cr-desc,:root:not([data-theme="light"]) .cr-total .cr-desc b,:root:not([data-theme="light"]) .cr-li.cr-gift{color:#4fd98e}}
 :root[data-theme="dark"] .cr-promo b{color:#ffb627}
 :root[data-theme="dark"] .cr-promo.gift b,:root[data-theme="dark"] .cr-li.cr-desc,:root[data-theme="dark"] .cr-total .cr-desc,:root[data-theme="dark"] .cr-total .cr-desc b,:root[data-theme="dark"] .cr-li.cr-gift{color:#4fd98e}
