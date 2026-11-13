@@ -307,72 +307,273 @@ const SmashUI = (function () {
   }
 
   /* ---------- editar pedido ---------- */
+  /* Todo el pedido se puede corregir: productos, adiciones, combos, precios, notas, descuento,
+     el cliente del club y la promo del día que el cliente olvidó agregar (si la promo cuesta
+     puntos y el pedido es de una cuenta del club, los puntos se descuentan al guardar).
+     Las promos quedan en el pedido igual que las de la página, así salen en la comanda impresa. */
+  const NB = () => (typeof SmashNube !== 'undefined' && SmashNube.ok ? SmashNube : null);
+  const cuestaPts = (p) => Math.max(0, Number(p && p.puntos) || 0);
+  const titDe = (x) => String((x && (x.titulo || x.motivo)) || '').replace(/^Promo cliente leal:\s*/i, '').trim();
+  let edPromos = null, edPromosMsg = '', edPromosEn = 0;
+  async function cargarPromosEd() {
+    const N = NB();
+    if (!N || !N.panelPromos) { edPromos = []; edPromosMsg = 'Sin conexión con la nube: no se pueden cargar las promociones.'; return; }
+    if (edPromos && Date.now() - edPromosEn < 120000) return;
+    try { const r = await N.panelPromos(); edPromos = r.lista || []; edPromosMsg = r.ok ? '' : (r.error || 'No se cargaron las promociones.'); } catch (e) { edPromos = []; edPromosMsg = 'Sin internet: no se cargaron las promociones.'; }
+    edPromosEn = Date.now();
+  }
   function openEditor(o) {
+    const N = NB();
     const draft = {
       items: o.items.map((i) => Object.assign({}, i)), notas: o.notas || '', cliente: o.cliente || '',
       telefono: o.telefono || '', direccion: o.direccion || '', domicilio: o.domicilioPendiente ? '' : o.domicilio,
+      descuento: Number(o.descuento) || 0,
+      descuentos: (o.descuentos || []).map((x) => Object.assign({}, x)),
+      cuenta: o.cuenta ? Object.assign({}, o.cuenta) : null,
+      canjesNuevos: [],        // promos con puntos aplicadas aquí: se descuentan al guardar
+      aplicadas: [],           // promos aplicadas aquí (para la novedad del pedido)
     };
+    let aviso = '', club = { lista: [], msg: '' }, guardando = false;
     const variable = !!o.domicilioPendiente || /otros/i.test(o.zona || '');
     const products = SmashDB.getProducts({ soloActivos: true });
-    const m = modal(`Editar pedido #${esc(num(o))}`, '<div id="edBody"></div>', (mm) => {
-      if (!draft.items.length) { alert('El pedido debe tener al menos un producto.'); return false; }
-      if (!draft.cliente.trim()) { alert('Escribe el nombre del cliente.'); return false; }
+    const prodDe = (id) => products.find((p) => p.id === id) || SmashDB.getProductById(id);
+    const esBurger = (it) => (it.cat || (prodDe(it.id) || {}).categoria) === 'hamburguesa';
+    const adiciones = products.filter((p) => p.categoria === 'adicional');
+    const combo = products.find((p) => p.categoria === 'combo');
+    const subtotal = () => draft.items.reduce((s, i) => s + (Number(i.price) || 0) * i.qty, 0);
+    const descOk = () => Math.max(0, Math.min(Number(draft.descuento) || 0, subtotal()));
+
+    // Guarda los cambios (después de descontar los puntos, si hay una promo con puntos)
+    function guardar(refCanje) {
       const patch = {
-        items: draft.items.map((i) => { const x = { id: i.id, name: i.name, price: i.price, qty: Math.max(1, Math.min(50, i.qty | 0)), cat: i.cat || '' }; if (i.nota && i.nota.trim()) x.nota = i.nota.trim().slice(0, 200); if (i.regalo) { x.regalo = i.regalo; x.precioLista = i.precioLista || 0; } return x; }),
+        items: draft.items.map((i) => {
+          const x = { id: i.id, name: i.name, price: Math.max(0, Math.round(Number(i.price) || 0)), qty: Math.max(1, Math.min(50, i.qty | 0)), cat: i.cat || '' };
+          if (i.nota && i.nota.trim()) x.nota = i.nota.trim().slice(0, 200);
+          if (i.para) { x.para = i.para; x.paraId = i.paraId; }
+          if (i.regalo) { x.regalo = i.regalo; x.precioLista = i.precioLista || 0; x.price = 0; if (i.regaloPromo != null) x.regaloPromo = i.regaloPromo; }
+          return x;
+        }),
         notas: draft.notas.trim().slice(0, 300), cliente: draft.cliente.trim(), telefono: draft.telefono.trim(), direccion: draft.direccion.trim(),
-        editadoEn: new Date().toISOString(),
+        descuento: descOk(), descuentos: draft.descuentos, editadoEn: new Date().toISOString(),
       };
+      if (draft.cuenta) patch.cuenta = { usuario: draft.cuenta.usuario || '', correo: draft.cuenta.correo };
+      if (draft.canjesNuevos.length && refCanje) {
+        patch.canjes = (o.canjes || []).concat(draft.canjesNuevos);
+        patch.refsCanje = (o.refsCanje || []).concat([refCanje]);
+      }
       const domNuevo = draft.domicilio === '' ? NaN : parseFloat(draft.domicilio);
       if (domNuevo >= 0 && (o.domicilioPendiente || Math.round(domNuevo) !== (Number(o.domicilio) || 0))) patch.domicilio = Math.round(domNuevo);
       SmashExt.updateOrder(o.id, patch);
+      if (draft.aplicadas.length) { try { C.agregarNovedad(o.id, 'Promo aplicada al editar: ' + draft.aplicadas.join(', '), cfg.who); } catch (e) { /* sin novedad no pasa nada */ } }
       cfg.refresh();
+    }
+
+    const m = modal(`Editar pedido #${esc(num(o))}`, '<div id="edBody"></div>', () => {
+      if (guardando) return false;
+      if (!draft.items.length) { alert('El pedido debe tener al menos un producto.'); return false; }
+      if (!draft.cliente.trim()) { alert('Escribe el nombre del cliente.'); return false; }
+      if (!draft.canjesNuevos.length) { guardar(''); return true; }
+      const pts = draft.canjesNuevos.reduce((s, c) => s + c.puntos, 0);
+      if (!draft.cuenta || !N || !N.panelCanjear) {
+        if (!confirm(`La promo cuesta ${pts} puntos, pero ${draft.cuenta ? 'no hay conexión con la nube' : 'este pedido no es de una cuenta del club'}: se aplica SIN descontar puntos. ¿Guardar así?`)) return false;
+        draft.canjesNuevos = []; guardar(''); return true;
+      }
+      // primero la nube descuenta los puntos; si no se puede, no se guarda la promo
+      guardando = true;
+      const btn = m.querySelector('.sm-save'); btn.disabled = true; btn.textContent = 'Descontando puntos…';
+      const ref = 'ed-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      N.panelCanjear(draft.cuenta.correo, draft.canjesNuevos.map((c) => c.promo), ref).catch(() => ({ ok: false, error: 'Sin internet' })).then((r) => {
+        guardando = false; btn.disabled = false; btn.textContent = 'Guardar cambios';
+        if (!r || !r.ok) { aviso = '⚠ No se descontaron los puntos: ' + ((r && r.error) || 'error') + '. Quita la promo o inténtalo de nuevo.'; render(); return; }
+        guardar(ref); closeModal();
+      });
+      return false;
     }, 'Guardar cambios');
     m.querySelector('.sm-box').classList.add('wide');
     const body = m.querySelector('#edBody');
     const totalHtml = () => {
-      const sub = draft.items.reduce((s, i) => s + i.price * i.qty, 0) - (o.descuento || 0), dom = parseFloat(draft.domicilio) || 0;
-      return `Subtotal ${fmt(sub)}${o.descuento ? ` (con descuento −${fmt(o.descuento)})` : ''} · Domicilio ${draft.domicilio === '' ? 'por confirmar' : fmt(dom)} · <b>Total ${fmt(sub + dom)}</b>`;
+      const sub = subtotal(), d = descOk(), dom = parseFloat(draft.domicilio) || 0;
+      return `Productos ${fmt(sub)}${d ? ` · Descuento −${fmt(d)}` : ''} · Domicilio ${draft.domicilio === '' ? 'por confirmar' : fmt(dom)} · <b>Total ${fmt(sub - d + dom)}</b>`;
     };
+
+    /* ---- promo del día ---- */
+    const vigentes = () => (N && edPromos ? edPromos.filter((p) => N.vigente(p)) : []);
+    const yaTiene = (p) => draft.items.some((i) => i.regalo && (String(i.regaloPromo) === String(p.id) || i.regalo === p.titulo)) ||
+      draft.descuentos.some((x) => titDe(x) === p.titulo) || (o.canjes || []).concat(draft.canjesNuevos).some((c) => String(c.promo) === String(p.id));
+    // valor sugerido para promos de descuento (paquete: precio normal − precio del paquete, por cada paquete que alcance)
+    function sugerido(p) {
+      const base = draft.items.filter((i) => !i.regalo);
+      if (p.tipo === 'paquete') {
+        const ids = N.prodsDe(p), cuenta = (id) => base.filter((i) => i.id === id).reduce((s, i) => s + i.qty, 0);
+        const n = ids.length ? Math.min.apply(null, ids.map(cuenta)) : 0, normal = N.precioNormalPaquete(p, prodDe);
+        return n > 0 && normal > 0 ? Math.max(0, n * (normal - (Number(p.valor) || 0))) : 0;
+      }
+      const R = N.aplicarPromos(base, [p]), u = (R.usadas || []).find((x) => String(x.id) === String(p.id));
+      return u ? u.valor : 0;
+    }
+    function promoHtmlEd() {
+      if (!N) return '<p class="hint">Sin conexión con la nube: no se pueden cargar las promociones. Puedes poner el descuento o el precio a mano.</p>';
+      if (edPromos === null) return '<p class="hint">Cargando las promociones de hoy…</p>';
+      const l = vigentes();
+      if (!l.length) return `<p class="hint">${esc(edPromosMsg || 'Hoy no hay promociones activas.')}</p>`;
+      return l.map((p) => {
+        const pts = cuestaPts(p), tiene = yaTiene(p);
+        let acc;
+        if (tiene) acc = `<span class="ed-ok">✓ Ya está en el pedido</span>`;
+        else if (p.tipo === 'regalo') {
+          const ops = N.regalosDe(p).map(prodDe).filter(Boolean);
+          acc = ops.map((g) => `<button type="button" class="btn-sm" data-ed="promo" data-p="${esc(p.id)}" data-g="${esc(g.id)}">Aplicar · regalo ${esc(g.name)}</button>`).join(' ') || '<small class="hint">El regalo de esta promo no está en el menú.</small>';
+        } else if (p.tipo === 'incentivo') acc = '<small class="hint">Beneficio sin descuento.</small>';
+        else acc = `<label class="ed-pv">Descuento $<input type="number" min="0" step="100" inputmode="numeric" data-pv="${esc(p.id)}" value="${esc(sugerido(p) || '')}"></label><button type="button" class="btn-sm" data-ed="promo" data-p="${esc(p.id)}">Aplicar</button>`;
+        return `<div class="ed-promo${tiene ? ' on' : ''}"><div><b>⭐ ${esc(p.titulo)}</b>${pts ? ` <small class="ed-pts">${pts} pts</small>` : ''}${p.descripcion ? `<small>${esc(p.descripcion)}</small>` : ''}</div><div class="ed-promo-acc">${acc}</div></div>`;
+      }).join('');
+    }
+    function aplicar(p, giftId) {
+      aviso = '';
+      if (p.tipo === 'regalo') {
+        const base = draft.items.filter((i) => !i.regalo);
+        const R = N.aplicarPromos(base, [p]), g = (R.regalos || []).find((x) => String(x.p.id) === String(p.id));
+        const gana = g ? g.gana : 0;
+        if (gana <= 0) { aviso = `⚠ ${p.titulo}: el pedido aún no cumple (${(g && g.siguiente) ? 'le falta' + (g.siguiente > 1 ? 'n ' : ' ') + g.siguiente + ' burger' + (g.siguiente > 1 ? 's' : '') : 'no tiene las burgers de la promo'}${p.sin_combo !== false ? '; las burgers en combo no cuentan' : ''}).`; return; }
+        const gp = prodDe(giftId); if (!gp) return;
+        let falta = gana;
+        // las unidades del regalo que ya venían cobradas pasan a $0
+        for (let i = 0; i < draft.items.length && falta > 0; i++) {
+          const it = draft.items[i];
+          if (it.regalo || it.id !== gp.id) continue;
+          const n = Math.min(falta, it.qty);
+          const gift = Object.assign({}, it, { qty: n, regalo: p.titulo, regaloPromo: p.id, precioLista: it.price, price: 0, nota: (it.nota ? it.nota + ' · ' : '') + 'GRATIS · ' + p.titulo });
+          if (n < it.qty) { it.qty -= n; draft.items.splice(i + 1, 0, gift); i++; } else draft.items[i] = gift;
+          falta -= n;
+        }
+        if (falta > 0) {
+          const line = { id: gp.id, name: gp.name, price: 0, qty: falta, cat: gp.categoria || '', regalo: p.titulo, regaloPromo: p.id, precioLista: gp.price, nota: 'GRATIS · ' + p.titulo };
+          if (gp.categoria === 'combo') { const b = draft.items.find((i) => !i.regalo && esBurger(i)); if (b) { line.para = b.name; line.paraId = b.id; line.nota = 'Para ' + b.name + ' · GRATIS · ' + p.titulo; } }
+          draft.items.push(line);
+        }
+        if (cuestaPts(p)) draft.canjesNuevos.push({ promo: p.id, titulo: p.titulo, puntos: cuestaPts(p), valor: 0 });
+      } else {
+        const inp = body.querySelector(`[data-pv="${p.id}"]`), v = Math.round(parseFloat(inp && inp.value) || 0);
+        if (!(v > 0)) { aviso = `⚠ Escribe el valor del descuento de ${p.titulo}.`; return; }
+        draft.descuento = (Number(draft.descuento) || 0) + v;
+        draft.descuentos.push({ motivo: 'Promo cliente leal: ' + p.titulo, valor: v, promo: p.id });
+        if (cuestaPts(p)) draft.canjesNuevos.push({ promo: p.id, titulo: p.titulo, puntos: cuestaPts(p), valor: v });
+      }
+      draft.aplicadas.push(p.titulo);
+    }
+    // si se quita una promo aplicada aquí, tampoco se cobran sus puntos
+    function soltarPts(titulo) {
+      if (draft.items.some((i) => i.regalo === titulo) || draft.descuentos.some((x) => titDe(x) === titulo)) return;
+      draft.canjesNuevos = draft.canjesNuevos.filter((c) => c.titulo !== titulo);
+      draft.aplicadas = draft.aplicadas.filter((t) => t !== titulo);
+    }
+
+    /* ---- cliente del club ---- */
+    function clubHtml() {
+      if (draft.cuenta) {
+        const c = draft.cuenta;
+        return `<div class="ed-club on">⭐ <b>Parte del Club SMASH</b> · ${esc(c.nombre || '')}${c.usuario ? ' @' + esc(c.usuario) : ''}${c.puntos != null ? ' · ' + esc(c.puntos) + ' pts' : ''}${o.cuenta ? '' : ' <button type="button" class="btn-sm" data-ed="clubno">Quitar</button>'}</div>`;
+      }
+      if (!N || !N.panelBuscarCliente) return '<p class="hint">Sin conexión con la nube: no se puede buscar al cliente del club.</p>';
+      return `<div class="ed-add"><input id="edClubQ" placeholder="¿Es del club? Teléfono o correo del cliente" autocomplete="off"><button type="button" data-ed="club">Buscar</button></div>
+        ${club.lista.map((c, i) => `<button type="button" class="cr-club-op" data-ed="clubsi" data-i="${i}"><b>${esc(c.nombre || c.correo)}</b><small>${esc([c.telefono, c.correo].filter(Boolean).join(' · '))} · ${esc(c.puntos || 0)} pts</small></button>`).join('')}
+        ${club.msg ? `<small class="hint">${esc(club.msg)}</small>` : ''}`;
+    }
+    async function buscarClub() {
+      const q = (body.querySelector('#edClubQ') || {}).value || '';
+      if (q.replace(/\D/g, '').length < 7 && !/@/.test(q)) { club = { lista: [], msg: 'Escribe el teléfono (10 dígitos) o el correo.' }; render(); return; }
+      club = { lista: [], msg: 'Buscando…' }; render();
+      let r; try { r = await N.panelBuscarCliente(q.trim()); } catch (e) { r = { ok: false, error: 'Sin internet' }; }
+      if (!r.ok) club = { lista: [], msg: r.error || 'No se pudo buscar.' };
+      else if (!r.lista.length) club = { lista: [], msg: 'No hay ningún cliente del club con ese teléfono o correo.' };
+      else if (r.lista.length === 1) { draft.cuenta = r.lista[0]; club = { lista: [], msg: '' }; }
+      else club = { lista: r.lista, msg: 'Elige al cliente:' };
+      render();
+    }
+
+    function filaItem(it, i) {
+      const g = !!it.regalo, b = !g && esBurger(it);
+      return `
+          <div class="ed-row${g ? ' ed-gift' : ''}">
+            <div class="ed-name">${g ? `<b class="ed-gift-t">🎁 GRATIS · ${esc(it.regalo)}</b>` : ''}${esc(it.para ? 'Combo para ' + it.para : it.name)}
+              ${b && combo ? ` <button type="button" class="btn-sm ed-combo" data-ed="combo" data-i="${i}">+ Combo</button>` : ''}</div>
+            <div class="ed-ctl">
+              ${g ? '<span class="ed-free">Gratis</span>' : `<label class="ed-price" title="Precio por unidad">$<input type="number" min="0" step="100" inputmode="numeric" data-price="${i}" value="${esc(it.price)}"></label>`}
+              <div class="qty-mini"><button type="button" data-ed="minus" data-i="${i}" aria-label="Menos">−</button><b>${esc(it.qty)}</b><button type="button" data-ed="plus" data-i="${i}" aria-label="Más">+</button></div>
+            </div>
+            <input class="ed-note" data-i="${i}" maxlength="200" placeholder="Nota de este producto (sin cebolla, término…)" value="${esc(g ? String(it.nota || '').replace(/(^| · )GRATIS · .*$/, '') : it.nota || '')}">
+            <button type="button" class="ed-rm" data-ed="rm" data-i="${i}" aria-label="Quitar producto">✕</button>
+          </div>`;
+    }
     function render() {
+      const regs = draft.items.map((it, i) => [it, i]);
       body.innerHTML = `
         <div class="ed-grid">
           <label>Cliente<input data-f="cliente" maxlength="80" value="${esc(draft.cliente)}"></label>
           <label>Teléfono<input data-f="telefono" maxlength="20" value="${esc(draft.telefono)}"></label>
           <label class="ed-wide">Dirección<input data-f="direccion" maxlength="200" value="${esc(draft.direccion)}"></label>
         </div>
+        <h4>⭐ Cliente del club</h4>
+        <div id="edClub">${clubHtml()}</div>
         <h4>Productos</h4>
-        <div class="ed-items">${draft.items.map((it, i) => `
-          <div class="ed-row">
-            <div class="ed-name">${esc(it.name)} <small>${fmt(it.price)}</small></div>
-            <div class="qty-mini"><button type="button" data-ed="minus" data-i="${i}" aria-label="Menos">−</button><b>${esc(it.qty)}</b><button type="button" data-ed="plus" data-i="${i}" aria-label="Más">+</button></div>
-            <input class="ed-note" data-i="${i}" maxlength="200" placeholder="Nota de este producto" value="${esc(it.nota || '')}">
-            <button type="button" class="ed-rm" data-ed="rm" data-i="${i}" aria-label="Quitar producto">✕</button>
-          </div>`).join('') || '<p class="hint">Sin productos: agrega al menos uno.</p>'}</div>
+        <div class="ed-items">${regs.filter(([it]) => !it.regalo).concat(regs.filter(([it]) => it.regalo)).map(([it, i]) => filaItem(it, i)).join('') || '<p class="hint">Sin productos: agrega al menos uno.</p>'}</div>
+        ${adiciones.length ? `<div class="ed-chips"><span>Adiciones:</span>${adiciones.map((p) => `<button type="button" class="btn-sm" data-ed="addp" data-id="${esc(p.id)}">+ ${esc(p.name)} <small>${fmt(p.price)}</small></button>`).join('')}</div>` : ''}
         <div class="ed-add"><select id="edSel">${products.map((p) => `<option value="${esc(p.id)}">${esc(p.name)} · ${fmt(p.price)}</option>`).join('')}</select>
           <button type="button" data-ed="add">+ Agregar producto</button></div>
-        <label class="ed-wide">Valor del domicilio${variable ? ' (agencia)' : ''}${o.zona ? ` <small>· ${esc(o.zona)}</small>` : ''}<input type="number" min="0" step="500" inputmode="numeric" data-f="domicilio" value="${esc(draft.domicilio)}"></label>
+        <h4>⭐ Promo del día</h4>
+        <div class="ed-promos">${promoHtmlEd()}</div>
+        ${draft.descuentos.length ? `<div class="ed-desc-l">${draft.descuentos.map((x, i) => `<div class="ed-desc-i"><span>⭐ ${esc(titDe(x) || 'Descuento')}</span><span>−${fmt(x.valor)} <button type="button" class="ed-rm" data-ed="rmdesc" data-i="${i}" aria-label="Quitar promo">✕</button></span></div>`).join('')}</div>` : ''}
+        ${draft.canjesNuevos.length ? `<p class="hint">Al guardar se descuentan ${draft.canjesNuevos.reduce((s, c) => s + c.puntos, 0)} puntos ${draft.cuenta ? 'de la cuenta del cliente' : '(el pedido no tiene cuenta del club: busca al cliente arriba)'}.</p>` : ''}
+        ${aviso ? `<p class="error">${esc(aviso)}</p>` : ''}
+        <div class="ed-grid">
+          <label>Descuento total<input type="number" min="0" step="100" inputmode="numeric" data-f="descuento" value="${esc(draft.descuento || '')}" placeholder="0"></label>
+          <label>Valor del domicilio${variable ? ' (agencia)' : ''}${o.zona ? ` <small>· ${esc(o.zona)}</small>` : ''}<input type="number" min="0" step="500" inputmode="numeric" data-f="domicilio" value="${esc(draft.domicilio)}"></label>
+        </div>
         <label class="ed-wide">Notas del pedido<textarea data-f="notas" maxlength="300">${esc(draft.notas)}</textarea></label>
         <div class="ed-total" id="edTotal">${totalHtml()}</div>`;
     }
     body.addEventListener('click', (e) => {
       const b = e.target.closest('[data-ed]'); if (!b) return;
-      const i = parseInt(b.dataset.i, 10), a = b.dataset.ed;
-      if (a === 'minus' && draft.items[i].qty > 1) draft.items[i].qty--;
-      else if (a === 'plus' && draft.items[i].qty < 50) draft.items[i].qty++;
-      else if (a === 'rm') draft.items.splice(i, 1);
-      else if (a === 'add') {
-        const p = products.find((x) => x.id === body.querySelector('#edSel').value);
-        if (p) draft.items.push({ id: p.id, name: p.name, price: p.price, qty: 1, cat: p.categoria });
-      } else return;
+      const i = parseInt(b.dataset.i, 10), a = b.dataset.ed, it = draft.items[i];
+      if (a === 'minus' && it.qty > 1) it.qty--;
+      else if (a === 'plus' && it.qty < 50) it.qty++;
+      else if (a === 'rm') { draft.items.splice(i, 1); if (it.regalo) soltarPts(it.regalo); }
+      else if (a === 'add' || a === 'addp') {
+        const p = prodDe(a === 'add' ? body.querySelector('#edSel').value : b.dataset.id);
+        if (!p) return;
+        const igual = draft.items.find((x) => x.id === p.id && !x.regalo && !x.para && !x.nota);
+        if (igual && p.categoria !== 'hamburguesa') igual.qty = Math.min(50, igual.qty + 1);
+        else draft.items.push({ id: p.id, name: p.name, price: p.price, qty: 1, cat: p.categoria });
+      } else if (a === 'combo' && combo) {
+        const ya = draft.items.find((x) => x.id === combo.id && !x.regalo && x.paraId === it.id);
+        if (ya) ya.qty = Math.min(50, ya.qty + 1);
+        else draft.items.splice(i + 1, 0, { id: combo.id, name: combo.name, price: combo.price, qty: 1, cat: 'combo', nota: 'Para ' + it.name, para: it.name, paraId: it.id });
+      } else if (a === 'rmdesc') {
+        const x = draft.descuentos.splice(i, 1)[0];
+        draft.descuento = Math.max(0, (Number(draft.descuento) || 0) - (Number(x && x.valor) || 0));
+        soltarPts(titDe(x));
+      } else if (a === 'promo') {
+        const p = vigentes().find((x) => String(x.id) === b.dataset.p); if (!p) return;
+        aplicar(p, b.dataset.g);
+      } else if (a === 'club') { buscarClub(); return; }
+      else if (a === 'clubsi') { draft.cuenta = club.lista[i]; club = { lista: [], msg: '' }; }
+      else if (a === 'clubno') draft.cuenta = null;
+      else return;
       render();
     });
+    body.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'edClubQ') { e.preventDefault(); buscarClub(); } });
     body.addEventListener('input', (e) => {
       const t = e.target;
-      if (t.dataset.f) draft[t.dataset.f] = t.value;
-      else if (t.classList.contains('ed-note')) draft.items[parseInt(t.dataset.i, 10)].nota = t.value;
+      if (t.dataset.f) draft[t.dataset.f] = t.dataset.f === 'descuento' ? (parseFloat(t.value) || 0) : t.value;
+      else if (t.dataset.price != null) draft.items[parseInt(t.dataset.price, 10)].price = Math.max(0, parseFloat(t.value) || 0);
+      else if (t.classList.contains('ed-note')) {
+        const it = draft.items[parseInt(t.dataset.i, 10)];
+        it.nota = it.regalo ? (t.value.trim() ? t.value.trim() + ' · ' : '') + 'GRATIS · ' + it.regalo : t.value;
+      } else return;
       body.querySelector('#edTotal').innerHTML = totalHtml();
     });
     render();
+    if (N) cargarPromosEd().then(() => { if (openModal === m) render(); });
   }
 
   /* ---------- acciones de la tarjeta ---------- */

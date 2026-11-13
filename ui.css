@@ -113,3 +113,29 @@
 .sim-add .btn-primary{margin:0;padding:10px 16px}
 @media (max-width:600px){.sim-add{grid-template-columns:1fr 1fr}.sim-add input:first-child,.sim-add .btn-primary{grid-column:1/-1}.sim-grid{grid-template-columns:1fr}}
 .btn-link{display:block;margin-top:6px;background:none;border:none;color:var(--red);font-size:.75rem;text-align:left;cursor:pointer;padding:0;text-decoration:underline}
+/* Editar pedido: precios, adiciones, cliente del club y promo del día */
+.ed-ctl{display:flex;align-items:center;gap:10px}
+.sm-box label.ed-price,.sm-box label.ed-pv{flex-direction:row;align-items:center;gap:4px;margin:0;font-size:.85rem}
+.sm-box label.ed-price input{width:96px;padding:6px 8px;font-size:.9rem}
+.sm-box label.ed-pv input{width:110px;padding:6px 8px;font-size:.9rem}
+.ed-free{font-weight:800;color:#1e8e3e;min-width:96px;text-align:right}
+.ed-gift{background:linear-gradient(90deg,rgba(30,142,62,.10),transparent 70%)}
+.ed-gift-t{display:block;color:#1e8e3e;font-size:.85rem}
+.ed-combo{margin-left:6px;font-size:.75rem;padding:3px 8px}
+.ed-chips{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0 0}
+.ed-chips>span{font-size:.8rem;color:var(--muted)}
+.ed-chips small{color:var(--muted)}
+.ed-promos{display:flex;flex-direction:column;gap:8px}
+.ed-promo{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--bg)}
+.ed-promo>div:first-child{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 220px}
+.ed-promo>div:first-child small{color:var(--muted);font-size:.78rem}
+.ed-promo.on{border-color:#1e8e3e}
+.ed-promo-acc{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.ed-pts{color:#b7791f;font-weight:700}
+.ed-ok{color:#1e8e3e;font-weight:700;font-size:.85rem}
+.ed-desc-l{margin-top:8px}
+.ed-desc-i{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-weight:700}
+.ed-desc-i .ed-rm{border:none;background:none;color:#c0392b;cursor:pointer;font-size:1rem}
+.ed-club.on{padding:8px 10px;border-radius:10px;border:1px solid #d4a017;background:rgba(212,160,23,.10)}
+.ed-add input{flex:1}
+@media (max-width:520px){.ed-ctl{flex-direction:column;align-items:flex-end;gap:6px}}

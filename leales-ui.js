@@ -409,15 +409,18 @@ const SmashLealesUI = (function () {
   /* Pedido cancelado que había pagado una promoción con puntos: se le devuelven
      los puntos al cliente (la nube no los devuelve dos veces). */
   async function devolverCanje(o) {
-    if (!o || o.status !== 'cancelado' || !o.canjes || !o.canjes.length || o.puntosDevueltos != null || !(o.ref || o.refCanje)) return;
+    // canjes del pedido: el de la página (ref), el de Crear pedido (refCanje) y los de Editar pedido (refsCanje)
+    const refs = !o ? [] : [o.ref, o.refCanje].concat(o.refsCanje || []).filter((x, i, l) => x && l.indexOf(x) === i);
+    if (!o || o.status !== 'cancelado' || !o.canjes || !o.canjes.length || o.puntosDevueltos != null || !refs.length) return;
     if (enCurso.has('dev' + o.id) || !N || !N.ok || !N.panelDevolverCanje || !(N.panelSesion && N.panelSesion())) return;
     enCurso.add('dev' + o.id);
     try {
-      const r = await N.panelDevolverCanje(o.ref || o.refCanje);
-      if (r.ok) {
+      let todo = true, devueltos = 0;
+      for (const ref of refs) { const r = await N.panelDevolverCanje(ref); if (r && r.ok) devueltos += Number(r.devueltos) || 0; else todo = false; }
+      if (todo) {
         const pts = o.canjes.reduce((s, c) => s + (Number(c.puntos) || 0), 0);
-        SmashExt.updateOrder(o.id, { puntosDevueltos: r.devueltos || pts });
-        if (r.devueltos && typeof SmashUI !== 'undefined' && SmashUI.toast) SmashUI.toast(`↩ ${r.devueltos} puntos devueltos por el pedido cancelado`);
+        SmashExt.updateOrder(o.id, { puntosDevueltos: devueltos || pts });
+        if (devueltos && typeof SmashUI !== 'undefined' && SmashUI.toast) SmashUI.toast(`↩ ${devueltos} puntos devueltos por el pedido cancelado`);
       }
     } catch (e) { /* se reintenta en la próxima revisión */ } finally { enCurso.delete('dev' + o.id); }
   }
