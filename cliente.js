@@ -802,7 +802,7 @@
     SmashNube.registrar(datos(f)).then(function (r) {
       ocupado(f, false);
       if (!r.ok) { msg(f, false, r.error); return; }
-      if (r.confirmar) { msg(f, true, "✓ Cuenta creada. Te enviamos un correo: confírmalo e inicia sesión. Tus 15 puntos de regalo ya te estarán esperando 🎁"); if (window.SmashConfeti) window.SmashConfeti(); return; }
+      if (r.confirmar) { msg(f, true, "✓ Cuenta creada. Ya puedes entrar con tu correo y contraseña en Ingresar. Tus 15 puntos de regalo te están esperando 🎁"); if (window.SmashConfeti) window.SmashConfeti(); return; }
       f.reset(); entro(r.perfil, true);
     });
   });

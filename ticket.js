@@ -16,14 +16,20 @@ const SmashTicket = (function () {
 
   // Pedido pagado por transferencia -> lleva una "P" grande a la izquierda del logo
   const esTransfer = (o) => /transfer/i.test(String((o && o.pago) || ''));
-  // Nombres de las promociones del pedido (descuentos de la página y canjes con puntos), sin repetir
+  // Nombres de TODAS las promociones del pedido (descuentos, canjes con puntos, regalos y
+  // paquetes), sin repetir: salen en un recuadro "PROMO DEL DÍA" antes de los productos
   function promos(o) {
     o = ver(o);
-    const l =[].concat((o && o.descuentos) || [], (o && o.canjes) || [])
-      .map((x) => String((x && (x.titulo || x.motivo)) || '').replace(/^Promo cliente leal:\s*/i, '').trim()).filter(Boolean);
-    const regalos = (o && o.items || []).filter((it) => it.regalo).map((it) => String(it.regalo));   // esos salen junto a su regalo
-    return l.filter((x, i) => l.indexOf(x) === i && regalos.indexOf(x) < 0);
+    const its = (o && o.items) || [];
+    const l = [].concat((o && o.descuentos) || [], (o && o.canjes) || [])
+      .map((x) => String((x && (x.titulo || x.motivo)) || ''))
+      .concat(its.filter((it) => it.regalo).map((it) => String(it.regalo)), its.filter((it) => it.paqT).map((it) => String(it.paqT)))
+      .map((t) => t.replace(/^Promo cliente leal:\s*/i, '').trim()).filter(Boolean);
+    return l.filter((x, i) => l.findIndex((y) => y.toLowerCase() === x.toLowerCase()) === i);
   }
+  const tituloPromos = (ps) => (ps.length > 1 ? 'PROMOS DEL DÍA' : 'PROMO DEL DÍA');
+  // Cliente del Club SMASH: el pedido viene de (o se hizo para) una cuenta registrada
+  const club = (o) => !!(o && o.cuenta && o.cuenta.correo);
   // Regalo de promo: en grande "GRATIS · PROMO" y debajo la adición, sin precio
   const notaSinGratis = (it) => String(it.nota || '').replace(/(^| · )GRATIS · .*$/, '').trim();
   const lineaRegalo = (it) => it.qty + ' x ' + it.name + ' (adición gratis)';
@@ -36,6 +42,7 @@ const SmashTicket = (function () {
   /* ---------- HTML para imprimir ---------- */
   function html(o) {
     o = ver(o);
+    const ps = promos(o);
     const items = (o.items || []).map((it) => it.regalo
       ? `<div class="tk-it"><div style="font-weight:900;font-size:14pt;line-height:1.25">GRATIS · ${esc(it.regalo)}</div><b>${esc(lineaRegalo(it))}</b>${notaSinGratis(it) ? `<div class="tk-n" style="font-weight:900;font-size:14pt;line-height:1.25;margin-top:.5mm">&gt; ${esc(notaSinGratis(it))}</div>` : ''}</div>`
       : `<div class="tk-it"><b>${esc(it.qty)} x</b> ${esc(it.name)}${it.nota ? `<div class="tk-n" style="font-weight:900;font-size:14pt;line-height:1.25;margin-top:.5mm">&gt; ${esc(it.nota)}</div>` : ''}</div>`).join('');
@@ -52,8 +59,9 @@ const SmashTicket = (function () {
       <div><b>${esc(o.cliente)}</b></div>
       <div>Tel: ${esc(o.telefono || '-')}</div>
       <div>${esc(o.direccion || '-')}${o.zona ? ' (' + esc(o.zona) + ')' : ''}</div>
+      ${club(o) ? `<div class="tk-club" style="margin-top:2mm;border:2px solid #000;border-radius:2mm;padding:1mm;text-align:center;font-weight:900;font-size:12.5pt;line-height:1.25">★ PARTE DEL CLUB SMASH ★${o.cuenta.usuario ? `<div style="font-size:9.5pt;font-weight:700">@${esc(o.cuenta.usuario)}</div>` : ''}</div>` : ''}
       <div class="tk-sp"></div><hr><div class="tk-sp"></div>
-      ${promos(o).map((t) => `<div class="tk-c" style="font-weight:900;font-size:14pt;line-height:1.25;margin-bottom:1.5mm">PROMO: ${esc(t)}</div>`).join('')}
+      ${ps.length ? `<div class="tk-promo" style="border:2.5px solid #000;padding:1.5mm 1mm;margin-bottom:2.5mm;text-align:center"><div style="font-weight:900;font-size:11pt;letter-spacing:.5pt">★ ${tituloPromos(ps)} ★</div>${ps.map((t) => `<div style="font-weight:900;font-size:15pt;line-height:1.2;word-break:break-word">${esc(t)}</div>`).join('')}</div>` : ''}
       ${items}
       ${o.notas ? `<div class="tk-sp"></div><div>Notas: <b>${esc(o.notas)}</b></div>` : ''}
       <div class="tk-sp"></div><hr>
@@ -145,8 +153,14 @@ const SmashTicket = (function () {
     text(o.cliente || '', 11, true);
     text('Tel: ' + (o.telefono || '-'), 10, false);
     text((o.direccion || '-') + (o.zona ? ' (' + o.zona + ')' : ''), 10, false);
+    if (club(o)) { gap(2); rule(); text('*** PARTE DEL CLUB SMASH ***', 12, true, 'c'); if (o.cuenta.usuario) text('@' + o.cuenta.usuario, 9, false, 'c'); }
     gap(6); rule(); gap(4);
-    promos(o).forEach((t) => { text('PROMO: ' + t, 13, true, 'c'); gap(3); });
+    const ps = promos(o);
+    if (ps.length) {
+      text('*** ' + tituloPromos(ps) + ' ***', 10.5, true, 'c'); gap(1);
+      ps.forEach((t) => { text(t, 15, true, 'c'); gap(2); });
+      rule(); gap(3);
+    }
     (o.items || []).forEach((it) => {
       if (it.regalo) { text('GRATIS · ' + it.regalo, 13, true); text(lineaRegalo(it), 10.5, true); if (notaSinGratis(it)) text('   > ' + notaSinGratis(it), 12, true); return; }
       text(it.qty + ' x ' + it.name, 10.5, false); if (it.nota) text('   > ' + it.nota, 12, true);
