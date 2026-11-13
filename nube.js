@@ -87,8 +87,12 @@ const SmashNube = (function () {
         options: { data: { usuario, nombre: String(d.nombre).trim(), telefono: limpioTel(d.telefono), telefono2: limpioTel(d.telefono2), direccion: String(d.direccion).trim(), acepta_promos: d.acepta_promos === true } },
       });
       if (error) return { ok: false, error: errorTxt(error) };
-      // Si en Supabase quedó activado "Confirm email", la cuenta existe pero aún no hay sesión
-      if (!data.session) return { ok: true, confirmar: true };
+      // Si Supabase no devolvió sesión (p. ej. "Confirm email" prendido), la cuenta ya queda
+      // activada por la base de datos (supabase/activar-al-registrarse.sql): entramos de una.
+      if (!data.session) {
+        const r = await sb.auth.signInWithPassword({ email: String(d.correo).trim().toLowerCase(), password: d.clave });
+        if (r.error || !r.data || !r.data.session) return { ok: true, confirmar: true };
+      }
       return { ok: true, perfil: await perfil(true) };
     } catch (e) { return { ok: false, error: errorTxt(e) }; }
   }
