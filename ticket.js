@@ -30,9 +30,66 @@ const SmashTicket = (function () {
   const tituloPromos = (ps) => (ps.length > 1 ? 'PROMOS DEL DÍA' : 'PROMO DEL DÍA');
   // Cliente del Club SMASH: el pedido viene de (o se hizo para) una cuenta registrada
   const club = (o) => !!(o && o.cuenta && o.cuenta.correo);
-  // Regalo de promo: en grande "GRATIS · PROMO" y debajo la adición, sin precio
-  const notaSinGratis = (it) => String(it.nota || '').replace(/(^| · )GRATIS · .*$/, '').trim();
-  const lineaRegalo = (it) => it.qty + ' x ' + it.name + ' (adición gratis)';
+  /* ---------- Productos agrupados para la comanda (solo cómo se ve; el total no cambia) ----------
+     - El combo va en la misma línea de su burger: "1 x Smash Toci en Combo".
+     - Paquetes (ej. "La Campeona") y regalos de promo: el nombre de la promo como título y
+       debajo sus productos, con la misma regla del combo. */
+  const norm = (s) => String(s == null ? '' : s).trim().toLowerCase();
+  const catDe = (id) => {
+    try { const p = typeof SmashDB !== 'undefined' && SmashDB.getProductById && SmashDB.getProductById(id); return (p && p.categoria) || ''; } catch (e) { return ''; }
+  };
+  const esComboIt = (it) => it.cat === 'combo' || catDe(it.id) === 'combo' || /^combo\b/i.test(String(it.name || ''));
+  const paraDe = (it) => it.para || (/^Para (.+?)(?: · |$)/.exec(String(it.nota || '')) || [])[1] || '';
+  // Nota sin lo que ya dice el título: "Para X", el nombre del paquete y "GRATIS · PROMO"
+  const notaLimpia = (it) => String(it.nota || '').replace(/(^| · )GRATIS · .*$/, '').split(' · ')
+    .map((x) => x.trim()).filter((x) => x && !/^Para /.test(x) && !(it.paqT && norm(x) === norm(it.paqT))).join(' · ');
+  function filas(o) {
+    const its = (o.items || []).map((it, i) => Object.assign({}, it, { _i: i }));
+    const combos = its.filter((it) => esComboIt(it) && (it.paraId != null || paraDe(it)));
+    const base = its.filter((it) => combos.indexOf(it) < 0);
+    base.forEach((b) => { b._cp = 0; b._cg = []; });
+    const usados = (b) => b._cp + b._cg.reduce((s, g) => s + g.n, 0);
+    // cada combo se pega a su burger (primero la del mismo paquete); lo que no encaje queda suelto
+    combos.forEach((c) => {
+      let resto = Number(c.qty) || 0;
+      const cand = base.filter((b) => !b.regalo && !esComboIt(b) && ((c.paraId != null && String(b.id) === String(c.paraId)) || (paraDe(c) && norm(b.name) === norm(paraDe(c)))))
+        .sort((a, b) => (String(a.paq) === String(c.paq) ? 0 : 1) - (String(b.paq) === String(c.paq) ? 0 : 1));
+      cand.forEach((b) => {
+        const t = Math.min(resto, (Number(b.qty) || 0) - usados(b));
+        if (t <= 0) return;
+        if (c.regalo) b._cg.push({ n: t, regalo: c.regalo, sabor: c.sabor }); else { b._cp += t; if (c.sabor) b._cs = c.sabor; }
+        resto -= t;
+      });
+      if (resto > 0) base.push(Object.assign({}, c, { qty: resto, _suelto: true, _cp: 0, _cg: [] }));
+    });
+    base.sort((a, b) => a._i - b._i);
+    const sueltas = [], grupos = [];
+    const grupo = (tipo, titulo, n) => {
+      let g = grupos.find((x) => x.tipo === tipo && norm(x.titulo) === norm(titulo));
+      if (!g) { g = { tipo, titulo, n: n || 1, lineas: [] }; grupos.push(g); }
+      return g.lineas;
+    };
+    base.forEach((b) => {
+      const nota = notaLimpia(b), q = Number(b.qty) || 0;
+      if (b._suelto) { const d = b.regalo ? grupo('regalo', b.regalo) : b.paq != null && b.paqT ? grupo('paq', b.paqT, b.paqN) : sueltas; d.push({ q, txt: 'Combo para ' + paraDe(b) + (b.regalo ? ' (gratis)' : ''), nota }); return; }
+      if (b.regalo) { grupo('regalo', b.regalo).push({ q, txt: b.name + (b.sabor ? ' (' + b.sabor + ')' : '') + ' (gratis)', nota }); return; }
+      const d = b.paq != null && b.paqT ? grupo('paq', b.paqT, b.paqN) : sueltas;
+      // combo de regalo: la burger pasa al recuadro de su promo
+      b._cg.forEach((g) => grupo('regalo', g.regalo).push({ q: g.n, txt: b.name + ' en Combo' + (g.sabor ? ' (' + g.sabor + ')' : '') + ' (combo gratis)', nota }));
+      const r = q - b._cg.reduce((s, g) => s + g.n, 0), cp = Math.min(b._cp, r), enC = b.name + ' en Combo' + (b._cs ? ' (' + b._cs + ')' : '');
+      if (r <= 0) return;
+      if (!cp) d.push({ q: r, txt: b.name, nota });
+      else if (cp >= r) d.push({ q: r, txt: enC, nota });
+      else if (nota) d.push({ q: r, txt: b.name + ' (' + cp + ' en Combo)', nota });
+      else { d.push({ q: cp, txt: enC, nota: '' }); d.push({ q: r - cp, txt: b.name, nota: '' }); }
+    });
+    // los regalos van al final, como antes
+    return { sueltas, grupos: grupos.filter((g) => g.tipo === 'paq').concat(grupos.filter((g) => g.tipo === 'regalo')) };
+  }
+  // Recuadro "PROMO DEL DÍA": solo las promos que no salen ya como título (descuentos, canjes)
+  const promosSinGrupo = (ps, f) => ps.filter((t) => !f.grupos.some((g) => norm(g.titulo) === norm(t)));
+  const tituloGrupo = (g) => (g.n > 1 ? g.n + ' x ' : '') + g.titulo;
+  const rotuloGrupo = (g) => (g.tipo === 'regalo' ? 'PROMO · REGALO' : 'PROMO');
   // Pedidos con el formato anterior también salen con el regalo a $0, sin descuento, y al final
   const ver = (o) => {
     if (typeof SmashExt === 'undefined' || !SmashExt.verRegalos) return o;
@@ -42,10 +99,12 @@ const SmashTicket = (function () {
   /* ---------- HTML para imprimir ---------- */
   function html(o) {
     o = ver(o);
-    const ps = promos(o);
-    const items = (o.items || []).map((it) => it.regalo
-      ? `<div class="tk-it"><div style="font-weight:900;font-size:14pt;line-height:1.25">GRATIS · ${esc(it.regalo)}</div><b>${esc(lineaRegalo(it))}</b>${notaSinGratis(it) ? `<div class="tk-n" style="font-weight:900;font-size:14pt;line-height:1.25;margin-top:.5mm">&gt; ${esc(notaSinGratis(it))}</div>` : ''}</div>`
-      : `<div class="tk-it"><b>${esc(it.qty)} x</b> ${esc(it.name)}${it.nota ? `<div class="tk-n" style="font-weight:900;font-size:14pt;line-height:1.25;margin-top:.5mm">&gt; ${esc(it.nota)}</div>` : ''}</div>`).join('');
+    const f = filas(o), ps = promosSinGrupo(promos(o), f);
+    const linea = (l) => `<div class="tk-it"><b>${esc(l.q)} x</b> ${esc(l.txt)}${l.nota ? `<div class="tk-n" style="font-weight:900;font-size:14pt;line-height:1.25;margin-top:.5mm">&gt; ${esc(l.nota)}</div>` : ''}</div>`;
+    const items = f.sueltas.map(linea).join('') + f.grupos.map((g) => `<div class="tk-grp" style="border:2px solid #000;padding:1mm 1.5mm;margin:2mm 0">`
+      + `<div style="text-align:center;font-weight:700;font-size:8.5pt;letter-spacing:.5pt">★ ${rotuloGrupo(g)} ★</div>`
+      + `<div style="text-align:center;font-weight:900;font-size:14pt;line-height:1.2;margin-bottom:1mm;word-break:break-word">${esc(tituloGrupo(g))}</div>`
+      + g.lineas.map(linea).join('') + '</div>').join('');
     // Con P: tres columnas (P | logo | vacío) para que la P quede justo en la mitad entre el borde y el logo
     const P = esTransfer(o) ? '<span class="tk-p" style="justify-self:center;transform:rotate(-45deg);font:900 15mm/1 Courier New,Courier,monospace;color:#000">P</span>' : '';
     return `
@@ -155,15 +214,18 @@ const SmashTicket = (function () {
     text((o.direccion || '-') + (o.zona ? ' (' + o.zona + ')' : ''), 10, false);
     if (club(o)) { gap(2); rule(); text('*** PARTE DEL CLUB SMASH ***', 12, true, 'c'); if (o.cuenta.usuario) text('@' + o.cuenta.usuario, 9, false, 'c'); }
     gap(6); rule(); gap(4);
-    const ps = promos(o);
+    const f = filas(o), ps = promosSinGrupo(promos(o), f);
     if (ps.length) {
       text('*** ' + tituloPromos(ps) + ' ***', 10.5, true, 'c'); gap(1);
       ps.forEach((t) => { text(t, 15, true, 'c'); gap(2); });
       rule(); gap(3);
     }
-    (o.items || []).forEach((it) => {
-      if (it.regalo) { text('GRATIS · ' + it.regalo, 13, true); text(lineaRegalo(it), 10.5, true); if (notaSinGratis(it)) text('   > ' + notaSinGratis(it), 12, true); return; }
-      text(it.qty + ' x ' + it.name, 10.5, false); if (it.nota) text('   > ' + it.nota, 12, true);
+    const linea = (l, ind) => { text((ind ? '  ' : '') + l.q + ' x ' + l.txt, 10.5, !!ind); if (l.nota) text('   > ' + l.nota, 12, true); };
+    f.sueltas.forEach((l) => linea(l, false));
+    f.grupos.forEach((g) => {
+      rule(); text('* ' + rotuloGrupo(g) + ' *', 8.5, true, 'c'); text(tituloGrupo(g), 14, true, 'c'); gap(2);
+      g.lineas.forEach((l) => linea(l, true));
+      rule();
     });
     if (o.notas) { gap(5); text('Notas: ' + o.notas, 9.5, true); }
     gap(5); rule();
