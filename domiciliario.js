@@ -51,6 +51,7 @@
   });
   $('bSalir').addEventListener('click', async () => {
     if (!confirm('¿Cerrar sesión en este celular?')) return;
+    if (APP) { try { SmashApp.detenerRastreo(); } catch (e) { /* sin app */ } }
     await API.salir(); vista();
   });
 
@@ -250,7 +251,7 @@
   }
   document.addEventListener('pointerdown', () => sonar(true), { once: true });
   function avisarNuevo(nuevos) {
-    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    if (APP) { try { SmashApp.vibrar(500); } catch (e) { /* sin app */ } } else if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
     sonar();
     toast(nuevos.length > 1 ? `Te asignaron ${nuevos.length} pedidos nuevos` : `Nuevo pedido #${nuevos[0].numero || nuevos[0].pedido} para ${nuevos[0].cliente || 'entregar'}`);
     if (tab !== 'activos') document.querySelector('.dz-tabs [data-tab="activos"]').click();
@@ -267,6 +268,12 @@
      ============================================================ */
   let gpsId = null, mapa = null, yo = null, aro = null, pos = null, centrado = false, siguiendo = true;
   let enviado = null, compartiendo = false, revisado = false, wake = null, estadoGps = 'buscando';
+  /* App SMASH Domicilios (Android): window.SmashApp existe y el GPS lo manda la app aunque la
+     pantalla esté apagada. La página solo muestra el minimapa y el estado. */
+  const APP = (() => { try { return !!(window.SmashApp && SmashApp.disponible() === '1'); } catch (e) { return false; } })();
+  let appEstado = APP ? (() => { try { return SmashApp.estadoRastreo(); } catch (e) { return 'inactivo'; } })() : '';
+  window.SmashAppEstado = (e) => { appEstado = e; pintarGps(); };
+  if (APP) document.documentElement.classList.add('en-app');
   const activos = () => lista.filter((e) => e.estado === 'asignado' || e.estado === 'en_camino');
   const metros = (a, b) => {
     const R = 6371000, r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLng = (b.lng - a.lng) * r;
@@ -275,6 +282,17 @@
   };
   function pintarGps() {
     const el = $('gpsEstado'), ay = $('gpsAyuda');
+    if (APP) {
+      // En la app: lo importante es si el servicio "Ruta activa" está enviando
+      const mal = appEstado === 'sin_permiso';
+      const t = mal ? 'Permite la ubicación a la app' : compartiendo ? (appEstado === 'activo' ? 'Ruta activa · aunque apagues la pantalla' : 'Activando la ubicación…') : 'Solo tú la ves · sin pedidos';
+      el.className = 'dz-gps ' + (mal ? 'mal' : compartiendo ? (appEstado === 'activo' ? 'on' : '') : 'solo');
+      el.lastChild.textContent = t;
+      ay.hidden = !mal;
+      if (mal) ay.innerHTML = 'SMASH necesita tu ubicación mientras tienes una ruta, para que el negocio vea por dónde van los pedidos. <button type="button" class="dz-ajustes" id="bAjustes">Abrir ajustes</button>';
+      const b = document.getElementById('bAjustes'); if (b) b.onclick = () => { try { SmashApp.abrirAjustes(); } catch (e) { /* sin app */ } };
+      return;
+    }
     const t = { buscando: 'Buscando tu ubicación…', no: 'Ubicación desactivada', sin: 'Este celular no tiene GPS' }[estadoGps]
       || (compartiendo ? 'Compartiendo con el negocio' : 'Solo tú la ves · sin pedidos');
     el.className = 'dz-gps ' + (estadoGps === 'ok' ? (compartiendo ? 'on' : 'solo') : estadoGps === 'buscando' ? '' : 'mal');
@@ -320,7 +338,7 @@
   }
   function pararGps() { if (gpsId != null && navigator.geolocation) navigator.geolocation.clearWatch(gpsId); gpsId = null; }
   async function enviar(forzar) {
-    if (!compartiendo || !pos) return;
+    if (APP || !compartiendo || !pos) return;   // en la app la ubicación la envía el servicio nativo
     const t = Date.now();
     if (!forzar && enviado && (t - enviado.t < 4000 || (t - enviado.t < 10000 && metros(enviado, pos) < 40))) return;
     enviado = { t, lat: pos.lat, lng: pos.lng };
@@ -333,15 +351,25 @@
     revisado = true;
     compartiendo = activos().length > 0;
     if (compartiendo && !antes) enviar(true);
+    if (APP) {
+      // La app enciende o apaga el servicio "Ruta activa" (se apaga solo al entregar todo)
+      try {
+        const s = API.sesion();
+        if (compartiendo && s && s.token && SmashApp.estadoRastreo() !== 'activo') SmashApp.iniciarRastreo(s.token);
+        if (!compartiendo && (antes || primera)) SmashApp.detenerRastreo();
+        appEstado = SmashApp.estadoRastreo();
+      } catch (e) { /* sin app */ }
+    }
     // Sin pedidos: se deja de enviar y se borra la última posición (también al abrir la página sin pedidos)
     if (!compartiendo && (antes || primera)) { enviado = null; await API.ocultar(); }
     pintarGps();
-    $('bBolsillo').hidden = !compartiendo;
+    $('bBolsillo').hidden = APP || !compartiendo;
     if (!compartiendo) bolsillo(false);
     await pantalla();
   }
   // Pantalla encendida mientras tenga ruta: con la pantalla apagada el navegador deja de dar la ubicación
   async function pantalla() {
+    if (APP) return;   // la app no necesita la pantalla encendida
     try {
       if (compartiendo && !wake && navigator.wakeLock && document.visibilityState === 'visible') { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); }
       if (!compartiendo && wake) { wake.release(); wake = null; }
@@ -349,7 +377,7 @@
   }
   // Al salir de la página (otra app, bloquear el celular) se avisa al negocio; al volver, se envía de una vez
   document.addEventListener('visibilitychange', () => {
-    if (!compartiendo) return;
+    if (!compartiendo || APP) return;   // en la app la ubicación sigue llegando aunque salga de la pantalla
     if (document.visibilityState === 'hidden') API.fondo();
     else { enviar(true); pantalla(); }
   });

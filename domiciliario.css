@@ -209,3 +209,7 @@ svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-lin
 body.en-bolsillo{overflow:hidden}
 @media (max-width:420px){.dz-vivo span{display:none}.dz-vivo{padding:8px}}
 .dz-hoja{z-index:5100}.dz-toast{z-index:5200}
+/* Dentro de la app SMASH Domicilios */
+.dz-ajustes{display:block;margin-top:8px;width:100%;height:40px;border-radius:10px;border:0;background:var(--red);color:#fff;font-weight:700;font-size:.86rem;cursor:pointer}
+.en-app .dz-top{padding-top:12px}
+.en-app .dz-entrar{padding-top:20px}

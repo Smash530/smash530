@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0b0b0d">
+<title>SMASH Domicilios · Política de privacidad</title>
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap">
+<style>
+  :root{--bg:#0b0b0d;--card:#16171c;--line:rgba(255,255,255,.1);--text:#f5f5f4;--muted:#a1a1aa;--red:#e3262f;--gold:#ffb627}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:400 16px/1.65 Inter,Arial,sans-serif}
+  main{max-width:760px;margin:0 auto;padding:40px 20px 64px}
+  .marca{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+  .marca img{width:44px;height:44px;border-radius:12px}
+  .marca b{font:400 1.5rem/1 Anton,Impact,sans-serif;letter-spacing:.06em}
+  .marca small{display:block;font:700 .62rem/1 Inter,sans-serif;letter-spacing:.2em;color:var(--muted);margin-top:5px}
+  h1{font:400 clamp(2rem,6vw,2.8rem)/1 Anton,Impact,sans-serif;text-transform:uppercase;margin:0 0 6px}
+  h1 span{color:var(--red)}
+  .fecha{color:var(--muted);font-size:.86rem;margin:0 0 28px}
+  h2{font-size:1.1rem;margin:30px 0 8px}
+  p,li{color:#e4e4e7}
+  ul{padding-left:20px}
+  .caja{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:20px 0}
+  .caja b{color:var(--gold)}
+  a{color:#ff6b72}
+</style>
+</head>
+<body>
+<main>
+  <div class="marca"><img src="images/logo-smash.jpeg" alt="" onerror="this.remove()"><div><b>SMASH</b><small>DOMICILIOS</small></div></div>
+  <h1>Política de <span>privacidad</span></h1>
+  <p class="fecha">App «SMASH Domicilios» · Vigente desde el 15 de noviembre de 2026</p>
+
+  <div class="caja">
+    <p style="margin:0">En resumen: la app la usan <b>solo los domiciliarios de SMASH</b>. Comparte tu ubicación con el negocio <b>únicamente mientras tienes una ruta de entregas activa</b>, y deja de hacerlo sola cuando entregas todos los pedidos. No vendemos ni compartimos tus datos con nadie.</p>
+  </div>
+
+  <h2>1. Quiénes somos</h2>
+  <p>SMASH es un negocio de hamburguesas con domicilios. Esta app es una herramienta interna para que nuestros domiciliarios vean los pedidos que se les asignan y marquen la salida y la entrega.</p>
+
+  <h2>2. Qué datos usa la app</h2>
+  <ul>
+    <li><b>Tu cuenta de domiciliario:</b> nombre, usuario y teléfono, creados por el negocio.</li>
+    <li><b>Ubicación precisa (GPS):</b> solo mientras tienes una ruta activa. Se ve en el mapa del negocio para saber por dónde van los pedidos y medir los tiempos de entrega.</li>
+    <li><b>Horas de tus entregas:</b> cuándo te asignaron, cuándo saliste y cuándo entregaste cada pedido, y lo que se te paga por cada domicilio.</li>
+    <li><b>Datos de los pedidos que llevas:</b> nombre, dirección y teléfono del cliente, solo para poder entregarle.</li>
+  </ul>
+
+  <h2>3. Cuándo se usa la ubicación</h2>
+  <ul>
+    <li>Cuando tienes pedidos por entregar, la app muestra el aviso fijo <b>«SMASH · Ruta activa»</b> y envía tu ubicación cada pocos segundos, también con la pantalla apagada o mientras usas otras apps (por ejemplo, para llamar al cliente).</li>
+    <li>Al entregar todos los pedidos de la ruta, la app <b>deja de enviar la ubicación</b> y se borra la última posición guardada.</li>
+    <li>Fuera de una ruta la app no envía tu ubicación. El negocio solo guarda la última posición y un recorrido corto de la ruta en curso.</li>
+  </ul>
+
+  <h2>4. Con quién se comparten</h2>
+  <p>Solo con el personal de SMASH (cocina y dueños) desde sus paneles. Los datos se guardan en nuestro proveedor de base de datos (Supabase), con conexión cifrada. No los vendemos, no los usamos para publicidad y no los compartimos con terceros.</p>
+
+  <h2>5. Cuánto tiempo se guardan</h2>
+  <ul>
+    <li>Ubicación: solo durante la ruta activa (se borra al terminar).</li>
+    <li>Entregas y pagos: el tiempo necesario para la contabilidad del negocio.</li>
+  </ul>
+
+  <h2>6. Tus derechos</h2>
+  <p>Puedes pedir ver, corregir o eliminar tus datos, o que desactivemos tu cuenta, hablando directamente con el negocio. También puedes quitarle el permiso de ubicación a la app en los ajustes del celular en cualquier momento (sin ubicación no podrás compartir la ruta).</p>
+
+  <h2>7. Contacto</h2>
+  <p>Para cualquier pregunta sobre esta política, escríbenos por los canales de atención de SMASH que aparecen en <a href="cliente.html">nuestra página</a>.</p>
+</main>
+</body>
+</html>
