@@ -225,3 +225,12 @@ body.en-bolsillo{overflow:hidden}
 .dz-turno .dz-btn{margin-top:0}
 .dz-turno-ini{height:58px;font-size:1.08rem}
 .dz-turno-fin{height:46px;font-size:.92rem;background:rgba(255,255,255,.05);color:var(--muted)}
+
+/* ---------------- Aviso de versión nueva de la app ---------------- */
+.dz-actualizar{margin:14px 16px 0;padding:16px;border-radius:20px;background:linear-gradient(135deg,rgba(255,182,39,.16),rgba(255,182,39,.04));border:1px solid rgba(255,182,39,.4);display:flex;flex-direction:column;gap:12px}
+.dz-entrar .dz-actualizar{margin:0}
+.dz-actualizar b{display:block;font-size:1rem;font-weight:800;color:var(--gold)}
+.dz-actualizar small{display:block;margin-top:4px;color:#e4e4e7;font-size:.84rem;line-height:1.4}
+.dz-act-acc{display:grid;grid-template-columns:1.4fr 1fr;gap:8px}
+.dz-act-acc .dz-btn{height:46px;margin-top:0;font-size:.92rem;text-decoration:none;color:var(--text)}
+.dz-act-acc .dz-btn.prim{color:#fff}

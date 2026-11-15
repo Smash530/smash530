@@ -448,5 +448,33 @@
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') cargar(); });
   window.addEventListener('online', cargar);
 
+  /* ---------------- Versión nueva de la app ----------------
+     La app no viene de la Play Store: cuando se publica una versión nueva en
+     app/version-app.json, se le avisa al domiciliario con un botón para descargarla. */
+  const versionApp = () => { const m = /SmashDomiApp\/([\d.]+)/.exec(navigator.userAgent); return m ? m[1] : ''; };
+  const mayor = (a, b) => {
+    const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
+    for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); }
+    return false;
+  };
+  let avisoCerrado = false;
+  async function revisarVersion() {
+    const local = versionApp();
+    if (!APP || !local || avisoCerrado) return;
+    try {
+      const v = await (await fetch('app/version-app.json?' + Date.now(), { cache: 'no-store' })).json();
+      if (!v || !v.version || !mayor(v.version, local) || document.getElementById('aActualizar')) return;
+      const el = document.createElement('div');
+      el.className = 'dz-actualizar'; el.id = 'aActualizar';
+      el.innerHTML = `<div><b>Hay una versión nueva de la app (${esc(v.version)})</b><small>${esc(v.notas || 'Mejoras y correcciones.')} Se instala encima, sin perder nada.</small></div>
+        <div class="dz-act-acc"><a class="dz-btn prim" href="${esc(v.apk)}">Actualizar</a><button type="button" class="dz-btn" data-despues>Después</button></div>`;
+      el.querySelector('[data-despues]').onclick = () => { avisoCerrado = true; el.remove(); };
+      const app = $('vApp'), entrar = $('vEntrar');
+      (app.hidden ? entrar : app).insertBefore(el, (app.hidden ? entrar : app).children[app.hidden ? 0 : 1] || null);
+    } catch (e) { /* sin internet: se revisa después */ }
+  }
+  setTimeout(revisarVersion, 3000);
+  setInterval(revisarVersion, 30 * 60000);
+
   vista();
 })();
