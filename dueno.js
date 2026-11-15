@@ -124,7 +124,7 @@
 
     // Mismo cálculo que "Informes" (finanzas.js): ventas netas, costo de lo vendido y todos los gastos
     // registrados (Contabilidad, Gastos, gastos de caja y mermas), sin contar nada dos veces.
-    // Los domicilios son dinero del domiciliario: se registran aparte y no entran en ingresos ni utilidad.
+    // Los domicilios son del domiciliario; solo la diferencia (cobrado − pagado al domiciliario) suma a la utilidad.
     const R = SmashFinanzas.calcular(fecha, fecha);
     const ingresoProductos = R.netas;
     const ingresoDomicilios = orders.reduce((s, o) => s + o.domicilio, 0);
@@ -141,7 +141,7 @@
       <div class="summary-box"><div class="label">Costo variable</div><div class="value">${fmt(costoVariable)}</div>${perdidas ? `<div class="sub">incluye ${fmt(perdidas)} de pérdidas por cancelación</div>` : ''}</div>
       <div class="summary-box"><div class="label">Gastos del día</div><div class="value">${fmt(gastosFijos)}</div><div class="sub">todos los registrados (ver Informes)</div></div>
       <div class="summary-box"><div class="label">Utilidad neta</div><div class="value">${fmt(utilidad)}</div></div>
-      <p class="hint caja-note">Domicilios del día (pagados a domiciliarios, no son de SMASH): ${fmt(ingresoDomicilios)} en ${orders.filter((o) => o.domicilio > 0).length} pedidos.</p>
+      <p class="hint caja-note">Domicilios del día: ${fmt(ingresoDomicilios)} en ${orders.filter((o) => o.domicilio > 0).length} pedidos. De eso, ${fmt(R.pagadoDomiciliarios)} es de los domiciliarios${R.gananciaDomicilios ? ` y ${fmt(R.gananciaDomicilios)} queda para SMASH (ya sumado a la utilidad)` : ''}.</p>
     `;
 
     const banner = $('contBanner');
@@ -179,7 +179,8 @@
       <div class="summary-box"><div class="label">Utilidad neta del mes</div><div class="value">${fmt(R.utilidad)}</div></div>
       <div class="summary-box"><div class="label">Domicilios del mes (registro aparte)</div><div class="value">${fmt(dom)}</div><div class="sub">${conDom.length} domicilios · promedio ${fmt(conDom.length ? dom / conDom.length : 0)}</div></div>
       ${Object.keys(porRep).sort((a, b) => porRep[b].v - porRep[a].v).map((r) => `<div class="summary-box"><div class="label">🛵 ${esc(r)}</div><div class="value">${fmt(porRep[r].v)}</div><div class="sub">${porRep[r].n} domicilios</div></div>`).join('')}
-      <p class="hint caja-note">Los domicilios se pagan a los domiciliarios: no suman a ventas, gastos ni utilidad. Sirven para saber cuánto se paga en domicilios cada mes.</p>`;
+      ${R.gananciaDomicilios ? `<div class="summary-box"><div class="label">Ganancia en domicilios (para SMASH)</div><div class="value">${fmt(R.gananciaDomicilios)}</div><div class="sub">cobrado al cliente − pagado al domiciliario · ya sumado a la utilidad</div></div>` : ''}
+      <p class="hint caja-note">Los domicilios se pagan a los domiciliarios y no suman a las ventas. Solo la diferencia entre lo que paga el cliente y lo que se le paga al domiciliario (ej: Sur $7.000 − $6.000) entra a la utilidad.</p>`;
   }
 
   /* ============== REGISTRO DE VENTAS (con costos y utilidad) ============== */

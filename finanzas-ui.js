@@ -76,13 +76,14 @@
         <div class="row tot"><span>Ventas netas</span><b>${fmt(R.netas)}</b></div>
         <div class="row"><span>− Costo de productos vendidos${R.perdidas ? ` <small class="hint">(incluye ${fmt(R.perdidas)} de cancelaciones)</small>` : ''}</span><span>${fmt(R.costoVendido)}</span></div>
         <div class="row tot"><span>Margen bruto <small class="hint">${pct(R.margenPct)}</small></span><b class="${neg(R.margenBruto)}">${fmt(R.margenBruto)}</b></div>
+        <div class="row"><span>+ Ganancia en domicilios <small class="hint">(cobrado al cliente − pagado al domiciliario, ${R.nDomicilios} entregados)</small></span><span class="${neg(R.gananciaDomicilios)}">${fmt(R.gananciaDomicilios)}</span></div>
         <div class="row"><span>− Gastos operativos</span><span>${fmt(g.operativo)}</span></div>
         <div class="row"><span>− Costos fijos</span><span>${fmt(g.fijo)}</span></div>
         <div class="row"><span>− Nómina</span><span>${fmt(g.nomina)}</span></div>
         <div class="row"><span>− Otros egresos</span><span>${fmt(g.otro)}</span></div>
         <div class="row tot"><span>Utilidad operativa estimada</span><b class="${neg(R.utilidad)}">${fmt(R.utilidad)}</b></div>
       </div>
-      <p class="hint">Solo como dato (no se resta): compras de insumos ${fmt(R.compras)} (ya entran como costo cuando se vende lo producido) · domicilios de los pedidos ${fmt(R.domicilios)} (son de los domiciliarios) · nómina estimada según Personal ${fmt(R.nominaEstimada)}${R.nominaEstimada && !g.nomina ? ' — aún no hay nómina registrada en este periodo' : ''}.</p>
+      <p class="hint">Solo como dato (no se resta): compras de insumos ${fmt(R.compras)} (ya entran como costo cuando se vende lo producido) · domicilios de los pedidos ${fmt(R.domicilios)} (de eso, ${fmt(R.pagadoDomiciliarios)} es de los domiciliarios y ${fmt(R.gananciaDomicilios)} queda para SMASH, ya sumado arriba) · nómina estimada según Personal ${fmt(R.nominaEstimada)}${R.nominaEstimada && !g.nomina ? ' — aún no hay nómina registrada en este periodo' : ''}.</p>
       ${R.detalleGastos.length ? `<details class="mod-box"><summary>Detalle de gastos</summary><table class="rtable"><thead><tr><th>Concepto</th><th>Clase</th><th class="num">Valor</th></tr></thead><tbody>
         ${R.detalleGastos.sort((a, b) => b.v - a.v).map((x) => `<tr><td class="first">${esc(x.concepto)}</td><td data-l="Clase">${esc(F.CLASES[x.clase])}</td><td class="num" data-l="Valor">${fmt(x.v)}</td></tr>`).join('')}</tbody></table></details>` : ''}
       ${R.serie.length > 1 ? grafico(R.serie) : ''}

@@ -179,7 +179,8 @@ const SmashUI = (function () {
         ${o.cuenta ? `<div class="od-tag gold">⭐ Cliente leal @${esc(o.cuenta.usuario || '-')} · ${esc(o.cuenta.correo)}${o.puntosSumados ? ` · +${esc(o.puntosSumados)} pts` : ''}</div>` : ''}
         ${o.cuenta && !o.puntosSumados && o.puntosAviso ? `<div class="od-tag">⚠ ${esc(o.puntosAviso)}</div>` : ''}
         ${canjeHtml(o, "od-tag")}${repetidoHtml(o, "od-tag")}
-        ${o.repartidor ? `<div class="od-tag">🛵 Repartidor: <b>${esc(o.repartidor)}</b>${o.salioEn ? ' · salió ' + esc(hora(o.salioEn)) : ''}</div>` : ''}
+        ${o.repartidor ? `<div class="od-tag">🛵 Repartidor: <b>${esc(o.repartidor)}</b>${o.repartidorId ? ' 📱' : ''}${o.salioEn && typeof SmashDomi === 'undefined' ? ' · salió ' + esc(hora(o.salioEn)) : ''}</div>` : ''}
+        ${o.repartidor && typeof SmashDomi !== 'undefined' ? SmashDomi.tiemposHtml(o) : ''}
       </section>
 
       <section class="od-sec">
@@ -230,19 +231,51 @@ const SmashUI = (function () {
     const nombres = [];
     SmashExt.getPersonal().filter((p) => /domic|repart|mensaj|moto/i.test(p.cargo)).forEach((p) => nombres.push(p.nombre));
     SmashExt.getRepartidores().forEach((n) => { if (!nombres.some((x) => x.toLowerCase() === n.toLowerCase())) nombres.push(n); });
-    const m = modal(luegoEstado ? `Despachar pedido #${esc(num(o))}` : `Repartidor del pedido #${esc(num(o))}`,
-      `<p class="hint">${luegoEstado ? 'Escribe quién lleva el pedido. Se registra la hora de salida.' : 'Solo se ve en el sistema. No sale en la comanda.'}</p>
+    // Domiciliarios con cuenta (página del domiciliario): el pedido les aparece en el celular
+    const app = typeof SmashDomi !== 'undefined' ? SmashDomi.activos() : [];
+    let elegido = o.repartidorId && app.some((d) => d.id === o.repartidorId) ? o.repartidorId : null;
+    const m = modal(luegoEstado ? `Despachar pedido #${esc(num(o))}` : `Asignar domiciliario · pedido #${esc(num(o))}`,
+      `${app.length ? `<p class="hint">Con cuenta: el pedido le aparece en su celular y se miden los tiempos de entrega.</p>
+       <div class="rep-app">${app.map((d) => `<button type="button" class="rep-chip${d.id === elegido ? ' on' : ''}" data-domi="${esc(d.id)}" data-n="${esc(d.nombre)}"><span>${esc(d.nombre.charAt(0).toUpperCase())}</span>${esc(d.nombre)}</button>`).join('')}</div>
+       <p class="hint">O escribe el nombre de otra persona (no ve el pedido en el celular):</p>`
+        : `<p class="hint">${luegoEstado ? 'Escribe quién lleva el pedido. Se registra la hora de salida.' : 'Solo se ve en el sistema. No sale en la comanda.'}</p>`}
        <label class="ed-wide">Nombre del domiciliario<input id="repIn" list="repList" maxlength="60" value="${esc(o.repartidor || '')}" autocomplete="off"></label>
        <datalist id="repList">${nombres.map((n) => `<option value="${esc(n)}">`).join('')}</datalist>`,
       (mm) => {
         const n = mm.querySelector('#repIn').value.trim();
         if (luegoEstado && !n) { mm.querySelector('#repIn').focus(); return false; }
-        SmashExt.updateOrder(o.id, { repartidor: n });
+        // Domiciliario con cuenta: el pedido entra a su ruta (o arma una nueva)
+        if (elegido && typeof SmashDomi !== 'undefined' && SmashDomi.asignar) {
+          if (o.repartidorId !== elegido) {
+            const r = SmashDomi.asignar([o.id], elegido);
+            if (!r.ok) { alert(r.error); return false; }
+          }
+          if (luegoEstado) SmashExt.setStatus(o.id, luegoEstado);
+          cfg.refresh();
+          return;
+        }
+        const patch = { repartidor: n, repartidorId: elegido || null, rutaId: null, rutaEn: null };
+        // La hora de asignación (despacho) arranca de nuevo si cambia quién lo lleva
+        if (n && (n !== o.repartidor || (elegido || null) !== (o.repartidorId || null) || !o.asignadoEn)) patch.asignadoEn = new Date().toISOString();
+        if (!n) patch.asignadoEn = null;
+        SmashExt.updateOrder(o.id, patch);
         SmashExt.rememberRepartidor(n);
         if (luegoEstado) SmashExt.setStatus(o.id, luegoEstado);
+        if (typeof SmashDomi !== 'undefined') SmashDomi.publicarPronto();
         cfg.refresh();
-      }, luegoEstado ? '🛵 Despachar' : 'Guardar');
-    m.querySelector('#repIn').focus();
+      }, luegoEstado ? '🛵 Despachar' : 'Asignar');
+    const inp = m.querySelector('#repIn');
+    m.querySelectorAll('.rep-chip').forEach((b) => b.addEventListener('click', () => {
+      const ya = b.classList.contains('on');
+      m.querySelectorAll('.rep-chip').forEach((x) => x.classList.remove('on'));
+      elegido = ya ? null : b.dataset.domi;
+      if (!ya) { b.classList.add('on'); inp.value = b.dataset.n; } else inp.value = '';
+    }));
+    inp.addEventListener('input', () => {
+      const c = elegido && m.querySelector('.rep-chip.on');
+      if (c && inp.value.trim() !== c.dataset.n) { c.classList.remove('on'); elegido = null; }
+    });
+    (app.length ? m.querySelector('.rep-chip') : inp).focus();
   }
 
   /* ---------- novedad del pedido ---------- */

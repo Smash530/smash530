@@ -14,7 +14,9 @@
      incluye el consumo por ventas, que ya está en el costo de lo vendido).
    - Gastos: registro de gastos + gastos del día de Contabilidad + gastos
      de caja. Cada uno en una sola clase: fijo, operativo, nómina u otro.
-   - Domicilios: dinero del domiciliario, fuera de ventas y gastos.
+   - Domicilios: lo que se le paga al domiciliario es suyo y queda fuera.
+     La diferencia (cobrado al cliente − pago al domiciliario, ej. Sur
+     $7.000 − $6.000) es ganancia de SMASH y suma a la utilidad.
    ============================================================ */
 const SmashFinanzas = (function () {
   const S = SmashStore;
@@ -137,7 +139,16 @@ const SmashFinanzas = (function () {
     sumar('operativo', 'Mermas de inventario', Math.max(0, mermas));
     if (mermas < 0) sumar('otro', 'Ajustes de inventario a favor', mermas);
 
-    const utilidad = margenBruto - g.operativo - g.fijo - g.nomina - g.otro;
+    // Ganancia en domicilios: lo que se le cobra al cliente menos lo que se le paga al domiciliario
+    // (ej: Sur se cobra $7.000 y se le pagan $6.000 → $1.000 para SMASH). Solo domicilios entregados.
+    // Solo cuenta el pago que quedó fijo al entregar (o.pagoDomi): los pedidos de antes de esta regla
+    // no cambian, así no se mueven las cuentas ni el reparto de días pasados.
+    const pagoDomi = (o) => (o.pagoDomi != null ? Number(o.pagoDomi) || 0 : r(o.domicilio));
+    const domEntregados = validos.filter((o) => o.status === 'entregado' && r(o.domicilio) > 0);
+    const gananciaDomicilios = domEntregados.reduce((s, o) => s + r(o.domicilio) - pagoDomi(o), 0);
+    const pagadoDomiciliarios = domEntregados.reduce((s, o) => s + pagoDomi(o), 0);
+
+    const utilidad = margenBruto + gananciaDomicilios - g.operativo - g.fijo - g.nomina - g.otro;
 
     // Cobrado por medio de pago (solo productos, sin domicilios aunque el cliente los haya pagado a SMASH)
     // por fecha del pago + pedidos antiguos por el medio anunciado
@@ -161,6 +172,7 @@ const SmashFinanzas = (function () {
       costoVendido: Math.round(costoVendido), perdidas, margenBruto: Math.round(margenBruto), margenPct: netas > 0 ? (margenBruto / netas) * 100 : null,
       gastos: g, detalleGastos: Object.values(detalle), utilidad: Math.round(utilidad), utilidadPct: netas > 0 ? (utilidad / netas) * 100 : null,
       medios, domiciliosCobrados: caja.domicilios, domicilios: validos.reduce((s, o) => s + (o.domicilio || 0), 0),
+      gananciaDomicilios: Math.round(gananciaDomicilios), pagadoDomiciliarios: Math.round(pagadoDomiciliarios), nDomicilios: domEntregados.length,
       compras, mermas, nominaEstimada, serie, cancelados: orders.filter((o) => o.status === 'cancelado' && enR(ld(o.creado))).length,
     };
   }

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0d">
+<meta name="robots" content="noindex">
+<title>SMASH · Domiciliarios</title>
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="domiciliario.css">
+</head>
+<body>
+
+<!-- ================= ENTRAR ================= -->
+<main id="vEntrar" class="dz-entrar" hidden>
+  <div class="dz-ent-top">
+    <div class="dz-brand"><img src="images/logo-smash.jpeg" alt="" onerror="this.remove()"><span>SMASH<em>Domiciliarios</em></span></div>
+  </div>
+  <div class="dz-ent-mid">
+    <span class="dz-kick">Acceso de domiciliarios</span>
+    <h1>Tus <span>entregas</span></h1>
+    <p>Mira los pedidos que te asignan y marca cuándo sales y cuándo entregas.</p>
+  </div>
+  <form id="fEntrar" class="dz-card dz-form" autocomplete="on">
+    <h2 data-saludo>Bienvenido</h2>
+    <label for="dUsuario">Usuario</label>
+    <div class="dz-in"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg><input id="dUsuario" required autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Tu usuario"></div>
+    <label for="dClave">Clave</label>
+    <div class="dz-in"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input id="dClave" type="password" required autocomplete="current-password" placeholder="••••••"><button type="button" class="dz-ojo" aria-label="Mostrar clave"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+    <p class="dz-err" id="eEntrar" role="alert"></p>
+    <button class="dz-btn prim" type="submit">Entrar</button>
+    <p class="dz-nota">Si no tienes usuario, pídelo en el negocio.</p>
+  </form>
+</main>
+
+<!-- ================= MIS ENTREGAS ================= -->
+<div id="vApp" class="dz-app" hidden>
+  <header class="dz-top">
+    <span class="dz-av" id="aAv">?</span>
+    <div class="dz-top-t"><small data-saludo>Hola</small><b id="aNombre"></b></div>
+    <span class="dz-vivo" id="aVivo" title="Conexión"><i></i><span>En línea</span></span>
+    <button class="dz-salir" id="bBolsillo" type="button" aria-label="Modo bolsillo" title="Modo bolsillo" hidden><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></button>
+    <button class="dz-salir" id="bSalir" type="button" aria-label="Salir"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>
+  </header>
+
+  <section class="dz-res" id="aResumen"></section>
+
+  <section class="dz-mapa" id="aMapa">
+    <div class="dz-mapa-h">
+      <span class="dz-gps" id="gpsEstado"><i></i><span>Buscando tu ubicación…</span></span>
+      <button type="button" class="dz-mapa-b" id="bCentrar" aria-label="Centrar en mi ubicación"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg></button>
+      <button type="button" class="dz-mapa-b" id="bMapaTam" aria-label="Agrandar mapa"><svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+    </div>
+    <div class="dz-mapa-m" id="mMapa"></div>
+    <p class="dz-gps-ayuda" id="gpsAyuda" hidden></p>
+  </section>
+
+  <nav class="dz-tabs" role="tablist">
+    <button type="button" class="on" data-tab="activos" role="tab">Mi ruta <span id="nActivos">0</span></button>
+    <button type="button" data-tab="hechos" role="tab">Entregados <span id="nHechos">0</span></button>
+    <button type="button" data-tab="cuentas" role="tab">Mis cuentas</button>
+  </nav>
+
+  <main class="dz-lista" id="aLista" aria-live="polite"></main>
+  <p class="dz-act" id="aAct"></p>
+</div>
+
+<!-- Confirmar entrega -->
+<div class="dz-hoja" id="hConfirmar" hidden>
+  <div class="dz-hoja-in" role="dialog" aria-modal="true" aria-labelledby="hTit">
+    <span class="dz-hoja-asa"></span>
+    <h3 id="hTit"></h3>
+    <p id="hTxt"></p>
+    <div class="dz-hoja-acc"><button type="button" class="dz-btn" data-no>Todavía no</button><button type="button" class="dz-btn prim" data-si>Sí, confirmar</button></div>
+  </div>
+</div>
+
+<div class="dz-toast" id="aToast" hidden></div>
+
+<!-- Modo bolsillo: pantalla negra (gasta menos batería) que mantiene el GPS funcionando -->
+<div class="dz-bolsillo" id="vBolsillo" hidden>
+  <div class="dz-bol-in">
+    <span class="dz-bol-dot"></span>
+    <b>Ruta activa</b>
+    <small id="bolTxt">Compartiendo tu ubicación con el negocio</small>
+    <button type="button" class="dz-bol-btn" id="bDesbloquear"><span class="dz-bol-fill"></span><span>Mantén presionado para volver</span></button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script src="domicilios-nube.js"></script>
+<script src="smash-mapa.js"></script>
+<script src="domiciliario.js"></script>
+</body>
+</html>

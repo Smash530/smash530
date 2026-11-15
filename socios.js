@@ -9,7 +9,7 @@
    operativos − costos fijos − nómina − otros egresos. Los gastos
    mensuales se reparten por igual en los días del mes, así cada
    día carga su parte del arriendo, internet, etc.
-   Domicilios no cuentan (son del domiciliario).
+   Domicilios: solo la diferencia cobrado − pagado al domiciliario suma (finanzas.js).
 
    Reparto = (utilidad − reserva del negocio) × % del socio.
    Si un día hay pérdida, la parte del socio de ese día es negativa
@@ -280,7 +280,7 @@
             <li class="s"><span>${esc(c.socio)} · ${c.pct}%</span><b>${fmt(P.socio)}</b></li>
             <li class="s y"><span>${esc(c.yo)} · ${pctY}%</span><b>${fmt(P.yo)}</b></li>
           </ul>
-          <p class="soc-note">Los gastos mensuales (arriendo, internet…) se reparten por igual en los días del mes. Los domicilios no cuentan: son del domiciliario. Todo sale de lo registrado en Pedidos, Inventario, Gastos, Caja y Contabilidad.</p>
+          <p class="soc-note">Los gastos mensuales (arriendo, internet…) se reparten por igual en los días del mes. Los domicilios son del domiciliario; solo la diferencia entre lo que paga el cliente y lo que se le paga a él (ej: Sur $7.000 − $6.000) suma a la utilidad. Todo sale de lo registrado en Pedidos, Inventario, Gastos, Caja y Contabilidad.</p>
         </section>
 
         <section class="soc-panel">

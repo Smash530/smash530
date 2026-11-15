@@ -1,0 +1,72 @@
+/* ============================================================
+   SMASH · panel-inicio.css  (cocina y dueños)
+   Pantalla después de entrar: barra superior oscura de la marca
+   y encabezado de bienvenida en Pedidos, con el mismo estilo de
+   la portada de acceso.
+   ============================================================ */
+
+/* ---------------- Barra superior ---------------- */
+.topbar{background:#0b0b0d;color:#f5f5f4;border-bottom:1px solid rgba(255,255,255,.08);box-shadow:0 8px 24px -16px rgba(0,0,0,.6);isolation:isolate;overflow:hidden}
+.topbar::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:
+  radial-gradient(40% 180% at 0% 50%,rgba(227,38,47,.28),transparent 70%),
+  radial-gradient(30% 160% at 100% 0%,rgba(255,182,39,.08),transparent 70%)}
+.topbar .logo{box-shadow:0 0 0 1px rgba(255,255,255,.14),0 6px 14px -6px rgba(0,0,0,.8)}
+.topbar .brand h1{font-family:'Anton',Impact,sans-serif;font-weight:400;font-size:1.3rem;letter-spacing:.05em;text-transform:uppercase;color:#fff;line-height:1.05}
+.topbar .brand p{color:#a1a1aa;font-size:.7rem;letter-spacing:.04em}
+.topbar .top-links a,.topbar .link-btn{background:rgba(255,255,255,.05);color:#e4e4e7;border:1px solid rgba(255,255,255,.1)}
+.topbar .top-links a:hover,.topbar .top-links a:focus-visible,.topbar .link-btn:hover{background:#f5f5f4;color:#111;border-color:#f5f5f4}
+.topbar .user-box{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#f5f5f4}
+.topbar .user-box .btn-ghost{background:rgba(255,255,255,.08);color:#f5f5f4;border-color:rgba(255,255,255,.14)}
+.topbar .user-box .btn-ghost:hover{background:#e3262f;border-color:#e3262f;color:#fff}
+.topbar .sync-chip{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);color:#d4d4d8}
+.topbar .sync-chip.ok{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.35);color:#86efac}
+
+/* ---------------- Encabezado de bienvenida (Pedidos) ---------------- */
+.ph-hero{position:relative;isolation:isolate;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"txt live" "acc acc";
+  align-items:center;gap:22px 28px;margin:0 0 18px;padding:26px 28px 22px;border-radius:20px;color:#f5f5f4;background:#0f0f12;
+  border:1px solid rgba(255,255,255,.08);box-shadow:0 24px 48px -28px rgba(0,0,0,.65)}
+.ph-hero::before{content:"";position:absolute;inset:0;z-index:-2;background:url("images/portada.jpeg") center 40%/cover no-repeat;opacity:.3;filter:saturate(1.1)}
+.ph-hero::after{content:"";position:absolute;inset:0;z-index:-1;background:
+  radial-gradient(55% 120% at 0% 100%,rgba(227,38,47,.42),transparent 70%),
+  linear-gradient(90deg,rgba(15,15,18,.92) 0%,rgba(15,15,18,.72) 55%,rgba(15,15,18,.9) 100%)}
+.ph-txt{grid-area:txt;min-width:0}
+.ph-kick{display:inline-flex;align-items:center;gap:8px;font-size:.72rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#ffb627}
+.ph-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.2);animation:phPulso 2.4s ease-in-out infinite}
+@keyframes phPulso{50%{box-shadow:0 0 0 6px rgba(34,197,94,0)}}
+.ph-hero .page-title{margin:10px 0 0;font-family:'Anton',Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:clamp(1.9rem,3.2vw,2.7rem);line-height:1;letter-spacing:.01em;color:#fff}
+.ph-hero .page-title em{font-style:normal;color:#ff4d55}
+.ph-hero .page-sub{margin:10px 0 0;color:rgba(245,245,244,.72);font-size:.92rem;max-width:520px}
+
+.ph-live{grid-area:live;display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto;column-gap:12px;align-items:center;justify-self:end;
+  padding:16px 20px;border-radius:16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);min-width:190px}
+.ph-live b{grid-row:1/3;font-family:'Anton',Impact,sans-serif;font-weight:400;font-size:3rem;line-height:1;color:#fff;font-variant-numeric:tabular-nums;min-width:.6em;text-align:center}
+.ph-live span{font-size:.78rem;font-weight:600;line-height:1.25;color:#d4d4d8;text-transform:uppercase;letter-spacing:.06em}
+.ph-live i{font-style:normal;font-size:.76rem;font-weight:600;color:#a1a1aa;font-variant-numeric:tabular-nums}
+.ph-hero.con-pedidos .ph-live{background:rgba(227,38,47,.18);border-color:rgba(227,38,47,.45)}
+.ph-hero.con-pedidos .ph-live b{color:#ff6b72}
+
+.ph-acc{grid-area:acc;display:flex;flex-wrap:wrap;gap:8px;padding-top:18px;border-top:1px solid rgba(255,255,255,.08)}
+.ph-btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 15px;border-radius:11px;cursor:pointer;font:600 .85rem/1 Inter,Arial,sans-serif;color:#f5f5f4;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);transition:background .15s,border-color .15s,transform .1s}
+.ph-btn:hover{background:rgba(255,255,255,.13);border-color:rgba(255,255,255,.22)}
+.ph-btn:active{transform:translateY(1px)}
+.ph-btn:focus-visible{outline:2px solid #ffb627;outline-offset:2px}
+.ph-btn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ph-btn.prim{background:linear-gradient(180deg,#ec3540,#d61f29);border-color:transparent;box-shadow:0 10px 22px -12px rgba(227,38,47,.9),inset 0 1px 0 rgba(255,255,255,.18)}
+.ph-btn.prim:hover{background:linear-gradient(180deg,#f0444e,#c81e27)}
+
+/* ---------------- Celular y tableta ---------------- */
+@media (max-width:820px){
+  .topbar .brand h1{font-size:1.15rem}
+  .ph-hero{grid-template-columns:1fr;grid-template-areas:"txt" "live" "acc";padding:20px 18px 16px;gap:16px;border-radius:16px}
+  .ph-live{justify-self:stretch;min-width:0;padding:12px 16px}
+
+  .ph-hero .page-sub,.ph-larga{display:none}
+  .ph-hero .page-title{margin-top:8px;font-size:1.8rem}
+  .ph-live{padding:10px 14px}
+  .ph-live b{font-size:1.9rem}
+  .ph-btn{height:38px}
+  .ph-acc{display:grid;grid-template-columns:1fr 1fr;padding-top:14px}
+  .ph-btn{justify-content:center;padding:0 10px;font-size:.82rem}
+}
+@media (prefers-reduced-motion:reduce){.ph-dot{animation:none}}

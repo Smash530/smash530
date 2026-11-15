@@ -28,6 +28,20 @@
     pw.addEventListener('keyup', revisar);
     pw.addEventListener('blur', function () { caps.hidden = true; });
   }
+  // Portada: saludo según la hora y fecha/hora en vivo
+  var saludo = sec.querySelector('[data-lv-saludo]'), hora = sec.querySelector('[data-lv-hora]');
+  function reloj() {
+    var d = new Date(), h = d.getHours();
+    if (saludo) saludo.textContent = h >= 5 && h < 12 ? 'Buenos días' : h >= 12 && h < 19 ? 'Buenas tardes' : 'Buenas noches';
+    if (hora) {
+      try {
+        var f = d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+        hora.textContent = f.charAt(0).toUpperCase() + f.slice(1) + ' · ' + d.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' });
+      } catch (e) { hora.textContent = ''; }
+    }
+  }
+  if (saludo || hora) { reloj(); setInterval(function () { if (!sec.hidden) reloj(); }, 30000); }
+
   // El cursor empieza en el primer campo vacío (solo en computador)
   if (!sec.hidden && window.matchMedia && window.matchMedia('(pointer:fine)').matches) {
     var u = document.getElementById('staffUsuario');

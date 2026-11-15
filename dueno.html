@@ -15,6 +15,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="panel-pro.css">
+<link rel="stylesheet" href="panel-nav.css">
+<link rel="stylesheet" href="panel-portada.css">
+<link rel="stylesheet" href="panel-inicio.css">
+<link rel="stylesheet" href="domicilios.css">
 </head>
 <body>
 
@@ -33,25 +37,30 @@
 
 <main class="container">
 
-  <section id="staffAuthSection" class="card login login-dueno">
-    <div class="login-art" aria-hidden="true">
-      <div class="la-brand"><img src="images/logo-smash.jpeg" alt="" onerror="this.remove()"><span>SMASH</span></div>
-      <div class="la-mid">
-        <span class="la-kick">Acceso restringido</span>
-        <h2>Panel de dueños</h2>
-        <p>Ventas, costos, inventario, finanzas y reparto de socios del negocio.</p>
+  <section id="staffAuthSection" class="card login login-dueno lv">
+    <div class="lv-art">
+      <div class="lv-top">
+        <div class="lv-brand"><img src="images/logo-smash.jpeg" alt="" onerror="this.remove()"><span>SMASH<em>Panel interno</em></span></div>
+        <span class="lv-hora" data-lv-hora></span>
       </div>
-      <ul class="la-list">
-        <li>Ventas y ganancias del día, semana y mes</li>
-        <li>Inventario, costos y caja</li>
-        <li>Respaldos automáticos en la nube</li>
-      </ul>
+      <div class="lv-mid">
+        <span class="lv-kick">Acceso restringido · Dueños</span>
+        <h2>Panel de <span>dueños</span></h2>
+        <p>Ventas, finanzas, costos y equipo del negocio, todo en un solo tablero.</p>
+        <ul class="lv-mods" aria-label="Lo que encuentras en el panel">
+          <li><i><svg viewBox="0 0 24 24"><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg></i><b>Ventas</b><small>Informes y más vendidas</small></li>
+          <li><i><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg></i><b>Finanzas</b><small>Caja, gastos y socios</small></li>
+          <li><i><svg viewBox="0 0 24 24"><path d="M17 21a1 1 0 0 0 1-1v-5.35c0-.46.32-.84.73-1.04a4 4 0 0 0-2.14-7.59 5 5 0 0 0-9.18 0 4 4 0 0 0-2.14 7.59c.41.2.73.58.73 1.04V20a1 1 0 0 0 1 1Z"/><path d="M6 17h12"/></svg></i><b>Menú y costos</b><small>Inventario y recetas</small></li>
+          <li><i><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></i><b>Equipo</b><small>Personal, horario y ajustes</small></li>
+        </ul>
+      </div>
+      <div class="lv-foot"><span class="lv-dot"></span>Respaldos automáticos en la nube · Acceso protegido</div>
     </div>
-    <div class="login-box">
+    <div class="lv-panel">
+     <div class="login-box lv-card">
+      <nav class="lv-switch" aria-label="Elegir panel"><a href="cocina.html">Cocina</a><a href="dueno.html" class="on" aria-current="page">Dueños</a></nav>
       <div class="lb-head">
-        <img class="lb-logo" src="images/logo-smash.jpeg" alt="" onerror="this.remove()">
-        <span class="lb-kick">🔑 Panel de dueños</span>
-        <h2 class="section-title">Bienvenido de nuevo</h2>
+        <h2 class="section-title" data-lv-saludo>Bienvenido de nuevo</h2>
         <p>Entra con tu correo y contraseña de dueño.</p>
       </div>
       <form id="staffLoginForm" class="auth-form">
@@ -70,11 +79,9 @@
         <p class="error" id="staffError" role="alert"></p>
         <button type="submit" class="btn-primary">Entrar al panel de dueños</button>
       </form>
-      <div class="lb-links">
-        <a href="cocina.html">👨‍🍳 Panel de cocina</a>
-        <a href="cliente.html" target="_blank" rel="noopener">🍔 Página de clientes</a>
-      </div>
-      <p class="lb-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>Acceso solo para los dueños del negocio</p>
+      <a class="lv-cli" href="cliente.html" target="_blank" rel="noopener"><span>Ver la página de clientes</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></a>
+     </div>
+     <p class="lb-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>Acceso solo para los dueños del negocio</p>
     </div>
   </section>
 
@@ -82,41 +89,60 @@
     <button id="menuToggle" class="menu-toggle" type="button">☰ Menú</button>
     <aside class="side" id="side">
       <nav class="side-nav" id="panelNav">
-        <div class="nav-group">Operación</div>
-        <button class="nav-btn active" data-section="pendientes" type="button"><span class="ni">📦</span>Pedidos<span class="nav-count" data-count="encurso"></span></button>
-        <button class="nav-btn" data-section="finalizados" type="button"><span class="ni">🗓️</span>Historial</button>
-        <button class="nav-btn" data-section="crear" type="button"><span class="ni">➕</span>Crear pedido</button>
-        <button class="nav-btn" data-section="cierres" type="button"><span class="ni">🏦</span>Caja y cierres</button>
-        <button class="nav-btn" data-section="historial" type="button"><span class="ni">📜</span>Historial de comandas</button>
-        <div class="nav-group">Ventas y finanzas</div>
-        <button class="nav-btn" data-section="informes" type="button"><span class="ni">📈</span>Informes</button>
-        <button class="nav-btn" data-section="ventas" type="button"><span class="ni">📊</span>Registro de ventas</button>
-        <button class="nav-btn" data-section="contabilidad" type="button"><span class="ni">💰</span>Contabilidad</button>
-        <button class="nav-btn" data-section="gastos" type="button"><span class="ni">💸</span>Gastos</button>
-        <button class="nav-btn" data-section="socios" type="button"><span class="ni">🤝</span>Reparto de socios</button>
-        <button class="nav-btn" data-section="top" type="button"><span class="ni">🏆</span>Más vendidas</button>
-        <div class="nav-group">Menú y costos</div>
-        <button class="nav-btn" data-section="productos" type="button"><span class="ni">🍽️</span>Productos</button>
-        <button class="nav-btn" data-section="inventario" type="button"><span class="ni">🥩</span>Inventario</button>
-        <button class="nav-btn" data-section="recetas" type="button"><span class="ni">📋</span>Recetas</button>
-        <button class="nav-btn" data-section="costos" type="button"><span class="ni">💲</span>Costos por producto</button>
-        <button class="nav-btn" data-section="simulador" type="button"><span class="ni">🧮</span>Simulador de costos</button>
-        <div class="nav-group">Clientes</div>
-        <button class="nav-btn" data-section="clientes" type="button"><span class="ni">📇</span>Clientes</button>
-        <button class="nav-btn" data-section="leales" type="button"><span class="ni">⭐</span>Clientes leales</button>
-        <button class="nav-btn" data-section="promos" type="button"><span class="ni">🎁</span>Promociones</button>
-        <button class="nav-btn" data-section="avisos" type="button"><span class="ni">📣</span>Avisar promo</button>
-        <div class="nav-group">Equipo y sistema</div>
-        <button class="nav-btn" data-section="personal" type="button"><span class="ni">👥</span>Personal</button>
-        <button class="nav-btn" data-section="horario" type="button"><span class="ni">🕐</span>Horario</button>
-        <button class="nav-btn" data-section="auditoria" type="button"><span class="ni">🛡️</span>Auditoría</button>
-        <button class="nav-btn" data-section="config" type="button"><span class="ni">⚙️</span>Configuración</button>
+        <div class="ng" data-g="operacion"><button class="ng-head" type="button" data-sub="Pedidos y servicio">Operación</button><div class="ng-body"><div class="ng-in">
+          <button class="nav-btn active" data-section="pendientes" type="button"><span class="ni">📦</span>Pedidos<span class="nav-count" data-count="encurso"></span></button>
+          <button class="nav-btn" data-section="finalizados" type="button"><span class="ni">🗓️</span>Historial</button>
+          <button class="nav-btn" data-section="crear" type="button"><span class="ni">➕</span>Crear pedido</button>
+          <button class="nav-btn" data-section="domicilios" type="button"><span class="ni">🛵</span>Domicilios</button>
+          <button class="nav-btn" data-section="historial" type="button"><span class="ni">📜</span>Historial de comandas</button>
+        </div></div></div>
+        <div class="ng" data-g="ventas"><button class="ng-head" type="button" data-sub="Informes y rendimiento">Ventas</button><div class="ng-body"><div class="ng-in">
+          <button class="nav-btn" data-section="informes" type="button"><span class="ni">📈</span>Informes</button>
+          <button class="nav-btn" data-section="ventas" type="button"><span class="ni">📊</span>Registro de ventas</button>
+          <button class="nav-btn" data-section="top" type="button"><span class="ni">🏆</span>Más vendidas</button>
+        </div></div></div>
+        <div class="ng" data-g="finanzas"><button class="ng-head" type="button" data-sub="Caja, gastos y socios">Finanzas</button><div class="ng-body"><div class="ng-in">
+          <button class="nav-btn" data-section="cierres" type="button"><span class="ni">🏦</span>Caja y cierres</button>
+          <button class="nav-btn" data-section="contabilidad" type="button"><span class="ni">💰</span>Contabilidad</button>
+          <button class="nav-btn" data-section="gastos" type="button"><span class="ni">💸</span>Gastos</button>
+          <button class="nav-btn" data-section="socios" type="button"><span class="ni">🤝</span>Reparto de socios</button>
+        </div></div></div>
+        <div class="ng" data-g="menu"><button class="ng-head" type="button" data-sub="Carta, inventario y costos">Menú y costos</button><div class="ng-body"><div class="ng-in">
+          <button class="nav-btn" data-section="productos" type="button"><span class="ni">🍽️</span>Productos</button>
+          <button class="nav-btn" data-section="inventario" type="button"><span class="ni">🥩</span>Inventario</button>
+          <button class="nav-btn" data-section="recetas" type="button"><span class="ni">📋</span>Recetas</button>
+          <button class="nav-btn" data-section="costos" type="button"><span class="ni">💲</span>Costos por producto</button>
+          <button class="nav-btn" data-section="simulador" type="button"><span class="ni">🧮</span>Simulador de costos</button>
+        </div></div></div>
+        <div class="ng" data-g="clientes"><button class="ng-head" type="button" data-sub="Club, promos y avisos">Clientes y marketing</button><div class="ng-body"><div class="ng-in">
+          <button class="nav-btn" data-section="clientes" type="button"><span class="ni">📇</span>Clientes</button>
+          <button class="nav-btn" data-section="leales" type="button"><span class="ni">⭐</span>Clientes leales</button>
+          <button class="nav-btn" data-section="promos" type="button"><span class="ni">🎁</span>Promociones</button>
+          <button class="nav-btn" data-section="avisos" type="button"><span class="ni">📣</span>Avisar promo</button>
+        </div></div></div>
+        <div class="ng" data-g="sistema"><button class="ng-head" type="button" data-sub="Personal, horario y ajustes">Equipo y sistema</button><div class="ng-body"><div class="ng-in">
+          <button class="nav-btn" data-section="personal" type="button"><span class="ni">👥</span>Personal</button>
+          <button class="nav-btn" data-section="horario" type="button"><span class="ni">🕐</span>Horario</button>
+          <button class="nav-btn" data-section="auditoria" type="button"><span class="ni">🛡️</span>Auditoría</button>
+          <button class="nav-btn" data-section="config" type="button"><span class="ni">⚙️</span>Configuración</button>
+        </div></div></div>
       </nav>
     </aside>
     <div class="content">
     <section class="panel-section" id="section-pendientes">
-      <div class="page-head">
-        <div><h2 class="page-title">Pedidos</h2><p class="page-sub">Todos los pedidos en curso. Toca un pedido para ver sus datos y opciones.</p></div>
+      <div class="page-head ph-hero" data-ph data-ph-panel="Panel de dueños">
+        <div class="ph-txt">
+          <span class="ph-kick"><span class="ph-dot"></span><span data-ph-fecha>Hoy</span></span>
+          <h2 class="page-title"><span data-ph-saludo>Hola</span><em data-ph-nombre></em></h2>
+          <p class="page-sub">Todos los pedidos en curso. Toca un pedido para ver sus datos y opciones.</p>
+        </div>
+        <div class="ph-live" aria-live="polite"><b data-ph-curso>0</b><span>pedidos<br>en curso</span><i data-ph-hora></i></div>
+        <div class="ph-acc">
+          <button type="button" class="ph-btn prim" data-ir="crear"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Crear pedido</button>
+          <button type="button" class="ph-btn" data-ph-wa><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-12.5 7.4L3 20.5l1.6-5.3A8.4 8.4 0 1 1 21 11.5z"/></svg><span><span class="ph-larga">Pedido de </span>WhatsApp</span></button>
+          <button type="button" class="ph-btn" data-ir="informes"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>Informes</button>
+          <button type="button" class="ph-btn" data-ir="finalizados"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Historial</button>
+        </div>
       </div>
       <div class="status-strip">
         <div class="cupo-bar" id="cupoBar"></div>
@@ -132,6 +158,8 @@
       </details>
       <div id="pedidosLista"></div>
     </section>
+
+    <section class="panel-section" id="section-domicilios" hidden><div id="domiSec"></div></section>
 
     <section class="panel-section" id="section-finalizados" hidden>
       <div class="page-head">
@@ -543,6 +571,6 @@
 <div id="printArea" class="print-area"></div>
 
 <script src="boot.js"></script>
-<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'sincronizar.js', 'store.js', 'inventario.js', 'costos.js', 'comandas.js', 'caja.js', 'clientes.js', 'finanzas.js', 'ticket.js', 'orders-ui.js', 'pedidos-lista.js', 'impresion-remota.js', 'leales-ui.js', 'pedidos-web.js', 'seguimiento-panel.js', 'crear-pedido.js', 'avisar-promos.js', 'dueno.js', 'inventario-ui.js', 'costos-ui.js', 'comandas-ui.js', 'caja-ui.js', 'clientes-ui.js', 'finanzas-ui.js', 'socios.js','auditoria.js', 'auditoria-ui.js', 'respaldo-nube.js', 'login-pro.js']);</script>
+<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'sincronizar.js', 'store.js', 'inventario.js', 'costos.js', 'comandas.js', 'caja.js', 'clientes.js', 'finanzas.js', 'ticket.js', 'orders-ui.js', 'pedidos-lista.js', 'impresion-remota.js', 'leales-ui.js', 'pedidos-web.js', 'seguimiento-panel.js', 'crear-pedido.js', 'avisar-promos.js', 'dueno.js', 'inventario-ui.js', 'costos-ui.js', 'comandas-ui.js', 'caja-ui.js', 'clientes-ui.js', 'finanzas-ui.js', 'socios.js','auditoria.js', 'auditoria-ui.js', 'respaldo-nube.js', 'domicilios-nube.js', 'domicilios-panel.js', 'smash-mapa.js', 'domicilios-mapa.js', 'panel-nav.js', 'panel-inicio.js', 'login-pro.js']);</script>
 </body>
 </html>

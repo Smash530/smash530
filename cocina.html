@@ -14,6 +14,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="panel-pro.css">
+<link rel="stylesheet" href="panel-nav.css">
+<link rel="stylesheet" href="panel-portada.css">
+<link rel="stylesheet" href="panel-inicio.css">
+<link rel="stylesheet" href="domicilios.css">
 </head>
 <body>
 
@@ -33,25 +37,30 @@
 <main class="container">
 
   <!-- ================= LOGIN DE PERSONAL ================= -->
-  <section id="staffAuthSection" class="card login">
-    <div class="login-art" aria-hidden="true">
-      <div class="la-brand"><img src="images/logo-smash.jpeg" alt="" onerror="this.remove()"><span>SMASH</span></div>
-      <div class="la-mid">
-        <span class="la-kick">Acceso interno</span>
-        <h2>Panel de cocina</h2>
-        <p>Pedidos, comandas, inventario y caja del día en un solo lugar.</p>
+  <section id="staffAuthSection" class="card login lv">
+    <div class="lv-art">
+      <div class="lv-top">
+        <div class="lv-brand"><img src="images/logo-smash.jpeg" alt="" onerror="this.remove()"><span>SMASH<em>Panel interno</em></span></div>
+        <span class="lv-hora" data-lv-hora></span>
       </div>
-      <ul class="la-list">
-        <li>Pedidos de la página al instante</li>
-        <li>Comandas e impresión de tickets</li>
-        <li>Todo guardado en la nube</li>
-      </ul>
+      <div class="lv-mid">
+        <span class="lv-kick">Acceso interno · Cocina</span>
+        <h2>Panel de <span>cocina</span></h2>
+        <p>Pedidos, comandas y caja del día en un solo lugar, en tiempo real.</p>
+        <ul class="lv-mods" aria-label="Lo que encuentras en el panel">
+          <li><i><svg viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></i><b>Operación</b><small>Pedidos en vivo y comandas</small></li>
+          <li><i><svg viewBox="0 0 24 24"><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg></i><b>Ventas</b><small>Conteo y facturación del día</small></li>
+          <li><i><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg></i><b>Finanzas</b><small>Turno y cuadre de caja</small></li>
+          <li><i><svg viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></i><b>Clientes</b><small>Club, puntos y avisos</small></li>
+        </ul>
+      </div>
+      <div class="lv-foot"><span class="lv-dot"></span>Pedidos de la página al instante · Todo guardado en la nube</div>
     </div>
-    <div class="login-box">
+    <div class="lv-panel">
+     <div class="login-box lv-card">
+      <nav class="lv-switch" aria-label="Elegir panel"><a href="cocina.html" class="on" aria-current="page">Cocina</a><a href="dueno.html">Dueños</a></nav>
       <div class="lb-head">
-        <img class="lb-logo" src="images/logo-smash.jpeg" alt="" onerror="this.remove()">
-        <span class="lb-kick">👨‍🍳 Panel de cocina</span>
-        <h2 class="section-title">Bienvenido de nuevo</h2>
+        <h2 class="section-title" data-lv-saludo>Bienvenido de nuevo</h2>
         <p>Entra con tu usuario del personal.</p>
       </div>
       <form id="staffLoginForm" class="auth-form">
@@ -70,11 +79,9 @@
         <p class="error" id="staffError" role="alert"></p>
         <button type="submit" class="btn-primary">Entrar al panel</button>
       </form>
-      <div class="lb-links">
-        <a href="dueno.html">🔑 Panel de dueños</a>
-        <a href="cliente.html" target="_blank" rel="noopener">🍔 Página de clientes</a>
-      </div>
-      <p class="lb-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>Acceso solo para personal autorizado</p>
+      <a class="lv-cli" href="cliente.html" target="_blank" rel="noopener"><span>Ver la página de clientes</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></a>
+     </div>
+     <p class="lb-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>Acceso solo para personal autorizado</p>
     </div>
   </section>
 
@@ -83,21 +90,28 @@
    <button id="menuToggle" class="menu-toggle" type="button">☰ Menú</button>
    <aside class="side" id="side">
     <nav class="side-nav" id="panelNav">
-      <div class="nav-group">Operación</div>
-      <button class="nav-btn active" data-section="pendientes"><span class="ni">📦</span>Pedidos<span class="nav-count" data-count="encurso"></span></button>
-      <button class="nav-btn" data-section="finalizados"><span class="ni">🗓️</span>Historial</button>
-      <button class="nav-btn" data-section="crear"><span class="ni">➕</span>Crear pedido</button>
-      <button class="nav-btn" data-section="caja"><span class="ni">💵</span>Caja</button>
-      <div class="nav-group">El día</div>
-      <button class="nav-btn" data-section="conteo"><span class="ni">🍔</span>Conteo del día</button>
-      <button class="nav-btn" data-section="contabilidad"><span class="ni">💰</span>Facturación del día</button>
-      <button class="nav-btn" data-section="historial"><span class="ni">📜</span>Historial de comandas</button>
-      <div class="nav-group">Clientes</div>
-      <button class="nav-btn" data-section="clientes"><span class="ni">📇</span>Clientes</button>
-      <button class="nav-btn" data-section="leales"><span class="ni">⭐</span>Clientes leales</button>
-      <button class="nav-btn" data-section="avisos"><span class="ni">📣</span>Avisar promo</button>
-      <div class="nav-group">Sistema</div>
-      <button class="nav-btn" data-section="config"><span class="ni">⚙️</span>Configuración</button>
+      <div class="ng" data-g="operacion"><button class="ng-head" type="button" data-sub="Pedidos y servicio">Operación</button><div class="ng-body"><div class="ng-in">
+        <button class="nav-btn active" data-section="pendientes"><span class="ni">📦</span>Pedidos<span class="nav-count" data-count="encurso"></span></button>
+        <button class="nav-btn" data-section="finalizados"><span class="ni">🗓️</span>Historial</button>
+        <button class="nav-btn" data-section="crear"><span class="ni">➕</span>Crear pedido</button>
+        <button class="nav-btn" data-section="domicilios"><span class="ni">🛵</span>Domicilios</button>
+        <button class="nav-btn" data-section="historial"><span class="ni">📜</span>Historial de comandas</button>
+      </div></div></div>
+      <div class="ng" data-g="ventas"><button class="ng-head" type="button" data-sub="Lo vendido hoy">Ventas</button><div class="ng-body"><div class="ng-in">
+        <button class="nav-btn" data-section="conteo"><span class="ni">🍔</span>Conteo del día</button>
+        <button class="nav-btn" data-section="contabilidad"><span class="ni">💰</span>Facturación del día</button>
+      </div></div></div>
+      <div class="ng" data-g="finanzas"><button class="ng-head" type="button" data-sub="Turno y cuadre de caja">Finanzas</button><div class="ng-body"><div class="ng-in">
+        <button class="nav-btn" data-section="caja"><span class="ni">💵</span>Caja</button>
+      </div></div></div>
+      <div class="ng" data-g="clientes"><button class="ng-head" type="button" data-sub="Club, puntos y avisos">Clientes y marketing</button><div class="ng-body"><div class="ng-in">
+        <button class="nav-btn" data-section="clientes"><span class="ni">📇</span>Clientes</button>
+        <button class="nav-btn" data-section="leales"><span class="ni">⭐</span>Clientes leales</button>
+        <button class="nav-btn" data-section="avisos"><span class="ni">📣</span>Avisar promo</button>
+      </div></div></div>
+      <div class="ng" data-g="sistema"><button class="ng-head" type="button" data-sub="Ajustes del panel">Sistema</button><div class="ng-body"><div class="ng-in">
+        <button class="nav-btn" data-section="config"><span class="ni">⚙️</span>Configuración</button>
+      </div></div></div>
     </nav>
     <div class="sound-box"><button id="soundBtn" class="btn-secondary" type="button">🔔 Sonido: activar</button><span id="soundHint" class="hint"></span></div>
    </aside>
@@ -105,8 +119,19 @@
 
     <!-- ---- Pedidos pendientes (nuevo + preparando) ---- -->
     <section class="panel-section" id="section-pendientes">
-      <div class="page-head">
-        <div><h2 class="page-title">Pedidos</h2><p class="page-sub">Todos los pedidos en curso. Toca un pedido para ver sus datos y opciones.</p></div>
+      <div class="page-head ph-hero" data-ph data-ph-panel="Panel de cocina">
+        <div class="ph-txt">
+          <span class="ph-kick"><span class="ph-dot"></span><span data-ph-fecha>Hoy</span></span>
+          <h2 class="page-title"><span data-ph-saludo>Hola</span><em data-ph-nombre></em></h2>
+          <p class="page-sub">Todos los pedidos en curso. Toca un pedido para ver sus datos y opciones.</p>
+        </div>
+        <div class="ph-live" aria-live="polite"><b data-ph-curso>0</b><span>pedidos<br>en curso</span><i data-ph-hora></i></div>
+        <div class="ph-acc">
+          <button type="button" class="ph-btn prim" data-ir="crear"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Crear pedido</button>
+          <button type="button" class="ph-btn" data-ph-wa><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-12.5 7.4L3 20.5l1.6-5.3A8.4 8.4 0 1 1 21 11.5z"/></svg><span><span class="ph-larga">Pedido de </span>WhatsApp</span></button>
+          <button type="button" class="ph-btn" data-ir="caja"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg>Caja</button>
+          <button type="button" class="ph-btn" data-ir="finalizados"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Historial</button>
+        </div>
       </div>
       <div class="status-strip">
         <div class="cupo-bar" id="cupoBar"></div>
@@ -122,6 +147,8 @@
       </details>
       <div id="pedidosLista"></div>
     </section>
+
+    <section class="panel-section" id="section-domicilios" hidden><div id="domiSec"></div></section>
 
     <!-- ---- Pedidos finalizados (entregados y cancelados) ---- -->
     <section class="panel-section" id="section-finalizados" hidden>
@@ -214,6 +241,6 @@
 <div id="printArea" class="print-area"></div>
 
 <script src="boot.js"></script>
-<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'sincronizar.js', 'store.js', 'inventario.js', 'costos.js', 'comandas.js', 'caja.js', 'clientes.js', 'ticket.js', 'orders-ui.js', 'pedidos-lista.js', 'impresion-remota.js', 'leales-ui.js', 'pedidos-web.js', 'seguimiento-panel.js', 'crear-pedido.js', 'avisar-promos.js', 'cocina.js', 'comandas-ui.js', 'caja-ui.js', 'clientes-ui.js', 'auditoria.js', 'respaldo-nube.js', 'login-pro.js']);</script>
+<script>SmashBoot.cargar(['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js', 'data.js', 'data-ext.js', 'nube.js', 'sincronizar.js', 'store.js', 'inventario.js', 'costos.js', 'comandas.js', 'caja.js', 'clientes.js', 'ticket.js', 'orders-ui.js', 'pedidos-lista.js', 'impresion-remota.js', 'leales-ui.js', 'pedidos-web.js', 'seguimiento-panel.js', 'crear-pedido.js', 'avisar-promos.js', 'cocina.js', 'comandas-ui.js', 'caja-ui.js', 'clientes-ui.js', 'auditoria.js', 'respaldo-nube.js', 'domicilios-nube.js', 'domicilios-panel.js', 'smash-mapa.js', 'domicilios-mapa.js', 'panel-nav.js', 'panel-inicio.js', 'login-pro.js']);</script>
 </body>
 </html>

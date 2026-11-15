@@ -1,0 +1,30 @@
+/* SMASH · smash-mapa.css — marcadores y ventanas del mapa (paneles y domiciliario) */
+.sm-pin-wrap{background:none;border:0}
+.sm-pin{position:relative;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#7c3aed;color:#fff;font:800 15px/1 Inter,Arial,sans-serif;
+  border:3px solid #fff;box-shadow:0 6px 16px -4px rgba(0,0,0,.55)}
+.sm-pin span{position:relative;z-index:2}
+.sm-pin::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:3px solid currentColor;opacity:0}
+.sm-pin.cam{background:#7c3aed;color:#7c3aed}
+.sm-pin.cam span,.sm-pin.asg span,.sm-pin.viejo span,.sm-pin.yo span{color:#fff}
+.sm-pin.cam::after{animation:smOnda 2s ease-out infinite;opacity:.6}
+.sm-pin.asg{background:#2563eb;color:#2563eb}
+.sm-pin.viejo{background:#6b7280;color:#6b7280;opacity:.85}
+.sm-pin.yo{background:#e3262f;color:#e3262f}
+.sm-pin.yo::after{animation:smOnda 2s ease-out infinite;opacity:.6}
+.sm-pin.negocio{background:#111;color:#111;border-color:#ffb627;border-radius:12px;font-size:17px}
+.sm-pin.negocio span{color:#ffb627}
+.sm-rumbo{position:absolute;inset:-12px;z-index:1;pointer-events:none}
+.sm-rumbo::before{content:"";position:absolute;left:50%;top:0;transform:translateX(-50%);border:6px solid transparent;border-bottom:9px solid #fff;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
+@keyframes smOnda{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.9);opacity:0}}
+.leaflet-popup-content-wrapper{border-radius:14px}
+.leaflet-popup-content{margin:12px 14px;font:500 13px/1.4 Inter,Arial,sans-serif}
+.sm-pop b{font-size:14px}
+.sm-pop small{display:block;color:#6b7280;margin-top:2px}
+.sm-pop ul{margin:8px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px}
+.sm-pop li{padding:5px 8px;border-radius:8px;background:#f3f4f6}
+.sm-pop li em{font-style:normal;font-weight:700;font-size:11px;color:#7c3aed;margin-left:4px}
+.leaflet-container{font-family:Inter,Arial,sans-serif}
+@media (prefers-reduced-motion:reduce){.sm-pin::after{animation:none!important}}
+/* Tema oscuro: se invierten las calles y se suavizan los colores */
+.sm-oscuro .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.88) saturate(.55)}
+.sm-oscuro.leaflet-container{background:#1b1c20}
