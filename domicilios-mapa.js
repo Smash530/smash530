@@ -32,7 +32,7 @@ const SmashDomiMapa = (function () {
         <div class="dmm-top"><span class="dm-envivo"><i></i>En vivo</span><span class="dmm-act" id="dmMapaAct"></span></div>
         <div class="dmm-btns"><button type="button" class="dmm-b" data-todos title="Ver a todos">⤢ Todos</button>${ES_DUENO ? '<button type="button" class="dmm-b" data-negocio title="Marcar dónde queda el negocio">📍 Negocio</button>' : ''}</div>
         <p class="dmm-fijar" id="dmFijar" hidden>Toca el mapa donde queda el negocio <button type="button" class="dm-mini" data-cancelar-fijar>Cancelar</button></p>
-        <div class="dmm-ley"><span><i class="cam"></i>En camino</span><span><i class="asg"></i>Asignado</span><span><i class="viejo"></i>Sin señal</span></div>
+        <div class="dmm-ley"><span><i class="cam"></i>En camino</span><span><i class="asg"></i>Asignado</span><span><i class="libre"></i>Disponible</span><span><i class="viejo"></i>Sin señal</span></div>
       </div>`;
       slot.querySelector('[data-todos]').addEventListener('click', () => { foco = null; ajustar(true); });
       const bn = slot.querySelector('[data-negocio]');
@@ -95,13 +95,15 @@ const SmashDomiMapa = (function () {
   const sinSenal = (u) => u.fondo || Date.now() - new Date(u.en).getTime() > VIEJO;
   function claseDe(u) {
     if (sinSenal(u)) return 'viejo';
-    return (u.pedidos || []).some((p) => p.estado === 'en_camino') ? 'cam' : 'asg';
+    const ped = u.pedidos || [];
+    if (!ped.length) return 'libre';   // en turno, sin pedidos: disponible
+    return ped.some((p) => p.estado === 'en_camino') ? 'cam' : 'asg';
   }
   function popup(u) {
     const ped = u.pedidos || [];
     const est = u.fondo ? 'Salió de la página · última ubicación ' + SmashMapa.hace(u.en) : SmashMapa.hace(u.en) + (u.velocidad != null ? ' · ' + u.velocidad + ' km/h' : '') + (u.precision ? ' · ±' + Math.round(u.precision) + ' m' : '');
     return `<div class="sm-pop"><b>${esc(u.nombre)}</b><small>${esc(est)}</small>
-      ${ped.length ? `<ul>${ped.map((p) => `<li>#${esc(p.numero || p.pedido)} ${esc(p.cliente || '')}<em>${p.estado === 'en_camino' ? 'en camino' : 'por salir'}</em><br><small>${esc(p.direccion || p.zona || '')}</small></li>`).join('')}</ul>` : '<small>Sin pedidos por entregar</small>'}</div>`;
+      ${ped.length ? `<ul>${ped.map((p) => `<li>#${esc(p.numero || p.pedido)} ${esc(p.cliente || '')}<em>${p.estado === 'en_camino' ? 'en camino' : 'por salir'}</em><br><small>${esc(p.direccion || p.zona || '')}</small></li>`).join('')}</ul>` : '<small>Disponible · en turno sin pedidos</small>'}</div>`;
   }
   function pintar() {
     if (!mapa) return;
@@ -110,7 +112,7 @@ const SmashDomiMapa = (function () {
       vistos[u.domiciliario] = 1;
       const ll = [u.lat, u.lng], cl = claseDe(u), ini = (u.nombre || '?').charAt(0).toUpperCase();
       const ruta = (u.rastro || []).map((p) => [p[0], p[1]]);
-      const color = cl === 'cam' ? '#7c3aed' : cl === 'viejo' ? '#6b7280' : '#2563eb';
+      const color = cl === 'cam' ? '#7c3aed' : cl === 'viejo' ? '#6b7280' : cl === 'libre' ? '#16a34a' : '#2563eb';
       let c = capa[u.domiciliario];
       if (!c) {
         c = capa[u.domiciliario] = {

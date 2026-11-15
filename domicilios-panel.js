@@ -335,7 +335,7 @@ const SmashDomi = (function () {
     return `<div class="dl${on ? ' on' : ''} dl-${est}" data-dl="${esc(d.id)}">
       <button type="button" class="dl-h" data-abrir="${esc(d.id)}" aria-expanded="${on}">
         <span class="dl-av ${est} s-${s.k}">${ini(d.nombre)}</span>
-        <span class="dl-t"><b>${esc(d.nombre)}</b><small>${esc(sub)}</small>${r ? `<small class="dl-s s-${s.k}">${esc(s.t)}</small>` : ''}</span>
+        <span class="dl-t"><b>${esc(d.nombre)}</b><small>${esc(sub)}</small>${r || s.k !== 'nada' ? `<small class="dl-s s-${s.k}">${esc(s.t)}</small>` : ''}</span>
         <span class="dl-hoy"><b>${fmt(c ? c.hoy.p : 0)}</b><small>${c ? c.hoy.n : 0} hoy</small></span>
         <svg class="dl-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
       </button>

@@ -51,7 +51,7 @@
   });
   $('bSalir').addEventListener('click', async () => {
     if (!confirm('¿Cerrar sesión en este celular?')) return;
-    if (APP) { try { SmashApp.detenerRastreo(); } catch (e) { /* sin app */ } }
+    if (APP) { try { if (SmashApp.terminarTurno) SmashApp.terminarTurno(); else SmashApp.detenerRastreo(); } catch (e) { /* sin app */ } }
     await API.salir(); vista();
   });
 
@@ -67,7 +67,7 @@
     }
     falla = false; ultimo = new Date();
     if (r.nombre) $('aNombre').textContent = r.nombre;
-    const nuevos = (r.lista || []).filter((e) => e.estado === 'asignado' && conocidos && !conocidos.has(e.pedido));
+    const nuevos = (r.lista || []).filter((e) => (e.estado === 'asignado' || e.estado === 'en_camino') && conocidos && !conocidos.has(e.pedido));
     conocidos = new Set((r.lista || []).map((e) => e.pedido));
     lista = r.lista || [];
     if (nuevos.length) avisarNuevo(nuevos);
@@ -251,8 +251,11 @@
   }
   document.addEventListener('pointerdown', () => sonar(true), { once: true });
   function avisarNuevo(nuevos) {
-    if (APP) { try { SmashApp.vibrar(500); } catch (e) { /* sin app */ } } else if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-    sonar();
+    // En turno, la app ya suena y vibra con su propia notificación: aquí solo se muestra el mensaje
+    if (!(APP && appEstado === 'activo')) {
+      if (APP) { try { SmashApp.vibrar(800); } catch (e) { /* sin app */ } } else if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      sonar();
+    }
     toast(nuevos.length > 1 ? `Te asignaron ${nuevos.length} pedidos nuevos` : `Nuevo pedido #${nuevos[0].numero || nuevos[0].pedido} para ${nuevos[0].cliente || 'entregar'}`);
     if (tab !== 'activos') document.querySelector('.dz-tabs [data-tab="activos"]').click();
   }
@@ -268,12 +271,46 @@
      ============================================================ */
   let gpsId = null, mapa = null, yo = null, aro = null, pos = null, centrado = false, siguiendo = true;
   let enviado = null, compartiendo = false, revisado = false, wake = null, estadoGps = 'buscando';
-  /* App SMASH Domicilios (Android): window.SmashApp existe y el GPS lo manda la app aunque la
-     pantalla esté apagada. La página solo muestra el minimapa y el estado. */
+  /* App SMASH Domicilios (Android): window.SmashApp existe. El domiciliario inicia su TURNO y
+     la app (servicio "SMASH · En turno") le avisa los pedidos nuevos con sonido y vibración y
+     comparte su ubicación, aunque la pantalla esté apagada. La página solo muestra el estado. */
   const APP = (() => { try { return !!(window.SmashApp && SmashApp.disponible() === '1'); } catch (e) { return false; } })();
-  let appEstado = APP ? (() => { try { return SmashApp.estadoRastreo(); } catch (e) { return 'inactivo'; } })() : '';
-  window.SmashAppEstado = (e) => { appEstado = e; pintarGps(); };
+  const estadoApp = () => { try { return SmashApp.estadoTurno ? SmashApp.estadoTurno() : SmashApp.estadoRastreo(); } catch (e) { return 'inactivo'; } };
+  let appEstado = APP ? estadoApp() : '';
+  window.SmashAppEstado = (e) => { appEstado = e; pintarTurno(); pintarGps(); };
   if (APP) document.documentElement.classList.add('en-app');
+
+  function pintarTurno() {
+    const el = $('aTurno');
+    if (!el) return;
+    el.hidden = !APP || !API.sesion();
+    if (el.hidden) return;
+    const on = appEstado === 'activo';
+    let desdeTxt = '';
+    try { const ms = Number(SmashApp.turnoDesde && SmashApp.turnoDesde()); if (ms > 0) desdeTxt = ' desde las ' + hora(new Date(ms).toISOString()); } catch (e) { /* sin hora */ }
+    el.className = 'dz-turno' + (on ? ' on' : '');
+    el.innerHTML = on
+      ? `<div class="dz-turno-t"><span class="dz-turno-dot"></span><div><b>En turno${esc(desdeTxt)}</b><small>Te avisamos con sonido cada pedido nuevo, aunque tengas el celular en el bolsillo.</small></div></div>
+         <button type="button" class="dz-btn dz-turno-fin" id="bTurnoFin">Terminar turno</button>`
+      : `<div class="dz-turno-t"><span class="dz-turno-dot"></span><div><b>Estás fuera de turno</b><small>${appEstado === 'sin_permiso' ? 'Para iniciar el turno, permite la ubicación y las notificaciones.' : 'Inicia el turno para recibir tus pedidos con sonido y vibración.'}</small></div></div>
+         <button type="button" class="dz-btn prim dz-turno-ini" id="bTurnoIni"><svg viewBox="0 0 24 24"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6h2l3 7.5M5.5 17.5 9 10h6l3.5 7.5"/></svg>Iniciar turno</button>
+         ${appEstado === 'sin_permiso' ? '<button type="button" class="dz-ajustes" id="bAjustesTurno">Abrir ajustes</button>' : ''}`;
+    const ini = $('bTurnoIni'), fin = $('bTurnoFin'), aj = $('bAjustesTurno');
+    if (ini) ini.onclick = () => {
+      const s = API.sesion(); if (!s || !s.token) return;
+      sonar(true);
+      try { if (SmashApp.iniciarTurno) SmashApp.iniciarTurno(s.token); else SmashApp.iniciarRastreo(s.token); } catch (e) { /* sin app */ }
+      setTimeout(() => window.SmashAppEstado(estadoApp()), 1500);
+    };
+    if (fin) fin.onclick = () => {
+      const n = activos().length;
+      confirmar('¿Terminar el turno?', n ? `Todavía tienes ${n} ${n === 1 ? 'pedido' : 'pedidos'} por entregar. Si terminas, el negocio deja de ver tu ubicación y no te avisaremos pedidos nuevos.` : 'Dejarás de recibir avisos de pedidos y de compartir tu ubicación.', () => {
+        try { if (SmashApp.terminarTurno) SmashApp.terminarTurno(); else SmashApp.detenerRastreo(); } catch (e) { /* sin app */ }
+        setTimeout(() => window.SmashAppEstado(estadoApp()), 800);
+      });
+    };
+    if (aj) aj.onclick = () => { try { SmashApp.abrirAjustes(); } catch (e) { /* sin app */ } };
+  }
   const activos = () => lista.filter((e) => e.estado === 'asignado' || e.estado === 'en_camino');
   const metros = (a, b) => {
     const R = 6371000, r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLng = (b.lng - a.lng) * r;
@@ -283,14 +320,11 @@
   function pintarGps() {
     const el = $('gpsEstado'), ay = $('gpsAyuda');
     if (APP) {
-      // En la app: lo importante es si el servicio "Ruta activa" está enviando
-      const mal = appEstado === 'sin_permiso';
-      const t = mal ? 'Permite la ubicación a la app' : compartiendo ? (appEstado === 'activo' ? 'Ruta activa · aunque apagues la pantalla' : 'Activando la ubicación…') : 'Solo tú la ves · sin pedidos';
-      el.className = 'dz-gps ' + (mal ? 'mal' : compartiendo ? (appEstado === 'activo' ? 'on' : '') : 'solo');
-      el.lastChild.textContent = t;
-      ay.hidden = !mal;
-      if (mal) ay.innerHTML = 'SMASH necesita tu ubicación mientras tienes una ruta, para que el negocio vea por dónde van los pedidos. <button type="button" class="dz-ajustes" id="bAjustes">Abrir ajustes</button>';
-      const b = document.getElementById('bAjustes'); if (b) b.onclick = () => { try { SmashApp.abrirAjustes(); } catch (e) { /* sin app */ } };
+      // En la app: la ubicación la comparte el turno (botón de arriba)
+      const on = appEstado === 'activo';
+      el.className = 'dz-gps ' + (on ? 'on' : 'solo');
+      el.lastChild.textContent = on ? 'En turno · compartiendo con el negocio' : 'Fuera de turno · solo tú ves el mapa';
+      ay.hidden = true;
       return;
     }
     const t = { buscando: 'Buscando tu ubicación…', no: 'Ubicación desactivada', sin: 'Este celular no tiene GPS' }[estadoGps]
@@ -352,16 +386,13 @@
     compartiendo = activos().length > 0;
     if (compartiendo && !antes) enviar(true);
     if (APP) {
-      // La app enciende o apaga el servicio "Ruta activa" (se apaga solo al entregar todo)
-      try {
-        const s = API.sesion();
-        if (compartiendo && s && s.token && SmashApp.estadoRastreo() !== 'activo') SmashApp.iniciarRastreo(s.token);
-        if (!compartiendo && (antes || primera)) SmashApp.detenerRastreo();
-        appEstado = SmashApp.estadoRastreo();
-      } catch (e) { /* sin app */ }
+      // En la app manda el turno (lo inicia y termina el domiciliario): aquí solo se lee su estado
+      appEstado = estadoApp();
+      pintarTurno();
+    } else if (!compartiendo && (antes || primera)) {
+      // Navegador: sin pedidos se deja de enviar y se borra la última posición
+      enviado = null; await API.ocultar();
     }
-    // Sin pedidos: se deja de enviar y se borra la última posición (también al abrir la página sin pedidos)
-    if (!compartiendo && (antes || primera)) { enviado = null; await API.ocultar(); }
     pintarGps();
     $('bBolsillo').hidden = APP || !compartiendo;
     if (!compartiendo) bolsillo(false);

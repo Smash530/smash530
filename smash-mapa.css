@@ -28,3 +28,5 @@
 /* Tema oscuro: se invierten las calles y se suavizan los colores */
 .sm-oscuro .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.88) saturate(.55)}
 .sm-oscuro.leaflet-container{background:#1b1c20}
+.sm-pin.libre{background:#16a34a;color:#16a34a}
+.sm-pin.libre span{color:#fff}

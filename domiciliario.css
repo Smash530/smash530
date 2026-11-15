@@ -213,3 +213,15 @@ body.en-bolsillo{overflow:hidden}
 .dz-ajustes{display:block;margin-top:8px;width:100%;height:40px;border-radius:10px;border:0;background:var(--red);color:#fff;font-weight:700;font-size:.86rem;cursor:pointer}
 .en-app .dz-top{padding-top:12px}
 .en-app .dz-entrar{padding-top:20px}
+
+/* ---------------- Turno (solo dentro de la app) ---------------- */
+.dz-turno{margin:14px 16px 0;padding:16px;border-radius:20px;background:var(--card);border:1px solid var(--line-2);display:flex;flex-direction:column;gap:14px}
+.dz-turno.on{background:linear-gradient(135deg,rgba(34,197,94,.14),rgba(34,197,94,.03));border-color:rgba(34,197,94,.35)}
+.dz-turno-t{display:flex;align-items:flex-start;gap:12px}
+.dz-turno-t b{display:block;font-size:1.08rem;font-weight:800}
+.dz-turno-t small{display:block;margin-top:3px;color:var(--muted);font-size:.84rem;line-height:1.4}
+.dz-turno-dot{width:12px;height:12px;border-radius:50%;margin-top:6px;flex-shrink:0;background:#71717a}
+.dz-turno.on .dz-turno-dot{background:var(--green);box-shadow:0 0 0 4px rgba(34,197,94,.2);animation:dzPulso 2s ease-in-out infinite}
+.dz-turno .dz-btn{margin-top:0}
+.dz-turno-ini{height:58px;font-size:1.08rem}
+.dz-turno-fin{height:46px;font-size:.92rem;background:rgba(255,255,255,.05);color:var(--muted)}
