@@ -786,3 +786,8 @@ body:has(#staffAuthSection:not([hidden])) .container{max-width:none;padding:0;ma
 .ol-promo{color:#b45309;font-weight:900;text-transform:uppercase}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .ol-promo{color:#fcd47a}}
 :root[data-theme="dark"] .ol-promo{color:#fcd47a}
+/* WhatsApp directo desde el pedido */
+.wa-ico{width:1.05em;height:1.05em;flex:none;vertical-align:-.15em}
+.otel.owa{color:#25D366}
+.od-tel.od-wa{color:#25D366;border-color:rgba(37,211,102,.35);background:rgba(37,211,102,.08)}
+.od-tel.od-wa:hover{border-color:#25D366;background:rgba(37,211,102,.16)}

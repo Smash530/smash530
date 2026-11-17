@@ -6,6 +6,17 @@
    ============================================================ */
 const SmashUI = (function () {
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  /* WhatsApp del cliente: en PC abre WhatsApp Web directo en el chat (siempre en la misma pestaña);
+     en celular abre la app. Números colombianos de 10 dígitos llevan el 57 delante. */
+  const waNum = (t) => {
+    let d = String(t || '').replace(/\D/g, '');
+    if (d.length === 10) d = '57' + d;
+    return d;
+  };
+  const esCel = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+  const waHref = (t) => esc(esCel() ? 'https://wa.me/' + waNum(t) : 'https://web.whatsapp.com/send?phone=' + waNum(t));
+  const waAttr = (t) => `href="${waHref(t)}" target="smash_whatsapp" rel="noopener" title="Abrir chat de WhatsApp con ${esc(t)}"`;
+  const WA_ICO = '<svg class="wa-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1-.7-.3-1.4-.7-2-1.3-.5-.5-1-1.1-1.3-1.7-.1-.2 0-.4.1-.5l.4-.4.2-.4v-.4l-.8-1.9c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.6.3-.6.6-.9 1.4-.9 2.2.1 1 .5 2 1.1 2.8 1.2 1.7 2.6 3 4.5 3.8.5.2 1 .4 1.5.5.6.2 1.2.1 1.7-.1.5-.3.9-.7 1.1-1.2.1-.3.1-.6 0-.9-.1-.1-.3-.2-.5-.3z"/></svg>';
   const fmt = (n) => '$' + Math.round(n || 0).toLocaleString('es-CO');
   const num = (o) => o.numeroDia || o.id;
   const C = SmashComandas, NEXT = C.NEXT, NEXT_LABEL = C.NEXT_LABEL;
@@ -81,9 +92,9 @@ const SmashUI = (function () {
         <div class="row"><strong class="onum">#${esc(num(o))}</strong><span class="st-badge st-${esc(status)}">${esc(C.NOMBRE[status] || status)}</span>${timerHtml(o)}</div>
         ${o.reserva ? (status === 'nuevo' ? `<div class="resv-tag">📅 RESERVA: llegó fuera de horario. Confírmala para despacharla al abrir.</div>` : '<div class="resv-tag mini">📅 Reserva</div>') : ''}
         <div class="meta">Comanda ${esc(C.codigo(o))}${o.ref ? ' · ' + esc(o.ref) : ''}${o.origen === 'cocina' ? ' · tomado en caja' : ''}${o.editadoEn ? ' · editado' : ''}</div>
-        <div class="oname">${esc(o.cliente)} ${o.telefono ? `<a class="otel" href="tel:${esc(String(o.telefono).replace(/[^\d+]/g, ''))}">📞 ${esc(o.telefono)}</a>` : '<span class="meta">sin teléfono</span>'}</div>
+        <div class="oname">${esc(o.cliente)} ${o.telefono ? `<a class="otel owa" ${waAttr(o.telefono)}>${WA_ICO} ${esc(o.telefono)}</a>` : '<span class="meta">sin teléfono</span>'}</div>
         ${o.horaEntrega ? `<div class="hora-tag">🕒 Entregar: <b>${esc(o.horaEntrega)}</b></div>` : ''}
-        ${o.telefono2 ? `<div class="meta">📞 Ref. domicilio: <a class="otel" href="tel:${esc(String(o.telefono2).replace(/[^\d+]/g, ''))}">${esc(o.telefono2)}</a></div>` : ''}
+        ${o.telefono2 ? `<div class="meta">📞 Ref. domicilio: <a class="otel owa" ${waAttr(o.telefono2)}>${WA_ICO} ${esc(o.telefono2)}</a></div>` : ''}
         ${o.cuenta ? `<div class="leal-tag">⭐ Cliente leal: @${esc(o.cuenta.usuario || '-')} · ${esc(o.cuenta.correo)}${o.puntosSumados ? ` · <b>+${esc(o.puntosSumados)} pts sumados</b>` : ''}</div>` : ''}
         ${o.cuenta && !o.puntosSumados && o.puntosAviso ? `<div class="leal-tag">⚠ ${esc(o.puntosAviso)}</div>` : ''}
         ${canjeHtml(o, "leal-tag")}${repetidoHtml(o, "leal-tag")}
@@ -111,7 +122,6 @@ const SmashUI = (function () {
   }
 
   /* ---------- fila del listado horizontal ---------- */
-  const telHref = (t) => 'tel:' + esc(String(t).replace(/[^\d+]/g, ''));
   function resumenItems(o) {
     return (o.items || []).map((it) => esc(it.qty) + '× ' + esc(it.name)).join(', ');
   }
@@ -171,8 +181,8 @@ const SmashUI = (function () {
         <h4>Cliente</h4>
         <div class="od-cli">${esc(o.cliente || 'Sin nombre')}</div>
         <div class="od-lines">
-          ${o.telefono ? `<a class="od-tel" href="${telHref(o.telefono)}">📞 ${esc(o.telefono)}</a>` : '<span class="od-mut">Sin teléfono</span>'}
-          ${o.telefono2 ? `<a class="od-tel" href="${telHref(o.telefono2)}">📞 Ref. ${esc(o.telefono2)}</a>` : ''}
+          ${o.telefono ? `<a class="od-tel od-wa" ${waAttr(o.telefono)}>${WA_ICO} WhatsApp ${esc(o.telefono)}</a>` : '<span class="od-mut">Sin teléfono</span>'}
+          ${o.telefono2 ? `<a class="od-tel od-wa" ${waAttr(o.telefono2)}>${WA_ICO} Ref. ${esc(o.telefono2)}</a>` : ''}
         </div>
         <div class="od-addr">📍 ${esc(o.direccion || 'Sin dirección')}${o.zona ? ` <span class="od-mut">· ${esc(o.zona)}</span>` : ''}</div>
         ${o.horaEntrega ? `<div class="od-tag">🕒 Entregar: <b>${esc(o.horaEntrega)}</b></div>` : ''}
