@@ -118,8 +118,43 @@ const SmashCaja = (function () {
     const inclDom = !!d.incluyeDomicilio;
     if (inclDom && o.domicilioPendiente) throw new Error('Primero escribe el valor del domicilio del pedido.');
     const debe = montoACobrar(o, inclDom);
+    const lineas = armarLineas(d.lineas, debe);
+    const p = {
+      id: S.uid('pg'), pedidoKey: pedidoKey(o), pedidoId: o.id, num: o.numeroDia || o.id, comanda: SmashComandas.codigo(o), cliente: o.cliente,
+      turnoId: t.id, lineas, total: debe, domicilio: inclDom ? r(o.domicilio) : 0, por: por || t.cajero, en: S.nowISO(),
+    };
+    pagos.push(p);
+    S.save(K.PAGOS, pagos);
+    anotarMedio(o, lineas);
+    return p;
+  }
+  // El medio de pago del pedido (comanda, domiciliario) queda igual a lo que se cobró de verdad
+  function anotarMedio(o, lineas) {
+    if (typeof SmashExt === 'undefined' || !SmashExt.pagoDesdeLineas) return;
+    const m = SmashExt.pagoDesdeLineas(lineas, o.total);
+    if (m.pago !== (o.pago || '') || JSON.stringify(m.pagoMixto || null) !== JSON.stringify(o.pagoMixto || null)) {
+      try { SmashExt.updateOrder(o.id, m); } catch (e) { /* el pago ya quedó guardado */ }
+    }
+  }
+  // Cambiar el medio de un pago ya registrado (mismo valor), dentro del mismo turno.
+  // El pago anterior queda anulado con el motivo y se guarda el nuevo, todo junto.
+  function corregirPago(pagoId, d, por) {
+    const t = exigirTurno(), pagos = getPagos(), p = pagos.find((x) => x.id === pagoId);
+    if (!p || p.anulado) throw new Error('El pago no existe o ya estaba anulado.');
+    if (p.turnoId !== t.id) throw new Error('Ese pago es de un turno ya cerrado: no se puede cambiar el medio de pago.');
+    const lineas = armarLineas(d.lineas, p.total);
+    const nuevo = Object.assign({}, p, { id: S.uid('pg'), lineas, por: por || t.cajero, en: S.nowISO(), corrige: p.id });
+    delete nuevo.anulado;
+    p.anulado = { motivo: 'Cambio de medio de pago', por: por || t.cajero, en: S.nowISO() };
+    pagos.push(nuevo);
+    S.save(K.PAGOS, pagos);
+    const o = SmashDB.getOrders().find((x) => pedidoKey(x) === p.pedidoKey);
+    if (o) anotarMedio(o, lineas);
+    return nuevo;
+  }
+  function armarLineas(lista, debe) {
     const cuentas = getCuentas();
-    const lineas = (d.lineas || []).filter((l) => r(l.monto) > 0).map((l) => {
+    const lineas = (lista || []).filter((l) => r(l.monto) > 0).map((l) => {
       if (!METODOS[l.metodo]) throw new Error('Elige el medio de pago.');
       const x = { metodo: l.metodo, monto: r(l.monto) };
       if (l.metodo === 'transferencia') {
@@ -134,13 +169,7 @@ const SmashCaja = (function () {
     if (!lineas.length) throw new Error('Escribe el valor pagado.');
     const suma = lineas.reduce((s, l) => s + l.monto, 0);
     if (suma !== debe) throw new Error('Los pagos suman ' + suma.toLocaleString('es-CO') + ' y el valor a cobrar es ' + debe.toLocaleString('es-CO') + '.');
-    const p = {
-      id: S.uid('pg'), pedidoKey: pedidoKey(o), pedidoId: o.id, num: o.numeroDia || o.id, comanda: SmashComandas.codigo(o), cliente: o.cliente,
-      turnoId: t.id, lineas, total: suma, domicilio: inclDom ? r(o.domicilio) : 0, por: por || t.cajero, en: S.nowISO(),
-    };
-    pagos.push(p);
-    S.save(K.PAGOS, pagos);
-    return p;
+    return lineas;
   }
   // Un pago solo se anula dentro del mismo turno; después del cierre se registra una devolución.
   function anularPago(pagoId, motivo, por) {
@@ -237,7 +266,7 @@ const SmashCaja = (function () {
 
   return {
     K, METODOS, MOV_TIPOS, getCuentas, getCuenta, cuentaNombre, guardarCuenta, setCuentaActiva, getCuentasHist,
-    getTurnos, turnoAbierto, abrirTurno, getPagos, pagoDe, montoACobrar, estadoPago, esAntiguo, registrarPago, anularPago,
+    getTurnos, turnoAbierto, abrirTurno, getPagos, pagoDe, montoACobrar, estadoPago, esAntiguo, registrarPago, corregirPago, anularPago,
     getMovs, registrarMovimiento, resumenTurno, cerrarTurno, pendientes, canceladosConPago, resumenPeriodo,
   };
 })();

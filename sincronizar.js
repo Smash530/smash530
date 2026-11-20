@@ -36,7 +36,16 @@ const SmashSync = (function () {
   const usable = SmashLS && SmashLS !== (function () { try { return window.localStorage; } catch (e) { return null; } })();
   const orig = usable ? { set: SmashLS.setItem.bind(SmashLS), get: SmashLS.getItem.bind(SmashLS) } : null;
   let aplicando = false;
-  function marcar(k) { const p = lsGet(LS_PEND, {}); if (!p[k]) { p[k] = 1; lsSet(LS_PEND, p); } }
+  // Huella del valor que quedó por subir. Si otra pestaña guardó un cambio que esta aún no recibe,
+  // la huella no coincide y el dato sigue pendiente (antes se daba por subido y la edición se perdía).
+  function huella(v) {
+    const s = String(v == null ? '' : v);
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    return 'h' + s.length + '.' + (h >>> 0).toString(36);
+  }
+  function marcar(k) { const p = lsGet(LS_PEND, {}), h = huella(SmashLS.getItem(k)); if (p[k] !== h) { p[k] = h; lsSet(LS_PEND, p); } }
+  const subidoCompleto = (k, valor) => { const s = lsGet(LS_PEND, {})[k]; return SmashLS.getItem(k) === valor && (s === 1 || s === huella(valor)); };
   function desmarcar(k) { const p = lsGet(LS_PEND, {}); if (p[k]) { delete p[k]; lsSet(LS_PEND, p); } }
   if (usable) {
     SmashLS.setItem = function (k, v) {
@@ -55,10 +64,18 @@ const SmashSync = (function () {
   const esObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
   const conId = (a) => Array.isArray(a) && a.length > 0 && a.every((x) => esObj(x) && x.id != null);
 
+  // Campos que cambia "Editar pedido": se toman todos juntos de la versión editada más reciente,
+  // nunca mezclados campo por campo (así una comanda corregida no vuelve a como se creó).
+  const EDITABLES = /^(items|subtotal|total|descuento|descuentos|canjes|refsCanje|notas|cliente|telefono|direccion|domicilio|domicilioPendiente|pago|pagoMixto|cuenta|editadoEn)$/;
+  // Listas que se guardan enteras (los productos de un pedido NO tienen id propio: el id es el del producto)
+  const ENTERAS = /^(items|descuentos|canjes|refsCanje)$/;
+  const edicion = (x) => (esObj(x) && typeof x.editadoEn === 'string' ? x.editadoEn : '');
+
   function merge3(b, l, r, clave) {
     if (eq(l, r) || eq(l, b)) return r;
     if (eq(r, b)) return l;
     if (typeof l === 'number' && typeof r === 'number' && /seq/.test(clave || '')) return Math.max(l, r);
+    if (ENTERAS.test(clave || '')) return r;
     if (Array.isArray(l) && Array.isArray(r)) {
       const bb = Array.isArray(b) ? b : [];
       if ((conId(l) || !l.length) && (conId(r) || !r.length) && (l.length || r.length)) return mergeIds(bb, l, r);
@@ -66,7 +83,11 @@ const SmashSync = (function () {
     }
     if (esObj(l) && esObj(r)) {
       const bo = esObj(b) ? b : {}, out = {};
+      // Un pedido editado en los dos lados (o sin base): gana la edición más reciente
+      const le = edicion(l), re = edicion(r);
+      const gana = Array.isArray(l.items) && Array.isArray(r.items) && le !== re ? (le > re ? l : r) : null;
       Object.keys(Object.assign({}, r, l)).forEach((k) => {
+        if (gana && EDITABLES.test(k)) { if (gana[k] !== undefined) out[k] = gana[k]; return; }
         const v = merge3(bo[k], l[k], r[k], k);
         if (v !== undefined) out[k] = v;
       });
@@ -243,7 +264,7 @@ const SmashSync = (function () {
         const r = await N.guardarDato(k, valor, meta()[k] || 0, equipo(), SOLO_DUENO.test(k));
         if (r && r.ok) {
           setVer(k, r.version); setBase(k, valor);
-          if (SmashLS.getItem(k) === valor) desmarcar(k);
+          if (subidoCompleto(k, valor)) desmarcar(k);
         } else if (r && r.conflicto) {
           aplicarRemoto(k, r.valor, r.version);          // otro equipo guardó antes: se combina y se vuelve a subir
         } else throw new Error((r && r.error) || 'no se pudo subir');

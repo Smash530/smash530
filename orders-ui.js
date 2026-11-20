@@ -103,7 +103,7 @@ const SmashUI = (function () {
         ${o.notas ? `<div class="meta">📝 ${esc(o.notas)}</div>` : ''}
         ${(o.novedades || []).map((n) => `<div class="nov">⚠ ${esc(n.texto)} <span class="meta">${esc(hora(n.en))}${n.por ? ' · ' + esc(n.por) : ''}</span></div>`).join('')}
         ${o.repartidor ? `<div class="rep">🛵 Repartidor: <b>${esc(o.repartidor)}</b>${o.salioEn ? ' · salió ' + esc(hora(o.salioEn)) : ''}</div>` : ''}
-        <div class="desg"><span>Productos ${fmt(d.productos)}</span>${d.adicionales ? `<span>Adicionales ${fmt(d.adicionales)}</span>` : ''}${d.descuento ? `<span>Descuento −${fmt(d.descuento)}</span>` : ''}<span>Domicilio ${dom}</span>${o.pago ? `<span>${esc(o.pago)}</span>` : ''}<strong>Total ${fmt(d.total)}</strong></div>
+        <div class="desg"><span>Productos ${fmt(d.productos)}</span>${d.adicionales ? `<span>Adicionales ${fmt(d.adicionales)}</span>` : ''}${d.descuento ? `<span>Descuento −${fmt(d.descuento)}</span>` : ''}<span>Domicilio ${dom}</span>${o.pago ? `<span>${esc(SmashExt.pagoTexto(o))}</span>` : ''}<strong>Total ${fmt(d.total)}</strong></div>
         ${pagoHtml}
         <div class="meta marcas">${marcas.map((m) => esc(m[0]) + ' ' + esc(hora(m[1]))).join(' · ')}</div>
         <div class="order-actions">
@@ -129,7 +129,7 @@ const SmashUI = (function () {
     const ep = typeof SmashCaja !== 'undefined' ? SmashCaja.estadoPago(o) : null;
     if (ep && ep.k === 'pagado') return '<span class="ol-paid">Pagado</span>';
     if (ep && ep.k === 'pendiente') return '<span class="ol-unpaid">Por cobrar</span>';
-    return esc(o.pago || '');
+    return esc(SmashExt.pagoTexto(o));
   }
   function fila(o, opt) {
     opt = opt || {};
@@ -207,7 +207,7 @@ const SmashUI = (function () {
         ${d.adicionales ? `<div><span>Adicionales</span><b>${fmt(d.adicionales)}</b></div>` : ''}
         ${d.descuento ? `<div><span>Descuento</span><b>−${fmt(d.descuento)}</b></div>` : ''}
         <div class="od-dom"><span>Domicilio${o.zona ? ` <small>· ${esc(o.zona)}</small>` : ''}</span><b>${o.domicilioPendiente ? '<span class="pend">por confirmar</span>' : fmt(d.domicilio)}${st !== 'cancelado' ? `<button type="button" class="od-dom-ed" data-act="dom" data-id="${id}" title="Corregir el valor del domicilio">✏️ Corregir</button>` : ''}</b></div>
-        <div class="tot"><span>Total${o.pago ? ' · ' + esc(o.pago) : ''}</span><b>${fmt(d.total)}</b></div>
+        <div class="tot"><span>Total${o.pago ? ' · ' + esc(SmashExt.pagoTexto(o)) : ''}</span><b>${fmt(d.total)}</b></div>
         ${ep && ep.k === 'pagado' ? `<div class="od-paid">💰 Pagado: ${esc(ep.pago.lineas.map((l) => SmashCaja.METODOS[l.metodo] + ' ' + fmt(l.monto)).join(' + '))}</div>` : ep && ep.k === 'pendiente' ? '<div class="od-unpaid">💰 Pendiente de pago</div>' : ''}
       </section>
 
@@ -338,7 +338,7 @@ const SmashUI = (function () {
         if (!(v >= 0)) { mm.querySelector('#domIn').focus(); return false; }
         const antes = o.domicilioPendiente ? null : Number(o.domicilio) || 0;
         const nuevo = Math.round(v);
-        SmashExt.updateOrder(o.id, { domicilio: nuevo });
+        SmashExt.updateOrder(o.id, { domicilio: nuevo, editadoEn: new Date().toISOString() });
         // queda constancia en las novedades del pedido
         if (antes !== null && antes !== nuevo) { try { C.agregarNovedad(o.id, `Domicilio corregido: ${fmt(antes)} → ${fmt(nuevo)}`, cfg.who); } catch (e) { /* sin novedad no pasa nada */ } }
         cfg.refresh();
@@ -373,6 +373,8 @@ const SmashUI = (function () {
       descuento: Number(o.descuento) || 0,
       descuentos: (o.descuentos || []).map((x) => Object.assign({}, x)),
       cuenta: o.cuenta ? Object.assign({}, o.cuenta) : null,
+      pago: o.pago === 'Mixto' ? 'Mixto' : /transf/i.test(o.pago || '') ? 'Transferencia' : /efect/i.test(o.pago || '') ? 'Efectivo' : (o.pago || ''),
+      pagoTr: o.pago === 'Mixto' && o.pagoMixto ? (Number(o.pagoMixto.transferencia) || '') : '',
       canjesNuevos: [],        // promos con puntos aplicadas aquí: se descuentan al guardar
       aplicadas: [],           // promos aplicadas aquí (para la novedad del pedido)
     };
@@ -389,10 +391,11 @@ const SmashUI = (function () {
     // Guarda los cambios (después de descontar los puntos, si hay una promo con puntos)
     function guardar(refCanje) {
       const patch = {
+        // se conservan los demás datos de cada línea (paquete, sabor, puntos del regalo...) para que la comanda salga igual de agrupada
         items: draft.items.map((i) => {
-          const x = { id: i.id, name: i.name, price: Math.max(0, Math.round(Number(i.price) || 0)), qty: Math.max(1, Math.min(50, i.qty | 0)), cat: i.cat || '' };
-          if (i.nota && i.nota.trim()) x.nota = i.nota.trim().slice(0, 200);
-          if (i.para) { x.para = i.para; x.paraId = i.paraId; }
+          const x = Object.assign({}, i, { id: i.id, name: i.name, price: Math.max(0, Math.round(Number(i.price) || 0)), qty: Math.max(1, Math.min(50, i.qty | 0)), cat: i.cat || '' });
+          if (i.nota && i.nota.trim()) x.nota = i.nota.trim().slice(0, 200); else delete x.nota;
+          if (i.para) { x.para = i.para; x.paraId = i.paraId; } else { delete x.para; delete x.paraId; }
           if (i.regalo) { x.regalo = i.regalo; x.precioLista = i.precioLista || 0; x.price = 0; if (i.regaloPromo != null) x.regaloPromo = i.regaloPromo; }
           return x;
         }),
@@ -400,6 +403,10 @@ const SmashUI = (function () {
         descuento: descOk(), descuentos: draft.descuentos, editadoEn: new Date().toISOString(),
       };
       if (draft.cuenta) patch.cuenta = { usuario: draft.cuenta.usuario || '', correo: draft.cuenta.correo };
+      if (draft.pago) {
+        patch.pago = draft.pago;
+        patch.pagoMixto = draft.pago === 'Mixto' ? { transferencia: Math.round(Number(draft.pagoTr) || 0) } : null;
+      }
       if (draft.canjesNuevos.length && refCanje) {
         patch.canjes = (o.canjes || []).concat(draft.canjesNuevos);
         patch.refsCanje = (o.refsCanje || []).concat([refCanje]);
@@ -407,6 +414,10 @@ const SmashUI = (function () {
       const domNuevo = draft.domicilio === '' ? NaN : parseFloat(draft.domicilio);
       if (domNuevo >= 0 && (o.domicilioPendiente || Math.round(domNuevo) !== (Number(o.domicilio) || 0))) patch.domicilio = Math.round(domNuevo);
       SmashExt.updateOrder(o.id, patch);
+      const antesTxt = SmashExt.pagoTexto(o), ahoraTxt = SmashExt.pagoTexto(SmashDB.getOrderById(o.id));
+      if (patch.pago && antesTxt !== ahoraTxt && (patch.pago !== (o.pago || '') || patch.pago === 'Mixto')) {
+        try { C.agregarNovedad(o.id, 'Medio de pago: ' + (antesTxt || 'sin indicar') + ' → ' + ahoraTxt, cfg.who); } catch (e) { /* sin novedad no pasa nada */ }
+      }
       if (draft.aplicadas.length) { try { C.agregarNovedad(o.id, 'Promo aplicada al editar: ' + draft.aplicadas.join(', '), cfg.who); } catch (e) { /* sin novedad no pasa nada */ } }
       cfg.refresh();
     }
@@ -415,6 +426,10 @@ const SmashUI = (function () {
       if (guardando) return false;
       if (!draft.items.length) { alert('El pedido debe tener al menos un producto.'); return false; }
       if (!draft.cliente.trim()) { alert('Escribe el nombre del cliente.'); return false; }
+      if (draft.pago === 'Mixto') {
+        const tr = Math.round(Number(draft.pagoTr) || 0), tot = totalDraft();
+        if (!(tr > 0) || tr >= tot) { alert('Pago mixto: escribe cuánto paga por transferencia (más de $0 y menos que el total ' + fmt(tot) + '). El resto queda en efectivo.'); return false; }
+      }
       if (!draft.canjesNuevos.length) { guardar(''); return true; }
       const pts = draft.canjesNuevos.reduce((s, c) => s + c.puntos, 0);
       if (!draft.cuenta || !N || !N.panelCanjear) {
@@ -434,10 +449,25 @@ const SmashUI = (function () {
     }, 'Guardar cambios');
     m.querySelector('.sm-box').classList.add('wide');
     const body = m.querySelector('#edBody');
+    const totalDraft = () => subtotal() - descOk() + (parseFloat(draft.domicilio) || 0);
     const totalHtml = () => {
       const sub = subtotal(), d = descOk(), dom = parseFloat(draft.domicilio) || 0;
       return `Productos ${fmt(sub)}${d ? ` · Descuento −${fmt(d)}` : ''} · Domicilio ${draft.domicilio === '' ? 'por confirmar' : fmt(dom)} · <b>Total ${fmt(sub - d + dom)}</b>`;
     };
+    // Medio de pago: efectivo, transferencia o mixto (parte por transferencia y el resto en efectivo)
+    const mixtoTxt = () => {
+      const tot = totalDraft(), tr = Math.round(Number(draft.pagoTr) || 0);
+      if (!(tr > 0)) return 'Escribe cuánto paga por transferencia: el resto queda en efectivo.';
+      if (tr >= tot) return '⚠ La transferencia debe ser menor que el total (' + fmt(tot) + ').';
+      return `Transferencia ${fmt(tr)} + <b>Efectivo a cobrar ${fmt(tot - tr)}</b>`;
+    };
+    function pagoHtml() {
+      const ops = [['Efectivo', '💵 Efectivo'], ['Transferencia', '🏦 Transferencia'], ['Mixto', '🔀 Mixto']];
+      return `<div class="ed-pago">${ops.map(([v, t]) => `<button type="button" class="btn-sm${draft.pago === v ? ' on' : ''}" data-ed="pago" data-v="${v}" aria-pressed="${draft.pago === v}">${t}</button>`).join('')}</div>
+        ${draft.pago === 'Mixto' ? `<div class="ed-grid"><label>Paga por transferencia<input type="number" min="0" step="1000" inputmode="numeric" data-f="pagoTr" value="${esc(draft.pagoTr)}" placeholder="Ej: 20000"></label>
+          <p class="hint ed-mixto" id="edMixto">${mixtoTxt()}</p></div>` : ''}
+        ${draft.pago && ['Efectivo', 'Transferencia', 'Mixto'].indexOf(draft.pago) < 0 ? `<p class="hint">Medio actual: ${esc(draft.pago)}</p>` : ''}`;
+    }
 
     /* ---- promo del día ---- */
     const vigentes = () => (N && edPromos ? edPromos.filter((p) => N.vigente(p)) : []);
@@ -573,14 +603,26 @@ const SmashUI = (function () {
           <label>Valor del domicilio${variable ? ' (agencia)' : ''}${o.zona ? ` <small>· ${esc(o.zona)}</small>` : ''}<input type="number" min="0" step="500" inputmode="numeric" data-f="domicilio" value="${esc(draft.domicilio)}"></label>
         </div>
         <label class="ed-wide">Notas del pedido<textarea data-f="notas" maxlength="300">${esc(draft.notas)}</textarea></label>
-        <div class="ed-total" id="edTotal">${totalHtml()}</div>`;
+        <div class="ed-total" id="edTotal">${totalHtml()}</div>
+        <h4>Medio de pago</h4>
+        <div id="edPago">${pagoHtml()}</div>`;
     }
     body.addEventListener('click', (e) => {
       const b = e.target.closest('[data-ed]'); if (!b) return;
       const i = parseInt(b.dataset.i, 10), a = b.dataset.ed, it = draft.items[i];
       if (a === 'minus' && it.qty > 1) it.qty--;
       else if (a === 'plus' && it.qty < 50) it.qty++;
-      else if (a === 'rm') { draft.items.splice(i, 1); if (it.regalo) soltarPts(it.regalo); }
+      else if (a === 'rm') {
+        draft.items.splice(i, 1);
+        if (it.regalo) soltarPts(it.regalo);
+        // si ya no queda esa burger, su combo tampoco (si no, la comanda seguiría diciendo "Combo para" la burger quitada)
+        // (el combo se enlaza con su burger por "para"/"paraId" o por la nota "Para <burger>")
+        const paraDe = (x) => x.para || (/^Para (.+?)(?: · |$)/.exec(String(x.nota || '')) || [])[1] || '';
+        if (!paraDe(it) && esBurger(it) && !draft.items.some((x) => !paraDe(x) && x.id === it.id)) {
+          draft.items = draft.items.filter((x) => !((x.paraId != null && String(x.paraId) === String(it.id)) || (paraDe(x) && paraDe(x).trim().toLowerCase() === String(it.name).trim().toLowerCase())));
+        }
+      }
+      else if (a === 'pago') { draft.pago = b.dataset.v; if (draft.pago !== 'Mixto') draft.pagoTr = ''; }
       else if (a === 'add' || a === 'addp') {
         const p = prodDe(a === 'add' ? body.querySelector('#edSel').value : b.dataset.id);
         if (!p) return;
@@ -614,6 +656,7 @@ const SmashUI = (function () {
         it.nota = it.regalo ? (t.value.trim() ? t.value.trim() + ' · ' : '') + 'GRATIS · ' + it.regalo : t.value;
       } else return;
       body.querySelector('#edTotal').innerHTML = totalHtml();
+      const mx = body.querySelector('#edMixto'); if (mx) mx.innerHTML = mixtoTxt();
     });
     render();
     if (N) cargarPromosEd().then(() => { if (openModal === m) render(); });
@@ -654,7 +697,7 @@ const SmashUI = (function () {
         }
         case 'edit':
           // Un pedido pagado no se edita: el cobro dejaría de cuadrar con caja
-          if (typeof SmashCaja !== 'undefined' && SmashCaja.pagoDe(o)) { alert('Este pedido ya está pagado. Si hay que cambiarlo, primero anula el pago en "Ver pago" (dentro del mismo turno).'); break; }
+          if (typeof SmashCaja !== 'undefined' && SmashCaja.pagoDe(o)) { alert('Este pedido ya está pagado. Para cambiar solo el medio de pago (efectivo, transferencia o mixto) usa "Ver pago" → "Cambiar medio de pago". Para cambiar productos, primero anula el pago en "Ver pago" (dentro del mismo turno).'); break; }
           openEditor(o); break;
         case 'rep': openRepartidor(o); break;
         case 'dom': {

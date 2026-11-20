@@ -41,6 +41,7 @@ const SmashCajaUI = (function () {
         `<div class="simple-table">${p.lineas.map((l) => `<div class="row"><span>${esc(SC.METODOS[l.metodo])}${l.cuenta ? ' · ' + esc(l.cuenta) : ''}${l.ref ? ' · ref ' + esc(l.ref) : ''}</span><b>${fmt(l.monto)}</b></div>`).join('')}
           <div class="row"><span>Total cobrado${p.domicilio ? ` (incluye ${fmt(p.domicilio)} de domicilio)` : ''}</span><b>${fmt(p.total)}</b></div></div>
         <p class="hint">Registrado ${esc(fecha(p.en))} por ${esc(p.por)}.</p>
+        ${puedeAnular && ep.k === 'pagado' ? '<p><button type="button" class="btn-secondary" id="pgCambiar">✏️ Cambiar medio de pago (efectivo, transferencia o mixto)</button></p>' : ''}
         ${ep.k === 'devolver' ? '<p class="error">El pedido fue cancelado después de cobrarse: registra la devolución en Caja.</p>' : ''}
         ${puedeAnular ? '<label class="ed-wide">Motivo para anular el pago (solo si se registró mal)<input id="anMot" maxlength="150"></label><p class="error" id="anErr"></p>'
           : '<p class="hint">Este pago es de un turno cerrado. Si hay que devolver dinero, registra una devolución en Caja.</p>'}`,
@@ -50,6 +51,8 @@ const SmashCajaUI = (function () {
           refreshAll();
         }, puedeAnular ? 'Anular pago' : 'Cerrar');
       if (!puedeAnular) m.querySelector('.sm-cancel').hidden = true;
+      const bc = m.querySelector('#pgCambiar');
+      if (bc) bc.addEventListener('click', () => { SmashUI.closeModal(); openCambiarMedio(o, p); });
       return;
     }
     if (!SC.turnoAbierto()) {
@@ -64,6 +67,13 @@ const SmashCajaUI = (function () {
     const d = SmashComandas.desglose(o);
     const metodo0 = /transf/i.test(o.pago) ? 'transferencia' : /efect/i.test(o.pago) ? 'efectivo' : 'efectivo';
     let lineas = [{ metodo: metodo0, monto: SC.montoACobrar(o, false), cuentaId: '', ref: '' }];
+    // Pago mixto anunciado: ya sale dividido (transferencia + el resto en efectivo)
+    const mx0 = SmashExt.pagoMixtoDe ? SmashExt.pagoMixtoDe(o) : null;
+    if (mx0) {
+      const deb = SC.montoACobrar(o, false), tr = Math.min(deb, mx0.transferencia);
+      lineas = [{ metodo: 'transferencia', monto: tr, cuentaId: '', ref: '' }];
+      if (deb - tr > 0) lineas.push({ metodo: 'efectivo', monto: deb - tr, cuentaId: '', ref: '' });
+    }
     const m = SmashUI.modal(`${op.entregar ? 'Cobrar y entregar' : 'Cobrar'} pedido #${esc(num)}`, '<div id="pgBody"></div>' + (op.entregar ? sinCobroHtml : ''), (mm) => {
       try {
         SC.registrarPago(o.id, { lineas, incluyeDomicilio: conDom && mm.querySelector('#pgDom').checked }, por());
@@ -125,6 +135,71 @@ const SmashCajaUI = (function () {
     draw();
   }
 
+  /* ============ CAMBIAR EL MEDIO DE UN PAGO YA REGISTRADO ============
+     Mismo valor, otro reparto: efectivo, transferencia o mixto. Solo dentro del mismo turno.
+     El pago anterior queda anulado ("Cambio de medio de pago") y el nuevo se guarda en el mismo paso. */
+  function openCambiarMedio(o, p) {
+    const num = o.numeroDia || o.id;
+    let lineas = p.lineas.map((l) => ({ metodo: l.metodo, monto: l.monto, cuentaId: l.cuentaId || '', ref: l.ref || '' }));
+    const m = SmashUI.modal(`Cambiar medio de pago · pedido #${esc(num)}`, '<div id="cmBody"></div>', (mm) => {
+      try { SC.corregirPago(p.id, { lineas }, por()); } catch (e) { mm.querySelector('#cmErr').textContent = e.message; return false; }
+      refreshAll();
+    }, 'Guardar medio de pago');
+    m.querySelector('.sm-box').classList.add('wide');
+    const body = m.querySelector('#cmBody');
+    const set = (arr) => { lineas = arr; draw(); };
+    function draw() {
+      body.innerHTML = `
+        <div class="pg-debe">Valor cobrado: <b>${fmt(p.total)}</b>${p.domicilio ? ` <small>(incluye ${fmt(p.domicilio)} de domicilio)</small>` : ''}</div>
+        <div class="ed-pago">
+          <button type="button" class="btn-sm" data-cm="efectivo">💵 Todo en efectivo</button>
+          <button type="button" class="btn-sm" data-cm="transferencia">🏦 Todo por transferencia</button>
+          <button type="button" class="btn-sm" data-cm="mixto">🔀 Mixto</button>
+        </div>
+        <div class="pg-lineas">${lineas.map((l, i) => `
+          <div class="pg-linea">
+            <select data-pi="${i}" data-pf="metodo">${metodoOpts(l.metodo)}</select>
+            <input type="number" min="0" step="100" inputmode="numeric" data-pi="${i}" data-pf="monto" value="${esc(l.monto)}" placeholder="Valor">
+            ${l.metodo === 'transferencia' ? `<select data-pi="${i}" data-pf="cuentaId" class="pg-wide">${cuentaOpts(l.cuentaId)}</select>
+              <input data-pi="${i}" data-pf="ref" maxlength="60" class="pg-wide" placeholder="Referencia o comprobante (opcional)" value="${esc(l.ref)}">` : ''}
+            ${lineas.length > 1 ? `<button type="button" class="btn-x" data-prm="${i}" aria-label="Quitar">✕</button>` : ''}
+          </div>`).join('')}</div>
+        <button type="button" class="btn-secondary" id="cmAdd">+ Otro medio</button>
+        <p class="hint" id="cmSuma"></p><p class="error" id="cmErr"></p>`;
+      suma();
+    }
+    function suma() {
+      const s = lineas.reduce((a, l) => a + (Math.round(Number(l.monto)) || 0), 0);
+      body.querySelector('#cmSuma').innerHTML = s === p.total ? '✓ Los medios suman el valor cobrado.' : s < p.total ? `<span class="neg">Faltan ${fmt(p.total - s)}</span>` : `<span class="neg">Sobran ${fmt(s - p.total)}</span>`;
+    }
+    body.addEventListener('input', (e) => {
+      const t = e.target;
+      if (t.dataset.pf == null) return;
+      lineas[+t.dataset.pi][t.dataset.pf] = t.value;
+      // mixto de dos líneas: al cambiar una, la otra se ajusta para cuadrar
+      if (t.dataset.pf === 'monto' && lineas.length === 2) {
+        const otra = lineas[1 - (+t.dataset.pi)];
+        otra.monto = Math.max(0, p.total - (Math.round(Number(t.value)) || 0));
+        const inp = body.querySelector(`[data-pi="${1 - (+t.dataset.pi)}"][data-pf="monto"]`); if (inp) inp.value = otra.monto;
+      }
+      if (t.dataset.pf === 'metodo') draw(); else suma();
+    });
+    body.addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      const tr = lineas.find((l) => l.metodo === 'transferencia');
+      if (b.dataset.cm === 'efectivo') set([{ metodo: 'efectivo', monto: p.total, cuentaId: '', ref: '' }]);
+      else if (b.dataset.cm === 'transferencia') set([{ metodo: 'transferencia', monto: p.total, cuentaId: tr ? tr.cuentaId : '', ref: tr ? tr.ref : '' }]);
+      else if (b.dataset.cm === 'mixto') {
+        const t0 = tr && tr.monto < p.total ? Math.round(Number(tr.monto)) : Math.round(p.total / 2);
+        set([{ metodo: 'transferencia', monto: t0, cuentaId: tr ? tr.cuentaId : '', ref: tr ? tr.ref : '' }, { metodo: 'efectivo', monto: p.total - t0, cuentaId: '', ref: '' }]);
+      } else if (b.id === 'cmAdd') {
+        const falta = Math.max(0, p.total - lineas.reduce((a, l) => a + (Number(l.monto) || 0), 0));
+        set(lineas.concat([{ metodo: lineas[0].metodo === 'efectivo' ? 'transferencia' : 'efectivo', monto: falta, cuentaId: '', ref: '' }]));
+      } else if (b.dataset.prm != null) { lineas.splice(+b.dataset.prm, 1); draw(); }
+    });
+    draw();
+  }
+
   /* ================= CAJA (panel operativo) ================= */
   const root = document.querySelector('#section-caja .caja-root');
   // Huella de los datos de caja: si no cambió, no se redibuja (no se pierde lo que se está escribiendo)
@@ -173,7 +248,7 @@ const SmashCajaUI = (function () {
 
       <h3 class="section-title">Pendientes de pago (${pend.length})</h3>
       ${pend.length ? `<div class="pend-list">${pend.sort((x, y) => x.id - y.id).map((o) => `<div class="pend-item"><div><b>#${esc(o.numeroDia || o.id)}</b> ${esc(o.cliente)} <span class="st-badge st-${esc(o.status)}">${esc(SmashComandas.NOMBRE[o.status])}</span><br>
-        <small class="hint">${esc(o.pago || 'sin medio indicado')} · comanda ${esc(SmashComandas.codigo(o))}</small></div><b>${fmt(SC.montoACobrar(o, false))}</b>
+        <small class="hint">${esc(SmashExt.pagoTexto(o) || 'sin medio indicado')} · comanda ${esc(SmashComandas.codigo(o))}</small></div><b>${fmt(SC.montoACobrar(o, false))}</b>
         <button type="button" class="btn-primary" data-act="pay" data-id="${esc(o.id)}">💰 Cobrar</button></div>`).join('')}</div>` : '<p class="hint">No hay pedidos pendientes de pago.</p>'}
 
       <h3 class="section-title">Registrar movimiento de caja</h3>

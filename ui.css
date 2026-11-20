@@ -122,6 +122,11 @@
 .ed-gift{background:linear-gradient(90deg,rgba(30,142,62,.10),transparent 70%)}
 .ed-gift-t{display:block;color:#1e8e3e;font-size:.85rem}
 .ed-combo{margin-left:6px;font-size:.75rem;padding:3px 8px}
+/* Medio de pago en Editar pedido y en Cambiar medio de pago */
+.ed-pago{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.ed-pago .btn-sm{flex:1 1 110px;min-height:40px;font-weight:700}
+.ed-pago .btn-sm.on{background:var(--red);color:#fff;border-color:var(--red)}
+.ed-mixto{align-self:end;margin:0 0 8px}
 .ed-chips{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0 0}
 .ed-chips>span{font-size:.8rem;color:var(--muted)}
 .ed-chips small{color:var(--muted)}

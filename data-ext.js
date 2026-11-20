@@ -111,10 +111,16 @@ const SmashExt = (function () {
     const tieneInv = (o) => movs.some((m) => m.pedidoKey === llave(o) && m.tipo === 'venta');
     const peso = (o) => (RANGO[o.status] || 0) * 10 + (tienePago(o) ? 5 : 0) + (tieneInv(o) ? 3 : 0) + (o.impresa ? 1 : 0);
     const quitar = new Set();
+    // Si la copia que se borra es la que se corrigió con "Editar", la corrección pasa a la que se queda
+    const CAMPOS_EDIT = ['items', 'subtotal', 'total', 'descuento', 'descuentos', 'canjes', 'refsCanje', 'notas', 'cliente', 'telefono', 'direccion', 'domicilio', 'domicilioPendiente', 'pago', 'pagoMixto', 'cuenta', 'editadoEn'];
     grupos.forEach((g) => {
       g.sort((a, b) => peso(b) - peso(a) || new Date(a.creado) - new Date(b.creado) || a.id - b.id);
+      const queda = g[0];
       g.slice(1).forEach((o) => {
-        if ((o.status === 'nuevo' || o.status === 'confirmado') && !tienePago(o) && !tieneInv(o)) quitar.add(o);
+        if ((o.status === 'nuevo' || o.status === 'confirmado') && !tienePago(o) && !tieneInv(o)) {
+          quitar.add(o);
+          if ((o.editadoEn || '') > (queda.editadoEn || '')) CAMPOS_EDIT.forEach((k) => { if (o[k] === undefined) delete queda[k]; else queda[k] = o[k]; });
+        }
       });
     });
     if (!quitar.size) return 0;
@@ -381,6 +387,7 @@ const SmashExt = (function () {
     if (d.cuenta && d.cuenta.correo) order.cuenta = { usuario: String(d.cuenta.usuario || '').slice(0, 30), correo: String(d.cuenta.correo).toLowerCase().slice(0, 120) };
     if (Array.isArray(d.canjes) && d.canjes.length) order.canjes = d.canjes.slice(0, 10).map((x) => ({ promo: x.promo || 0, titulo: String(x.titulo || "").slice(0, 80), puntos: Math.max(0, Math.round(Number(x.puntos) || 0)), valor: Math.max(0, Math.round(Number(x.valor) || 0)) }));
     if (d.canjeRechazado) order.canjeRechazado = String(d.canjeRechazado).slice(0, 160);
+    if (order.pago === 'Mixto' && d.pagoMixto) order.pagoMixto = { transferencia: Math.min(order.total, Math.max(0, Math.round(Number(d.pagoMixto.transferencia) || 0))) };
     {
       let dia = diaServicio(order);
       // una reserva hecha un día cerrado (descanso, mantenimiento) es del próximo día que abre
@@ -629,9 +636,36 @@ const SmashExt = (function () {
     Object.assign(o, patch);
     if (patch.items) o.subtotal = o.items.reduce((s, it) => s + it.price * it.qty, 0);
     if (patch.domicilio != null) { o.domicilio = Number(patch.domicilio) || 0; o.domicilioPendiente = false; }
-    if (patch.items || patch.domicilio != null) o.total = o.subtotal - (Number(o.descuento) || 0) + (Number(o.domicilio) || 0);
+    if (patch.items || patch.domicilio != null || patch.descuento != null) o.total = o.subtotal - (Number(o.descuento) || 0) + (Number(o.domicilio) || 0);
+    if (patch.pagoMixto === null || (patch.pago && patch.pago !== 'Mixto')) delete o.pagoMixto;
     wr(K.ORDERS, orders);
     return o;
+  }
+
+  /* ---- Medio de pago (Efectivo, Transferencia o Mixto) ----
+     Mixto: o.pago = 'Mixto' y o.pagoMixto = { transferencia }. El efectivo es siempre lo que falta
+     del total (se calcula, así si el pedido se corrige no queda un valor viejo). */
+  function pagoMixtoDe(o) {
+    if (!o || o.pago !== 'Mixto' || !o.pagoMixto) return null;
+    const total = Math.max(0, Math.round(Number(o.total) || 0));
+    const transferencia = Math.min(total, Math.max(0, Math.round(Number(o.pagoMixto.transferencia) || 0)));
+    return { transferencia, efectivo: total - transferencia };
+  }
+  // Texto para comanda, WhatsApp y domiciliario
+  function pagoTexto(o) {
+    const m = pagoMixtoDe(o);
+    if (m) return 'Mixto: Transferencia ' + fmtCOP(m.transferencia) + ' + Efectivo ' + fmtCOP(m.efectivo);
+    return (o && o.pago) || '';
+  }
+  const fmtCOP = (n) => '$' + Math.round(n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  // Medio de pago del pedido según lo que se registró en caja
+  function pagoDesdeLineas(lineas, total) {
+    const s = (m) => (lineas || []).filter((l) => l.metodo === m).reduce((a, l) => a + (Number(l.monto) || 0), 0);
+    const tr = s('transferencia'), ef = s('efectivo'), ot = s('otro');
+    if (tr && (ef || ot)) return { pago: 'Mixto', pagoMixto: { transferencia: Math.min(Math.round(Number(total) || 0), tr) } };
+    if (tr) return { pago: 'Transferencia', pagoMixto: null };
+    if (ot && !ef) return { pago: 'Otro medio', pagoMixto: null };
+    return { pago: 'Efectivo', pagoMixto: null };
   }
   const REP = 'smash_repartidores';
   const getRepartidores = () => rd(REP, []);
@@ -861,7 +895,7 @@ const SmashExt = (function () {
   }
 
   return {
-    getZones, setZoneFees, getZonasCfg, saveZonasCfg, addOrder, regalosSinPrecio, verRegalos, itemsConRegalos, localDay, pedidosRepetidos, diaServicio, inicioPedido, nextDayNumber, arreglarNumerosHoy, getCupoRaw, setCupo, cupoHoy, CUPO_POR_BURGER,buildMenu, loadMenu,
+    getZones, setZoneFees, getZonasCfg, saveZonasCfg, addOrder, pagoMixtoDe, pagoTexto, pagoDesdeLineas, regalosSinPrecio, verRegalos, itemsConRegalos, localDay, pedidosRepetidos, diaServicio, inicioPedido, nextDayNumber, arreglarNumerosHoy, getCupoRaw, setCupo, cupoHoy, CUPO_POR_BURGER,buildMenu, loadMenu,
     setStatus, updateOrder, getRepartidores, rememberRepartidor, soundOn, setSound, unlockAudio, audioReady, chime,
     refreshLedger, getLedger, deleteOrder, getDeletedOrders, DIAS, getPersonal, addPersonal, deletePersonal, antiguedad,
     hashPassword, loginOwner, currentOwner, logoutOwner, changeOwnerPassword, OWNER_DEF,

@@ -158,6 +158,10 @@ const SmashAudit = (function () {
     wrap(SmashCaja, 'abrirTurno', null, (t) => log('Apertura de caja', t.cajero, null, { base: t.base }));
     wrap(SmashCaja, 'cerrarTurno', null, (t) => log('Cierre de caja', t.cajero, null, { esperado: t.cierre.esperado, contado: t.cierre.contado, diferencia: t.cierre.diferencia }));
     wrap(SmashCaja, 'registrarPago', null, (p) => log('Pago registrado', 'Pedido #' + p.num + ' (' + p.comanda + ')', null, { total: p.total, medios: p.lineas.map((l) => SmashCaja.METODOS[l.metodo] + ' ' + l.monto + (l.cuenta ? ' → ' + l.cuenta : '')).join(' + ') }));
+    const mediosTxt = (p) => p.lineas.map((l) => SmashCaja.METODOS[l.metodo] + ' ' + l.monto + (l.cuenta ? ' → ' + l.cuenta : '')).join(' + ');
+    wrap(SmashCaja, 'corregirPago', (id) => ({ p: clon(SmashCaja.getPagos().find((x) => x.id === id)) }), (p, ctx) => {
+      if (ctx.p) log('Medio de pago cambiado', 'Pedido #' + p.num + ' (' + p.comanda + ')', { medios: mediosTxt(ctx.p) }, { medios: mediosTxt(p) });
+    });
     wrap(SmashCaja, 'anularPago', (id) => ({ p: clon(SmashCaja.getPagos().find((x) => x.id === id)) }), (r, ctx, args) => {
       if (ctx.p) log('Pago anulado', 'Pedido #' + ctx.p.num, { total: ctx.p.total }, { motivo: args[1] });
     });

@@ -130,6 +130,9 @@ const SmashDomi = (function () {
   const items = (o) => (o.items || []).map((it) => `${it.qty || 1}× ${it.name || it.nombre || ''}${it.nota ? ' (' + it.nota + ')' : ''}`).join('\n');
   function cobrar(o) {
     if (typeof SmashCaja === 'undefined') return 0;
+    // Pago mixto: el domiciliario cobra solo la parte en efectivo
+    const mx = SmashExt.pagoMixtoDe ? SmashExt.pagoMixtoDe(o) : null;
+    if (mx) { try { return SmashCaja.estadoPago(o).k === 'pendiente' ? mx.efectivo : 0; } catch (e) { return 0; } }
     // Pagos por transferencia: el domiciliario no cobra en la puerta
     if (/transfer|nequi|daviplata|bancolombia|llave|qr/i.test(String(o.pago || ''))) return 0;
     try { return SmashCaja.estadoPago(o).k === 'pendiente' ? SmashCaja.montoACobrar(o, true) : 0; } catch (e) { return 0; }
@@ -139,7 +142,7 @@ const SmashDomi = (function () {
       pedido: String(o.id), numero: Number(o.numeroDia || o.id) || null, domiciliario: o.repartidorId,
       cliente: o.cliente || '', telefono: o.telefono || '', direccion: o.direccion || '', zona: o.zona || '',
       notas: [o.horaEntrega ? 'Entregar: ' + o.horaEntrega : '', o.notas || ''].filter(Boolean).join(' · '),
-      items: items(o), pago: o.pago || '', total: Math.round(o.total || 0), domicilio: Math.round(o.domicilio || 0), cobrar: cobrar(o),
+      items: items(o), pago: (SmashExt.pagoTexto ? SmashExt.pagoTexto(o) : o.pago) || '', total: Math.round(o.total || 0), domicilio: Math.round(o.domicilio || 0), cobrar: cobrar(o),
       estado: estadoDe(o), asignado_en: o.asignadoEn || o.salioEn || o.creado, salio_en: o.salioEn || null, entregado_en: o.entregadoEn || null,
       ruta: o.rutaId || '', ruta_en: o.rutaEn || null, pago_domi: pagoDomi(o), dia: diaDe(o),
     };

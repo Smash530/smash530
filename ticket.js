@@ -15,7 +15,9 @@ const SmashTicket = (function () {
   const ahora = () => new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(/[\u00a0\u202f\u2009]/g, ' ');
 
   // Pedido pagado por transferencia -> lleva una "P" grande a la izquierda del logo
-  const esTransfer = (o) => /transfer/i.test(String((o && o.pago) || ''));
+  // Pago mixto (parte transferencia, parte efectivo): sin "P", porque hay efectivo por cobrar
+  const mixto = (o) => (typeof SmashExt !== 'undefined' && SmashExt.pagoMixtoDe ? SmashExt.pagoMixtoDe(o) : null);
+  const esTransfer = (o) => !mixto(o) && /transfer/i.test(String((o && o.pago) || ''));
   // Nombres de TODAS las promociones del pedido (descuentos, canjes con puntos, regalos y
   // paquetes), sin repetir: salen en un recuadro "PROMO DEL DÍA" antes de los productos
   function promos(o) {
@@ -128,7 +130,8 @@ const SmashTicket = (function () {
       ${o.descuento ? `<div class="tk-r"><span>Descuento</span><span>-${fmt(o.descuento)}</span></div>` : ''}
       <div class="tk-r"><span>Domicilio</span><span>${o.domicilioPendiente ? 'POR CONFIRMAR' : fmt(o.domicilio)}</span></div>
       <div class="tk-r tk-tot"><span>TOTAL</span><span>${fmt(o.total)}</span></div>
-      ${o.pago ? `<div>Pago: <b>${esc(o.pago)}</b></div>` : ''}
+      ${mixto(o) ? `<div>Pago: <b>MIXTO</b></div><div class="tk-r"><span>Transferencia</span><span>${fmt(mixto(o).transferencia)}</span></div><div class="tk-r" style="font-weight:900"><span>Efectivo a cobrar</span><span>${fmt(mixto(o).efectivo)}</span></div>`
+        : o.pago ? `<div>Pago: <b>${esc(o.pago)}</b></div>` : ''}
       <div class="tk-sp"></div><hr><div class="tk-sp"></div>
       <div class="tk-c">${esc(GRACIAS)}</div>
       <div class="tk-sp"></div>
@@ -234,7 +237,12 @@ const SmashTicket = (function () {
     row('Domicilio', o.domicilioPendiente ? 'POR CONFIRMAR' : fmt(o.domicilio), 10, false);
     gap(2);
     row('TOTAL', fmt(o.total), 14, true);
-    if (o.pago) { gap(2); text('Pago: ' + o.pago, 10, false); }
+    if (o.pago) {
+      gap(2);
+      const mx = mixto(o);
+      if (mx) { text('Pago: MIXTO', 10, true); row('Transferencia', fmt(mx.transferencia), 10, false); row('Efectivo a cobrar', fmt(mx.efectivo), 11, true); }
+      else text('Pago: ' + o.pago, 10, false);
+    }
     gap(6); rule(); gap(4);
     text(GRACIAS, 10, true, 'c');
     gap(8);

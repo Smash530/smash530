@@ -46,7 +46,8 @@ const SmashCrear = (function () {
           <div class="cr-form">
             <label class="wide">Cliente<input id="crCliente" maxlength="80" autocomplete="off" placeholder="Nombre del cliente"></label>
             <label>Teléfono<input id="crTel" maxlength="20" inputmode="tel" autocomplete="off" placeholder="300 000 0000"></label>
-            <label>Medio de pago<select id="crPago"><option>Efectivo</option><option>Transferencia</option></select></label>
+            <label>Medio de pago<select id="crPago"><option>Efectivo</option><option>Transferencia</option><option value="Mixto">Mixto (transferencia + efectivo)</option></select></label>
+            <label class="wide" id="crPagoTrWrap" hidden>Paga por transferencia (el resto en efectivo)<input id="crPagoTr" type="number" min="0" step="1000" inputmode="numeric" placeholder="Ej: 20000"><small class="hint" id="crPagoTrTxt"></small></label>
             <label class="wide">Dirección<input id="crDir" maxlength="200" autocomplete="off" placeholder="Calle, número, barrio"></label>
             <label class="wide">Zona<select id="crZona"></select></label>
             <label class="wide" id="crDomWrap" hidden>Valor domicilio agencia<input id="crDom" type="number" min="0" step="500"></label>
@@ -314,6 +315,18 @@ const SmashCrear = (function () {
   }
   $('crProducts').addEventListener('input', (e) => { if (e.target.classList.contains('cr-note')) { cr.nota[e.target.dataset.id] = e.target.value; crTotal(); } });
   ['crZona', 'crDom'].forEach((i) => $(i).addEventListener('input', crTotal));
+  // Pago mixto: muestra cuánto queda en efectivo
+  function crMixto() {
+    const on = $('crPago').value === 'Mixto';
+    $('crPagoTrWrap').hidden = !on;
+    if (!on) return;
+    const R = crPromos(crItems()), zk = $('crZona').value, z = SmashExt.getZones()[zk];
+    const dom = !z ? 0 : z.variable ? (parseFloat($('crDom').value) || 0) : z.fee;
+    const tot = R.items.reduce((s, it) => s + it.price * it.qty, 0) - (R.descuento || 0) + dom, tr = Math.round(parseFloat($('crPagoTr').value) || 0);
+    $('crPagoTrTxt').textContent = tr > 0 ? (tr < tot ? 'Efectivo a cobrar: ' + fmt(tot - tr) : 'La transferencia debe ser menor que el total (' + fmt(tot) + ').') : '';
+  }
+  ['crPago', 'crPagoTr', 'crZona', 'crDom'].forEach((i) => $(i).addEventListener('input', crMixto));
+  $('crPago').addEventListener('change', crMixto);
   $('crBtn').addEventListener('click', async () => {
     const msg = $('crMsg'), btn = $('crBtn'); msg.className = 'error'; msg.textContent = '';
     if (btn.disabled) return;
@@ -324,6 +337,12 @@ const SmashCrear = (function () {
     if (!z) { msg.textContent = 'Elige la zona.'; return; }
     let dom = z.fee;
     if (z.variable) { const v = $('crDom').value; if (v === '' || !(parseFloat(v) >= 0)) { msg.textContent = 'Escribe el valor del domicilio de la agencia.'; $('crDom').focus(); return; } dom = parseFloat(v); }
+    let pagoMixto = null;
+    if ($('crPago').value === 'Mixto') {
+      const tot = items.reduce((s, it) => s + it.price * it.qty, 0) - (R.descuento || 0) + dom, tr = Math.round(parseFloat($('crPagoTr').value) || 0);
+      if (!(tr > 0) || tr >= tot) { msg.textContent = 'Pago mixto: escribe cuánto paga por transferencia (más de $0 y menos que el total ' + fmt(tot) + ').'; $('crPagoTr').focus(); return; }
+      pagoMixto = { transferencia: tr };
+    }
     // Promos con puntos: primero la nube descuenta los puntos; si no se puede, no se crea el pedido
     const canjes = cr.cuenta ? R.canjes : [];
     let refCanje = '';
@@ -338,7 +357,7 @@ const SmashCrear = (function () {
       if (r.total != null) cr.cuenta.puntos = r.total;
     }
     const res = SmashExt.addOrder({ cliente, telefono: $('crTel').value.trim(), direccion: $('crDir').value.trim(), items, notas: $('crNotas').value.trim(),
-      zona: z.nombre, domicilio: dom, domicilioPendiente: false, pago: $('crPago').value, origen: 'cocina',
+      zona: z.nombre, domicilio: dom, domicilioPendiente: false, pago: $('crPago').value, pagoMixto, origen: 'cocina',
       descuento: R.descuento, descuentos: R.usadas, cuenta: cr.cuenta ? { usuario: cr.cuenta.usuario || '', correo: cr.cuenta.correo } : null, canjes });
     if (!res.ok) {
       // ya se habían descontado: se devuelven
@@ -347,7 +366,7 @@ const SmashCrear = (function () {
     }
     if (refCanje) SmashExt.updateOrder(res.order.id, { refCanje });
     cr.qty = {}; cr.nota = {}; cr.combo = {}; cr.sab = {}; cr.paq = {}; cr.cuenta = null; usarPts = {}; pintarClub();
-    ['crCliente', 'crTel', 'crDir', 'crNotas', 'crDom', 'crClubQ'].forEach((i) => ($(i).value = ''));
+    ['crCliente', 'crTel', 'crDir', 'crNotas', 'crDom', 'crClubQ', 'crPagoTr'].forEach((i) => ($(i).value = '')); $('crPago').value = 'Efectivo'; $('crPagoTrWrap').hidden = true;
     msg.className = 'ok-msg';
     msg.innerHTML = '✓ Pedido #' + esc(num(res.order)) + ' creado. Ya está en Pedidos. <button type="button" class="cr-ver" data-ver="' + esc(res.order.id) + '">Ver pedido</button>';
     render();
