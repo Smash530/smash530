@@ -2,8 +2,9 @@
    SMASH · domicilios-panel.js  (cocina y dueños)
    Domiciliarios con cuenta, rutas, tiempos y contaduría.
    - Los domicilios salen en RUTA: se eligen los pedidos de un
-     domiciliario y se despachan juntos. Durante 6 minutos se pueden
-     agregar o quitar destinos; después la ruta queda fija.
+     domiciliario y se despachan juntos. Se pueden agregar o quitar
+     destinos en cualquier momento mientras la ruta tenga pedidos sin
+     entregar (antes eran solo 6 minutos; en cocina se olvidaban asignar).
    - Cada pedido de la ruta se publica en la nube (tabla entregas) y le
      aparece al domiciliario en su celular (domiciliario.html).
    - Lo que marca el domiciliario (salí / entregado) vuelve a los
@@ -21,7 +22,6 @@ const SmashDomi = (function () {
   const LS_LISTA = 'domi_lista', LS_PUB = 'domi_publicado', LS_DESDE = 'domi_desde';
   const K_PAGO = 'smash_pago_domi';          // { claveZona: pago al domiciliario } (se sincroniza)
   const PAGO_DEF = { sur: 6000 };
-  const EDITABLE = 6 * 60000;                // minutos para modificar una ruta
   const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sin espacio */ } };
   const rd = (k, d) => { try { const v = SmashLS.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
@@ -85,8 +85,7 @@ const SmashDomi = (function () {
     const r = vivas[0];
     if (!r) return null;
     r.pedidos = r.pedidos.filter((o) => o.status !== 'cancelado').sort((a, b) => (Number(a.numeroDia) || 0) - (Number(b.numeroDia) || 0));
-    r.restante = EDITABLE - (Date.now() - new Date(r.en).getTime());
-    r.editable = r.restante > 0;
+    r.editable = true;                      // sin límite de tiempo: se edita mientras siga en curso
     r.salio = r.pedidos.map((o) => o.salioEn).filter(Boolean).sort()[0] || null;
     r.hechos = r.pedidos.filter((o) => o.status === 'entregado').length;
     return r;
@@ -97,14 +96,13 @@ const SmashDomi = (function () {
     return SmashDB.getOrders().filter((o) => !o.repartidor && orden[o.status] != null && new Date(o.creado || 0).getTime() > lim)
       .sort((a, b) => orden[a.status] - orden[b.status] || (Number(a.numeroDia) || 0) - (Number(b.numeroDia) || 0));
   }
-  // Asigna pedidos a un domiciliario con cuenta: entran a su ruta abierta (si aún es editable) o arman una nueva
+  // Asigna pedidos a un domiciliario con cuenta: entran a su ruta en curso o arman una nueva
   function asignar(ids, domiId) {
     const d = domiDe(domiId);
     if (!d) return { ok: false, error: 'Ese domiciliario no tiene cuenta activa.' };
     const r = rutaActiva(domiId);
-    if (r && !r.editable && r.pedidos.some((o) => !ids.includes(o.id))) return { ok: false, error: `${d.nombre} tiene una ruta en curso que ya no se puede modificar (pasaron 6 minutos). Espera a que la termine.` };
-    const rutaId = r && r.editable && r.id ? r.id : 'R' + Date.now().toString(36).toUpperCase();
-    const rutaEn = r && r.editable && r.id ? r.en : new Date().toISOString();
+    const rutaId = r && r.id ? r.id : 'R' + Date.now().toString(36).toUpperCase();
+    const rutaEn = r && r.id ? r.en : new Date().toISOString();
     const ahora = new Date().toISOString();
     ids.forEach((id) => {
       const o = SmashDB.getOrderById(id);
@@ -117,12 +115,10 @@ const SmashDomi = (function () {
     publicarPronto(); pintar();
     return { ok: true, rutaId };
   }
-  // Quita un destino de la ruta (solo en los primeros 6 minutos)
+  // Quita un destino de la ruta (en cualquier momento, si aún no se entregó)
   function quitar(id) {
     const o = SmashDB.getOrderById(id);
     if (!o || o.status === 'entregado') return { ok: false, error: 'Ese pedido ya fue entregado.' };
-    const r = o.repartidorId && rutaActiva(o.repartidorId);
-    if (r && !r.editable) return { ok: false, error: 'La ruta ya no se puede modificar (pasaron 6 minutos).' };
     const patch = { repartidor: '', repartidorId: null, rutaId: null, rutaEn: null, asignadoEn: null };
     if (o.status === 'en_camino') Object.assign(patch, { status: 'listo', salioEn: null });
     SmashExt.updateOrder(id, patch);
@@ -348,7 +344,7 @@ const SmashDomi = (function () {
     let h = '<div class="dl-b">';
     if (r) {
       h += `<div class="dl-ruta-h"><span>Ruta · asignada ${hora(r.en)}${r.salio ? ' · salió ' + hora(r.salio) : ''}</span>
-        ${r.editable ? `<span class="dl-edit" data-hasta="${new Date(new Date(r.en).getTime() + EDITABLE).toISOString()}">✏️ Editable <b>${mmss(r.restante)}</b></span>` : '<span class="dl-lock">🔒 Ruta fija</span>'}</div>
+        <span class="dl-edit">✏️ Editable</span></div>
         <ol class="dl-peds">${r.pedidos.map((o) => {
           const st = o.status === 'entregado' ? 'ok' : o.status === 'en_camino' ? 'cam' : 'pend';
           return `<li class="${st}"><i></i><div><b>#${num(o)} ${esc(o.cliente || '')}</b><small>${esc(o.direccion || '')}${o.zona ? ' · ' + esc(o.zona) : ''}</small></div>
@@ -371,7 +367,7 @@ const SmashDomi = (function () {
     return h + '</div>';
   }
 
-  // Cuenta regresiva de los 6 minutos sin volver a dibujar todo
+  // (Antes: cuenta regresiva de los 6 minutos. Ya no hay límite; queda inofensiva sin [data-hasta].)
   function tic() {
     document.querySelectorAll('.dl-edit[data-hasta]').forEach((s) => {
       const r = new Date(s.dataset.hasta).getTime() - Date.now();
